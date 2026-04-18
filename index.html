@@ -1263,6 +1263,11 @@ const State = (() => {
     },
     fresh_start_triggers:[],
     revisiones_semanales:[],
+    finanzas: {
+      meta_ahorro_pct: 20,
+      gastos_fijos: [],
+      mensual: [],
+    },
   });
 
   function migrate(data) {
@@ -1297,6 +1302,10 @@ const State = (() => {
     if (!data.settings.fase) data.settings.fase = 0;
     if (data.onboarding_done === undefined) data.onboarding_done = false;
     if (!data.revisiones_semanales) data.revisiones_semanales = [];
+    if (!data.finanzas) data.finanzas = defaults().finanzas;
+    if (!data.finanzas.gastos_fijos) data.finanzas.gastos_fijos = [];
+    if (!data.finanzas.mensual) data.finanzas.mensual = [];
+    if (data.finanzas.meta_ahorro_pct === undefined) data.finanzas.meta_ahorro_pct = 20;
     data.__v = V;
     return data;
   }
@@ -3790,6 +3799,7 @@ function renderYo() {
         <div class="section-title">Accesos</div>
         <div class="stack stack-sm">
           ${[
+            ['finanzas','Finanzas personales','💰'],
             ['protocolos','Protocolos de bienestar','🧠'],
             ['partner','Tu persona de apoyo','🤝'],
             ['experimentos','Experimentos','🔬'],
@@ -4439,6 +4449,255 @@ const InsightsEngine = (() => {
   return { generate };
 })();
 
+/* ═══════════════════════════════════════════════════════════
+   VISTA: FINANZAS
+═══════════════════════════════════════════════════════════ */
+function renderFinanzas() {
+  const s = State.get();
+  const mes = monthStr();
+  const mesNombre = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+  const f = s.finanzas;
+  const mesDat = f.mensual.find(m => m.mes === mes) || { mes, ingreso_clp: 0, gastos_variables_clp: 0, notas: '' };
+  const totalFijos = f.gastos_fijos.reduce((sum, g) => sum + (g.monto_clp || 0), 0);
+  const ahorro = mesDat.ingreso_clp - totalFijos - mesDat.gastos_variables_clp;
+  const tasaAhorro = mesDat.ingreso_clp > 0 ? Math.round(ahorro / mesDat.ingreso_clp * 100) : 0;
+  const metaPct = f.meta_ahorro_pct || 20;
+  const metaMonto = mesDat.ingreso_clp > 0 ? Math.round(mesDat.ingreso_clp * metaPct / 100) : 0;
+  const cumpleMeta = mesDat.ingreso_clp > 0 && tasaAhorro >= metaPct;
+
+  const fmt = n => n >= 0
+    ? `$${Math.abs(n).toLocaleString('es-CL')}`
+    : `-$${Math.abs(n).toLocaleString('es-CL')}`;
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="page">
+      <div class="page-header" style="position:static;padding:8px 0 16px">
+        <button class="btn btn-icon btn-ghost" onclick="Router.navigate('yo')" aria-label="Volver">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h2>Finanzas</h2>
+      </div>
+
+      <!-- Resumen del mes -->
+      <div class="section">
+        <div class="section-title">${mesNombre}</div>
+        <div class="card card-primary mb-md" style="padding:20px">
+          <div class="row-between mb-md">
+            <div>
+              <div class="text-xs text-lo font-semibold uppercase mb-sm">Ahorrado este mes</div>
+              <div class="num" style="font-size:var(--fs-2xl);font-weight:800;color:${ahorro >= 0 ? 'var(--success)' : 'var(--danger)'}">${fmt(ahorro)}</div>
+            </div>
+            <div class="text-right">
+              <div style="font-size:32px;font-weight:800;color:${cumpleMeta?'var(--success)':'var(--warn)'}">${tasaAhorro}%</div>
+              <div class="text-xs text-lo">meta: ${metaPct}%</div>
+              ${mesDat.ingreso_clp > 0 ? `<div class="chip ${cumpleMeta?'chip-identity':'chip-warn'} mt-sm">${cumpleMeta ? '✅ Meta cumplida' : '⚠️ Bajo la meta'}</div>` : ''}
+            </div>
+          </div>
+          ${mesDat.ingreso_clp > 0 ? `
+          <div class="progress-bar" style="height:10px;background:var(--bg-3)">
+            <div style="height:10px;background:${cumpleMeta?'var(--success)':'var(--warn)'};width:${Math.min(tasaAhorro,100)}%;border-radius:var(--r-full);transition:width 1s var(--ease-standard)"></div>
+          </div>
+          <div class="text-xs text-lo mt-sm">Meta de ahorro: ${fmt(metaMonto)} CLP</div>` : '<div class="text-xs text-lo">Ingresa tu ingreso del mes para ver el análisis</div>'}
+        </div>
+
+        <!-- Desglose -->
+        <div class="card mb-md" style="padding:0">
+          ${[
+            ['Ingreso total', mesDat.ingreso_clp, 'var(--success)', '↑'],
+            ['Gastos fijos', -totalFijos, 'var(--text-md)', '−'],
+            ['Gastos variables', -mesDat.gastos_variables_clp, 'var(--text-md)', '−'],
+          ].map(([label, val, color, icon]) => `
+            <div class="row-between" style="padding:12px 16px;border-bottom:1px solid var(--border)">
+              <span class="text-sm">${icon} ${label}</span>
+              <span class="text-sm font-semibold" style="color:${color}">${val !== 0 ? fmt(Math.abs(val)) : '—'}</span>
+            </div>`).join('')}
+          <div class="row-between" style="padding:12px 16px;background:var(--bg-2)">
+            <span class="text-sm font-semibold">= Ahorro real</span>
+            <span class="font-semibold" style="color:${ahorro>=0?'var(--success)':'var(--danger)'}">${mesDat.ingreso_clp > 0 ? fmt(ahorro) : '—'}</span>
+          </div>
+        </div>
+
+        <!-- Editar mes -->
+        <button class="btn btn-primary btn-block" onclick="editarMesFinanzas()">
+          ${mesDat.ingreso_clp > 0 ? 'Actualizar mes' : '+ Ingresar datos del mes'}
+        </button>
+      </div>
+
+      <!-- Gastos fijos -->
+      <div class="section">
+        <div class="section-title">Gastos fijos mensuales <span class="text-lo font-normal">(se configura una vez)</span></div>
+        <div class="card" style="padding:0">
+          ${f.gastos_fijos.length === 0
+            ? `<div class="empty-state" style="padding:20px"><div class="empty-sub">Arriendo, servicios, suscripciones, seguros...</div></div>`
+            : f.gastos_fijos.map((g, i) => `
+              <div class="row-between" style="padding:11px 14px;border-bottom:1px solid var(--border)">
+                <span class="text-sm">${esc(g.nombre)}</span>
+                <div class="row row-gap-sm">
+                  <span class="text-sm font-semibold">${fmt(g.monto_clp)}</span>
+                  <button class="btn btn-icon btn-ghost btn-sm" onclick="eliminarGastoFijo(${i})" style="color:var(--text-lo)">✕</button>
+                </div>
+              </div>`).join('')}
+          <div class="row-between" style="padding:11px 14px;background:var(--bg-2)">
+            <span class="text-xs text-lo font-semibold uppercase">Total fijos</span>
+            <span class="font-semibold">${fmt(totalFijos)}</span>
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-block mt-md" onclick="agregarGastoFijo()">+ Agregar gasto fijo</button>
+      </div>
+
+      <!-- Historial -->
+      ${f.mensual.filter(m => m.ingreso_clp > 0).length > 1 ? `
+      <div class="section">
+        <div class="section-title">Historial</div>
+        <div class="stack stack-sm">
+          ${f.mensual.filter(m => m.ingreso_clp > 0).slice(0, 6).map(m => {
+            const fij = f.gastos_fijos.reduce((sum,g) => sum + g.monto_clp, 0);
+            const ah = m.ingreso_clp - fij - m.gastos_variables_clp;
+            const tasa = Math.round(ah / m.ingreso_clp * 100);
+            const ok = tasa >= metaPct;
+            const mn = new Date(m.mes+'-01').toLocaleDateString('es-CL',{month:'short',year:'numeric'});
+            return `<div class="card" style="padding:10px 14px">
+              <div class="row-between">
+                <span class="text-sm font-semibold">${mn}</span>
+                <div class="row row-gap-sm">
+                  <span class="chip ${ok?'chip-identity':'chip-warn'}">${tasa}% ahorrado</span>
+                  <span class="text-sm text-lo">${fmt(ah)}</span>
+                </div>
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Meta de ahorro -->
+      <div class="section">
+        <div class="section-title">Configuración</div>
+        <div class="card">
+          <div class="row-between">
+            <div>
+              <div class="text-sm font-semibold">Meta de ahorro mensual</div>
+              <div class="text-xs text-lo mt-sm">Porcentaje del ingreso que quieres ahorrar</div>
+            </div>
+            <button class="btn btn-sm btn-ghost" onclick="editarMetaAhorro()">${metaPct}% →</button>
+          </div>
+        </div>
+      </div>
+
+    </div>`;
+
+  window.editarMesFinanzas = () => {
+    const s = State.get();
+    const mes = monthStr();
+    const mesDat = s.finanzas.mensual.find(m => m.mes === mes) || {};
+    UI.modal({
+      title: `Datos de ${new Date().toLocaleDateString('es-CL',{month:'long',year:'numeric'})}`,
+      body: `
+        <div class="stack stack-md">
+          <div class="field">
+            <label>Ingreso total del mes (CLP)</label>
+            <div class="input-group">
+              <span class="input-prefix" style="font-size:11px">$</span>
+              <input id="fin-ingreso" class="input input-prefixed num" type="number" placeholder="ej. 1200000" value="${mesDat.ingreso_clp || ''}">
+            </div>
+            <div class="hint">Todo lo que entró: sueldo, Sinergy, ML, cualquier fuente</div>
+          </div>
+          <div class="field">
+            <label>Gastos variables del mes (CLP)</label>
+            <div class="input-group">
+              <span class="input-prefix" style="font-size:11px">$</span>
+              <input id="fin-variables" class="input input-prefixed num" type="number" placeholder="ej. 400000" value="${mesDat.gastos_variables_clp || ''}">
+            </div>
+            <div class="hint">Comida, transporte, salidas, imprevistos — lo que no es fijo</div>
+          </div>
+          <div class="field">
+            <label>Nota del mes (opcional)</label>
+            <input id="fin-notas" class="input" placeholder="ej. Mes con gasto extra en equipamiento" value="${esc(mesDat.notas || '')}">
+          </div>
+        </div>`,
+      actions: [
+        { label: 'Guardar', action: () => {
+          const ingreso = parseInt(document.getElementById('fin-ingreso')?.value) || 0;
+          const variables = parseInt(document.getElementById('fin-variables')?.value) || 0;
+          const notas = document.getElementById('fin-notas')?.value.trim() || '';
+          if (!ingreso) { UI.toast('Ingresa al menos el ingreso del mes.', 'warn'); return false; }
+          const isNew = !State.get().finanzas.mensual.find(m => m.mes === mes);
+          State.update(s => {
+            const idx = s.finanzas.mensual.findIndex(m => m.mes === mes);
+            const entry = { mes, ingreso_clp: ingreso, gastos_variables_clp: variables, notas };
+            if (idx >= 0) s.finanzas.mensual[idx] = entry;
+            else s.finanzas.mensual.unshift(entry);
+          });
+          if (isNew) XP.add(20, 'Finanzas del mes registradas');
+          UI.toast('Guardado.', 'success');
+          renderFinanzas();
+        }},
+        { label: 'Cancelar', action: () => {} },
+      ],
+    });
+  };
+
+  window.agregarGastoFijo = () => {
+    UI.modal({
+      title: 'Agregar gasto fijo',
+      body: `
+        <div class="stack stack-md">
+          <div class="field">
+            <label>Nombre</label>
+            <input id="gf-nombre" class="input" placeholder="ej. Arriendo, Netflix, Seguro...">
+          </div>
+          <div class="field">
+            <label>Monto mensual (CLP)</label>
+            <div class="input-group">
+              <span class="input-prefix" style="font-size:11px">$</span>
+              <input id="gf-monto" class="input input-prefixed num" type="number" placeholder="ej. 350000">
+            </div>
+          </div>
+        </div>`,
+      actions: [
+        { label: 'Agregar', action: () => {
+          const nombre = document.getElementById('gf-nombre')?.value.trim();
+          const monto = parseInt(document.getElementById('gf-monto')?.value) || 0;
+          if (!nombre || !monto) { UI.toast('Completa nombre y monto.', 'warn'); return false; }
+          State.update(s => { s.finanzas.gastos_fijos.push({ nombre, monto_clp: monto }); });
+          UI.toast('Gasto fijo agregado.', 'success');
+          renderFinanzas();
+        }},
+        { label: 'Cancelar', action: () => {} },
+      ],
+    });
+  };
+
+  window.eliminarGastoFijo = (i) => {
+    State.update(s => { s.finanzas.gastos_fijos.splice(i, 1); });
+    renderFinanzas();
+  };
+
+  window.editarMetaAhorro = () => {
+    const actual = State.get().finanzas.meta_ahorro_pct;
+    UI.modal({
+      title: 'Meta de ahorro mensual',
+      body: `
+        <p class="text-sm text-lo mb-md" style="line-height:var(--lh-relaxed)">
+          La regla del 20% (Thaler) es un buen punto de partida. Si recién empiezas, 10% es mejor que 0%.
+        </p>
+        <div class="field">
+          <label>Meta de ahorro (%)</label>
+          <input id="meta-pct" class="input num" type="number" min="1" max="80" value="${actual}" placeholder="20">
+        </div>`,
+      actions: [
+        { label: 'Guardar', action: () => {
+          const pct = parseInt(document.getElementById('meta-pct')?.value) || 20;
+          State.update(s => { s.finanzas.meta_ahorro_pct = Math.min(80, Math.max(1, pct)); });
+          UI.toast('Meta actualizada.', 'success');
+          renderFinanzas();
+        }},
+        { label: 'Cancelar', action: () => {} },
+      ],
+    });
+  };
+}
+
 function renderInsights() {
   InsightsEngine.generate();
   const s = State.get();
@@ -4846,6 +5105,7 @@ const App = (() => {
     Router.register('experimentos', () => { renderNav(); renderExperimentos(); });
     Router.register('insights', () => { renderNav(); renderInsights(); });
     Router.register('ajustes', () => { renderNav(); renderAjustes(); });
+    Router.register('finanzas', () => { renderNav(); renderFinanzas(); });
     Router.register('crisis', () => renderCrisis());
   }
 
