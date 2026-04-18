@@ -1272,6 +1272,11 @@ const State = (() => {
     // v1→v2: add xp, sinergy
     if (!data.xp) data.xp = defaults().xp;
     if (!data.sinergy) data.sinergy = defaults().sinergy;
+    if (!data.sinergy.mensual) data.sinergy.mensual = [];
+    if (!data.sinergy.outputs_log) data.sinergy.outputs_log = [];
+    if (!data.sinergy.metas_trimestre) data.sinergy.metas_trimestre = defaults().sinergy.metas_trimestre;
+    if (!data.sinergy.metas_trimestre.learning_goals) data.sinergy.metas_trimestre.learning_goals = [];
+    if (!data.sinergy.metas_trimestre.performance_goals) data.sinergy.metas_trimestre.performance_goals = [];
     if (!data.insights) data.insights = [];
     if (!data.experimentos) data.experimentos = [];
     if (!data.fase0_checklist) data.fase0_checklist = defaults().fase0_checklist;
@@ -2174,7 +2179,7 @@ function renderHoy() {
           <h2>${esc(saludo)}${nombre ? `, ${esc(nombre)}` : ''}.</h2>
           <p class="text-sm text-lo">Día ${diasSistema} del sistema.</p>
         </div>
-        <button class="btn btn-icon btn-ghost" onclick="renderCrisis()" aria-label="Protocolo de emergencia" title="Me siento ansioso">
+        <button class="btn btn-icon btn-ghost" onclick="Router.navigate('crisis')" aria-label="Protocolo de emergencia" title="Me siento ansioso">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         </button>
       </div>
@@ -2301,7 +2306,7 @@ function renderHoy() {
           <p class="text-sm font-semibold text-identity">${esc(s.profile.identidad || 'Soy alguien que construye.')}</p>
           ${s.profile.porque ? `<p class="text-xs text-md mt-sm">${esc(s.profile.porque.slice(0,120))}${s.profile.porque.length>120?'...':''}</p>` : ''}
         </div>
-        <button class="btn btn-ghost btn-block" onclick="renderCrisis()" style="border:1px solid var(--border);color:var(--text-lo)" aria-label="Abrir modo de apoyo emocional">
+        <button class="btn btn-ghost btn-block" onclick="Router.navigate('crisis')" style="border:1px solid var(--border);color:var(--text-lo)" aria-label="Abrir modo de apoyo emocional">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           Me siento mal o ansioso
         </button>
@@ -2950,21 +2955,24 @@ function renderSinergy() {
           <label>Detalle (opcional)</label>
           <input id="accion-detalle" class="input" placeholder="ej. Empresa ABC — quedaron en llamarme">
         </div>`,
-      actions: [{
-        label: 'Registrar',
-        action: () => {
-          const tipo = document.querySelector('.accion-radio:checked')?.value;
-          if (!tipo) { UI.toast('Elige una acción primero.', 'warn'); return false; }
-          const detalle = document.getElementById('accion-detalle')?.value.trim() || '';
-          const xp = XP_MAP[tipo] || 50;
-          State.update(s => { s.sinergy.outputs_log.unshift({ fecha: todayISO(), tipo, detalle, xp_ganado: xp }); });
-          XP.add(xp, `Sinergy: ${TIPO_LABEL[tipo]?.label || tipo}`);
-          if (tipo === 'crm_cliente') { UI.confetti(60); UI.toast(`🎉 ¡Cliente cerrado! +${xp} XP`, 'success', 5000); }
-          else if (tipo === 'ml_record') { UI.confetti(40); UI.toast(`🏆 Hito ML. +${xp} XP`, 'success', 4000); }
-          else UI.toast(`+${xp} XP — Registrado.`, 'success');
-          renderSinergy();
-        }
-      }],
+      actions: [
+        {
+          label: 'Registrar',
+          action: () => {
+            const tipo = document.querySelector('.accion-radio:checked')?.value;
+            if (!tipo) { UI.toast('Elige una acción primero.', 'warn'); return false; }
+            const detalle = document.getElementById('accion-detalle')?.value.trim() || '';
+            const xp = XP_MAP[tipo] || 50;
+            State.update(s => { s.sinergy.outputs_log.unshift({ fecha: todayISO(), tipo, detalle, xp_ganado: xp }); });
+            XP.add(xp, `Sinergy: ${TIPO_LABEL[tipo]?.label || tipo}`);
+            if (tipo === 'crm_cliente') { UI.confetti(60); UI.toast(`🎉 ¡Cliente cerrado! +${xp} XP`, 'success', 5000); }
+            else if (tipo === 'ml_record') { UI.confetti(40); UI.toast(`🏆 Hito ML. +${xp} XP`, 'success', 4000); }
+            else UI.toast(`+${xp} XP — Registrado.`, 'success');
+            renderSinergy();
+          }
+        },
+        { label: 'Cancelar', action: () => {} },
+      ],
     });
   };
 
@@ -3384,18 +3392,21 @@ function renderCuerpoEntreno(body, s) {
             <input id="entreno-notas" class="input" placeholder="¿Cómo te sentiste? ¿Nuevo récord?">
           </div>
         </div>`,
-      actions:[{ label:'Guardar entreno', cls:'btn-primary btn-block', action:() => {
-        const tipo = document.querySelector('.tipo-chip.active')?.textContent?.trim()?.replace(/[🏋️🚴🤸⚡]/gu,'').trim() || 'Fuerza';
-        const dur = parseInt(document.getElementById('entreno-dur')?.value) || 45;
-        const notas = document.getElementById('entreno-notas')?.value.trim() || '';
-        const ejList = Array.from(document.querySelectorAll('.ej-input')).map(i => ({ nombre: i.value.trim() })).filter(e => e.nombre);
-        State.update(s => {
-          s.fisico.sesiones.unshift({ id:Date.now().toString(), fecha:hoy, tipo, duracion_min:dur, ejercicios:ejList, notas });
-        });
-        XP.add(30, 'Entreno registrado');
-        UI.toast('¡Entreno guardado! +30 XP 💪','success');
-        renderCuerpo('entreno');
-      }}],
+      actions:[
+        { label:'Guardar entreno', cls:'btn-primary btn-block', action:() => {
+          const tipo = document.querySelector('.tipo-chip.active')?.textContent?.trim()?.replace(/[🏋️🚴🤸⚡]/gu,'').trim() || 'Fuerza';
+          const dur = parseInt(document.getElementById('entreno-dur')?.value) || 45;
+          const notas = document.getElementById('entreno-notas')?.value.trim() || '';
+          const ejList = Array.from(document.querySelectorAll('.ej-input')).map(i => ({ nombre: i.value.trim() })).filter(e => e.nombre);
+          State.update(s => {
+            s.fisico.sesiones.unshift({ id:Date.now().toString(), fecha:hoy, tipo, duracion_min:dur, ejercicios:ejList, notas });
+          });
+          XP.add(30, 'Entreno registrado');
+          UI.toast('¡Entreno guardado! +30 XP 💪','success');
+          renderCuerpo('entreno');
+        }},
+        { label:'Cancelar', action:() => {} },
+      ],
     });
   };
 
@@ -3547,20 +3558,23 @@ function renderCuerpoComidas(body, s) {
             <div class="hint">Ejemplo: 3 huevos ≈ 18g · 200g pollo ≈ 46g · Yogur griego ≈ 15g</div>
           </div>
         </div>`,
-      actions:[{ label:'Guardar', cls:'btn-primary btn-block', action:() => {
-        const desc = document.getElementById('comida-desc')?.value.trim() || '';
-        const prot = parseInt(document.getElementById('comida-prot')?.value) || 0;
-        if (!desc) { UI.toast('Escribe qué comiste.','warn'); return false; }
-        State.update(s => {
-          if (!s.fisico.nutricion) s.fisico.nutricion = [];
-          const idx = s.fisico.nutricion.findIndex(c => c.fecha === hoy && c.tipo === tipo);
-          const entry = { id: idx>=0 ? s.fisico.nutricion[idx].id : Date.now().toString(), fecha:hoy, tipo, descripcion:desc, proteina_g:prot };
-          if (idx>=0) s.fisico.nutricion[idx] = entry; else s.fisico.nutricion.unshift(entry);
-        });
-        XP.add(5, 'Comida registrada');
-        UI.toast('Guardado. +5 XP','success');
-        renderCuerpo('comidas');
-      }}],
+      actions:[
+        { label:'Guardar', cls:'btn-primary btn-block', action:() => {
+          const desc = document.getElementById('comida-desc')?.value.trim() || '';
+          const prot = parseInt(document.getElementById('comida-prot')?.value) || 0;
+          if (!desc) { UI.toast('Escribe qué comiste.','warn'); return false; }
+          State.update(s => {
+            if (!s.fisico.nutricion) s.fisico.nutricion = [];
+            const idx = s.fisico.nutricion.findIndex(c => c.fecha === hoy && c.tipo === tipo);
+            const entry = { id: idx>=0 ? s.fisico.nutricion[idx].id : Date.now().toString(), fecha:hoy, tipo, descripcion:desc, proteina_g:prot };
+            if (idx>=0) s.fisico.nutricion[idx] = entry; else s.fisico.nutricion.unshift(entry);
+          });
+          XP.add(5, 'Comida registrada');
+          UI.toast('Guardado. +5 XP','success');
+          renderCuerpo('comidas');
+        }},
+        { label:'Cancelar', action:() => {} },
+      ],
     });
   };
 }
