@@ -1317,7 +1317,7 @@ const State = (() => {
       const raw = localStorage.getItem(KEY);
       if (!raw) { _state = defaults(); return _state; }
       let parsed = JSON.parse(raw);
-      if (parsed.__v !== V) parsed = migrate(parsed);
+      parsed = migrate(parsed);
       _state = parsed;
     } catch(e) {
       console.warn('State load error', e);
