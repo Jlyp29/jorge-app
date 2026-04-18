@@ -2994,6 +2994,1019 @@ function renderJournalGratitud(body, s) {
   };
 }
 
+/* ═══════════════════════════════════════════════════════════
+   VISTA: YO
+═══════════════════════════════════════════════════════════ */
+function renderYo() {
+  const s = State.get();
+  const xp = s.xp;
+  const { pct } = XP.getProgress();
+  const nombre = s.profile.nombre || 'Tú';
+  const diasSistema = s.settings.fase_start
+    ? Math.floor((Date.now() - new Date(s.settings.fase_start+'T00:00:00').getTime())/86400000)+1 : 0;
+  const adh30 = (() => {
+    const total = s.habits.length * 30;
+    if (!total) return 0;
+    const done = s.habits.reduce((acc,h) => {
+      for (let i=0; i<30; i++) {
+        const d = new Date(); d.setDate(d.getDate()-i);
+        if (h.completions.includes(dateStr(d))) acc++;
+      }
+      return acc;
+    }, 0);
+    return Math.round(done/total*100);
+  })();
+  const longestStreak = Math.max(...s.habits.map(h=>h.longestStreak),0);
+  const medicion = s.fisico.mediciones.slice(-1)[0];
+
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="page">
+      <!-- Profile header -->
+      <div class="card card-identity mb-lg" style="padding:20px">
+        <div class="row row-gap-md mb-md">
+          <div style="width:56px;height:56px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:800;color:#fff;flex-shrink:0">
+            ${esc((nombre[0]||'?').toUpperCase())}
+          </div>
+          <div class="flex-1">
+            <h3>${esc(nombre)}</h3>
+            <div class="level-badge mt-sm">Nv. ${xp.nivel} · ${XP.getLevelName(xp.nivel)}</div>
+          </div>
+        </div>
+        ${s.profile.identidad ? `<p class="text-sm text-identity font-semibold">"${esc(s.profile.identidad)}"</p>` : ''}
+        <div class="progress-bar mt-md"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="row-between mt-sm">
+          <span class="text-xs text-lo">${xp.total.toLocaleString('es-CL')} XP total</span>
+          <span class="text-xs text-lo">Próximo nivel: ${XP.getLevelThreshold(xp.nivel+1).toLocaleString('es-CL')} XP</span>
+        </div>
+      </div>
+
+      <!-- Stats -->
+      <div class="section">
+        <div class="section-title">Estadísticas</div>
+        <div class="grid-2 mb-md">
+          <div class="stat-card"><div class="stat-val num">${diasSistema}</div><div class="stat-label">Días en el sistema</div></div>
+          <div class="stat-card"><div class="stat-val num">${adh30}%</div><div class="stat-label">Adherencia 30d</div></div>
+          <div class="stat-card"><div class="stat-val num">${longestStreak}</div><div class="stat-label">Racha récord</div></div>
+          <div class="stat-card"><div class="stat-val num">${s.habits.length}</div><div class="stat-label">Hábitos activos</div></div>
+        </div>
+      </div>
+
+      <!-- Físico -->
+      ${medicion ? `<div class="section">
+        <div class="section-title">Físico · última medición (${formatDate(medicion.fecha)})</div>
+        <div class="grid-3">
+          <div class="stat-card"><div class="stat-val num">${medicion.peso_kg}</div><div class="stat-label">kg</div></div>
+          <div class="stat-card"><div class="stat-val num">${medicion.grasa_pct}%</div><div class="stat-label">Grasa</div></div>
+          ${medicion.cintura_cm ? `<div class="stat-card"><div class="stat-val num">${medicion.cintura_cm}</div><div class="stat-label">Cintura cm</div></div>` : '<div></div>'}
+        </div>
+        <button class="btn btn-ghost btn-sm mt-sm" onclick="openMedicionModal()">+ Nueva medición</button>
+      </div>` : `<div class="section"><button class="btn btn-secondary btn-block" onclick="openMedicionModal()">+ Registrar medición física</button></div>`}
+
+      <!-- XP Chart -->
+      ${xp.history.length >= 7 ? `<div class="section">
+        <div class="section-title">XP últimas semanas</div>
+        <div class="card"><div class="chart-container"><canvas id="xp-chart"></canvas></div></div>
+      </div>` : ''}
+
+      <!-- Proyecciones -->
+      <div class="section">
+        <div class="section-title">Proyecciones realistas</div>
+        <div class="projection">
+          <div class="projection-row"><span>% grasa en 3m</span><span class="projection-goal">12% (meta)</span><span class="projection-real">→ 19-20%</span></div>
+          <div class="projection-row"><span>% grasa en 6m</span><span class="projection-goal"></span><span class="projection-real">→ 17-18%</span></div>
+          <div class="projection-row"><span>% grasa en 12m</span><span class="projection-goal"></span><span class="projection-real">→ 15-16%</span></div>
+          <div class="projection-row"><span>Ingreso USD +3m</span><span class="projection-real">+$500 si GM mejora</span></div>
+          <div class="projection-row"><span>Gross margin 3m</span><span class="projection-goal">0.27% (hoy)</span><span class="projection-real">→ 20-35%</span></div>
+        </div>
+        <p class="text-xs text-lo mt-sm" style="line-height:var(--lh-relaxed)">La meta 12% grasa en 3 meses no es realista. El ritmo sano es 0.5-1pp/mes. La evidencia primero.</p>
+      </div>
+
+      <!-- Metas 5 años -->
+      <div class="section">
+        <div class="section-title">North Star · 5 años (2030)</div>
+        <div class="card card-identity">
+          ${Object.entries({
+            'Ingreso': '$10,000 USD/mes',
+            'Cuerpo': '12% grasa',
+            'Auto': 'Golf GTI/R o Scirocco',
+            'Sinergy': 'CEO consolidado',
+          }).map(([k,v]) => `<div class="projection-row"><span>${k}</span><span class="text-primary font-semibold">${v}</span></div>`).join('')}
+        </div>
+      </div>
+
+      <!-- Links secundarios -->
+      <div class="section">
+        <div class="section-title">Accesos</div>
+        <div class="stack stack-sm">
+          ${[
+            ['protocolos','Protocolos científicos','🧠'],
+            ['partner','Accountability partner','🤝'],
+            ['experimentos','Experimentos / Learning goals','🔬'],
+            ['insights','Insights automáticos','💡'],
+            ['ajustes','Ajustes','⚙️'],
+          ].map(([route,label,ico]) => `
+            <button class="btn btn-secondary btn-block" style="justify-content:flex-start;gap:12px" onclick="Router.navigate('${route}')">
+              <span>${ico}</span><span>${label}</span>
+              <svg style="margin-left:auto" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>`).join('')}
+        </div>
+      </div>
+    </div>`;
+
+  // Draw XP chart
+  if (xp.history.length >= 7) {
+    const last14 = [...xp.history].reverse().slice(-14);
+    const labels = last14.map(e => formatDate(e.fecha));
+    let running = 0;
+    const data = last14.map(e => { running += e.delta; return running; });
+    const ctx = document.getElementById('xp-chart');
+    if (ctx) {
+      const ch = new Chart(ctx, {
+        type:'line',
+        data:{ labels, datasets:[{ data, borderColor:'#14B8A6', backgroundColor:'rgba(20,184,166,.1)', tension:.4, fill:true, pointRadius:3 }] },
+        options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ x:{ticks:{color:'#6B7380',maxTicksLimit:6}}, y:{ticks:{color:'#6B7380'}} } }
+      });
+      Router.registerChart('xp', ch);
+    }
+  }
+
+  window.openMedicionModal = () => {
+    UI.modal({
+      title:'Nueva medición',
+      body:`<div class="stack stack-md">
+        <div class="field"><label>Peso (kg)</label><input id="m-peso" class="input" type="number" step="0.1"></div>
+        <div class="field"><label>% Grasa</label><input id="m-grasa" class="input" type="number" step="0.1"></div>
+        <div class="field"><label>Cintura (cm)</label><input id="m-cintura" class="input" type="number" step="0.5"></div>
+        <div class="field"><label>Notas</label><input id="m-notas" class="input" placeholder="ej. Ayunas, mañana"></div>
+      </div>`,
+      actions:[{ label:'Guardar', action:() => {
+        State.update(s => { s.fisico.mediciones.push({ fecha:todayISO(), peso_kg:parseFloat(document.getElementById('m-peso')?.value)||0, grasa_pct:parseFloat(document.getElementById('m-grasa')?.value)||0, cintura_cm:parseFloat(document.getElementById('m-cintura')?.value)||0, notas:document.getElementById('m-notas')?.value||'' }); });
+        UI.toast('Medición guardada.','success');
+        renderYo();
+      }}],
+    });
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VISTA: PROTOCOLOS
+═══════════════════════════════════════════════════════════ */
+const PROTOCOLS = [
+  { id:'huberman', nombre:'Protocolo Huberman mañanero', emoji:'☀️', desc:'Luz solar, hidratación, movimiento, café delayed.', xp:15 },
+  { id:'if_then', nombre:'If-Then dominical', emoji:'📋', desc:'5 implementation intentions para la semana. +50 XP.', xp:50 },
+  { id:'abcde', nombre:'ABCDE post-fallo', emoji:'🧩', desc:'Seligman: disputa cognitiva en 5 pasos. +30 XP.', xp:30 },
+  { id:'pennebaker', nombre:'Pennebaker expresivo', emoji:'✍️', desc:'15-20 min sin filtro. 4 días seguidos. +40 XP.', xp:40 },
+  { id:'urge_surfing', nombre:'Urge Surfing', emoji:'🌊', desc:'3-5 min. Marlatt & Bowen: el urge es una ola.', xp:15 },
+  { id:'self_compassion', nombre:'Self-compassion pause', emoji:'💙', desc:'60 seg, 3x/día. Neff 2003. +5 XP.', xp:5 },
+  { id:'nsdr', nombre:'NSDR / Yoga Nidra', emoji:'🧘', desc:'10-30 min. Huberman Lab.', xp:15 },
+  { id:'bps', nombre:'Best Possible Self', emoji:'🌟', desc:'Mensual. 3 horizontes. +100 XP.', xp:100 },
+  { id:'valores', nombre:'Reflexión de valores', emoji:'🎯', desc:'Cohen & Sherman 2014. Mensual. +80 XP.', xp:80 },
+  { id:'2min_reset', nombre:'2-min rule reset', emoji:'⏱️', desc:'Cuando un hábito se siente pesado.', xp:0 },
+];
+
+function renderProtocolos() {
+  const s = State.get();
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="page">
+      <div class="page-header" style="position:static;padding:8px 0 16px">
+        <button class="btn btn-icon btn-ghost" onclick="Router.navigate('yo')" aria-label="Volver">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h2>Protocolos</h2>
+      </div>
+      <div class="stack stack-sm">
+        ${PROTOCOLS.map(p => {
+          const used = s.protocols_log.filter(l => l.protocolo === p.id).length;
+          return `<div class="card cursor-pointer" onclick="Router.navigate('protocolo/${p.id}')">
+            <div class="row row-gap-md">
+              <span style="font-size:28px">${p.emoji}</span>
+              <div class="flex-1">
+                <div class="font-semibold">${esc(p.nombre)}</div>
+                <div class="text-xs text-lo mt-sm">${esc(p.desc)}</div>
+              </div>
+              <div class="text-right">
+                ${p.xp ? `<div class="text-xs text-primary font-bold">+${p.xp} XP</div>` : ''}
+                ${used ? `<div class="text-xs text-lo mt-sm">${used}x</div>` : ''}
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+}
+
+function renderProtocolo(id) {
+  const proto = PROTOCOLS.find(p => p.id === id);
+  if (!proto) { Router.navigate('protocolos'); return; }
+  const app = document.getElementById('app');
+
+  const header = `
+    <div class="page-header" style="position:static;padding:8px 0 16px">
+      <button class="btn btn-icon btn-ghost" onclick="Router.navigate('protocolos')" aria-label="Volver">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <h2>${proto.emoji} ${esc(proto.nombre)}</h2>
+    </div>`;
+
+  if (id === 'abcde') {
+    app.innerHTML = `<div class="page"><div class="page" style="padding:0">${header}</div>${renderABCDE()}</div>`;
+  } else if (id === 'urge_surfing') {
+    app.innerHTML = `<div class="page">${header}${renderUrgeSurfing()}</div>`;
+    initUrgeSurfingTimer();
+  } else if (id === 'self_compassion') {
+    app.innerHTML = `<div class="page">${header}${renderSelfCompassion()}</div>`;
+    initSCTimer();
+  } else if (id === 'nsdr') {
+    app.innerHTML = `<div class="page">${header}${renderNSDR()}</div>`;
+  } else if (id === 'huberman') {
+    app.innerHTML = `<div class="page">${header}${renderHuberman()}</div>`;
+  } else if (id === 'if_then') {
+    app.innerHTML = `<div class="page">${header}${renderIfThen()}</div>`;
+  } else if (id === '2min_reset') {
+    app.innerHTML = `<div class="page">${header}${render2MinReset()}</div>`;
+  } else if (id === 'bps') {
+    renderDiario('bps'); return;
+  } else if (id === 'valores') {
+    renderDiario('valores'); return;
+  } else if (id === 'pennebaker') {
+    renderDiario('pennebaker'); return;
+  }
+}
+
+function renderABCDE() {
+  let step = 0;
+  const STEPS_ABCDE = [
+    { label:'A — Adversidad', placeholder:'¿Qué pasó exactamente? (hechos, sin interpretación)', hint:'' },
+    { label:'B — Creencia', placeholder:'¿Qué me dije? La voz interna, textual.', hint:'' },
+    { label:'C — Consecuencia', placeholder:'¿Qué sentí o hice después de creerlo?', hint:'' },
+    { label:'D — Disputa', placeholder:'¿Es 100% cierto? ¿Qué evidencia contraria tienes? ¿Qué le dirías a un amigo?', hint:'3 preguntas mínimo.' },
+    { label:'E — Energización', placeholder:'Nueva creencia + próxima micro-acción hoy.', hint:'¿Qué haces en los próximos 10 min?' },
+  ];
+  const answers = {};
+
+  const container = document.createElement('div');
+  function paint() {
+    const s2 = STEPS_ABCDE[step];
+    container.innerHTML = `
+      <div class="card mb-md">
+        <div class="text-xs text-lo mb-sm">Paso ${step+1}/5 · Seligman ABCDE</div>
+        <h3>${esc(s2.label)}</h3>
+        ${s2.hint ? `<p class="text-xs text-lo mt-sm">${esc(s2.hint)}</p>` : ''}
+      </div>
+      <div class="field mb-md">
+        <textarea id="abcde-ans" class="input" rows="4" placeholder="${esc(s2.placeholder)}">${esc(answers[step]||'')}</textarea>
+      </div>
+      <div class="row row-gap-sm">
+        ${step > 0 ? `<button class="btn btn-secondary" onclick="abcdeBack()">Atrás</button>` : ''}
+        <button class="btn btn-primary flex-1" onclick="abcdeNext()">
+          ${step < 4 ? 'Siguiente paso' : 'Completar ABCDE (+30 XP)'}
+        </button>
+      </div>`;
+  }
+
+  window.abcdeNext = () => {
+    answers[step] = document.getElementById('abcde-ans')?.value || '';
+    if (step < 4) { step++; paint(); }
+    else {
+      State.update(s => {
+        s.protocols_log.unshift({ fecha:todayISO(), protocolo:'abcde', duracion_min:8, payload:answers, resultado_subjetivo_1_5:3 });
+        s.journal.push({ id:Date.now().toString(), fecha:todayISO(), tipo:'abcde', payload:answers, tags:[] });
+      });
+      XP.add(30,'ABCDE post-fallo');
+      UI.toast('ABCDE completado. +30 XP','success');
+      Router.navigate('protocolos');
+    }
+  };
+  window.abcdeBack = () => { answers[step] = document.getElementById('abcde-ans')?.value||''; if(step>0){step--;paint();} };
+  paint();
+  return container.outerHTML + '<div id="abcde-placeholder"></div>';
+}
+
+function renderUrgeSurfing() {
+  return `
+    <div id="urge-container">
+      <div class="card card-primary mb-md">
+        <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">El urge es una ola. Sube, llega al pico, baja. No tienes que hacer nada. Solo observa. (Marlatt & Bowen MBRP 2009)</p>
+      </div>
+      <div class="protocol-step" id="urge-step-1">
+        <div class="protocol-step-num">1</div>
+        <div><strong>Pausa 30 seg</strong><br><span class="text-sm text-md">No hagas nada. Solo respira.</span></div>
+      </div>
+      <div class="protocol-step" id="urge-step-2">
+        <div class="protocol-step-num">2</div>
+        <div><strong>Localiza el urge</strong><br>
+          <input id="urge-loc" class="input mt-sm" placeholder="¿Dónde lo sientes en el cuerpo?"></div>
+      </div>
+      <div class="protocol-step" id="urge-step-3">
+        <div class="protocol-step-num">3</div>
+        <div><strong>5 ciclos de respiración</strong><br><span class="text-sm text-md">Inhala 4s · retén 4s · exhala 6s</span><br>
+          <div id="breath-counter" class="text-2xl font-bold text-primary mt-md num">5</div>
+          <div class="text-xs text-lo" id="breath-phase">Listo para comenzar</div>
+        </div>
+      </div>
+      <div class="protocol-step" id="urge-step-4">
+        <div class="protocol-step-num">4</div>
+        <div><strong>¿Qué querías evitar?</strong><br>
+          <input id="urge-evitar" class="input mt-sm" placeholder="Una frase..."></div>
+      </div>
+      <button class="btn btn-primary btn-block mt-lg" id="urge-btn" onclick="urgeStart()">Comenzar</button>
+    </div>`;
+}
+
+function initUrgeSurfingTimer() {
+  let phase = 0;
+  window.urgeStart = () => {
+    const btn = document.getElementById('urge-btn');
+    if (btn) btn.textContent = 'Corriendo...';
+    let cycles = 5;
+    const counter = document.getElementById('breath-counter');
+    const phaseEl = document.getElementById('breath-phase');
+    let secs = 30;
+    const pause = setInterval(() => {
+      secs--;
+      if (counter) counter.textContent = secs+'s';
+      if (phaseEl) phaseEl.textContent = 'Pausa...';
+      if (secs <= 0) {
+        clearInterval(pause);
+        if (counter) counter.textContent = cycles;
+        if (phaseEl) phaseEl.textContent = 'Inhala 4s';
+        runBreath();
+      }
+    }, 1000);
+
+    function runBreath() {
+      const phases = [{t:'Inhala',s:4},{t:'Retén',s:4},{t:'Exhala',s:6}];
+      let pi = 0, ps = phases[0].s;
+      const iv = setInterval(() => {
+        if (phaseEl) phaseEl.textContent = `${phases[pi].t}... ${ps}s`;
+        ps--;
+        if (ps < 0) { pi = (pi+1)%3; ps = phases[pi].s; if(pi===0){cycles--;if(counter)counter.textContent=cycles;} }
+        if (cycles <= 0) {
+          clearInterval(iv);
+          if (phaseEl) phaseEl.textContent = '¡Completado!';
+          if (btn) { btn.textContent = 'Finalizar (+15 XP)'; btn.onclick = urgeFinish; }
+        }
+      }, 1000);
+    }
+  };
+  window.urgeFinish = () => {
+    const loc = document.getElementById('urge-loc')?.value||'';
+    const ev = document.getElementById('urge-evitar')?.value||'';
+    State.update(s => { s.protocols_log.unshift({ fecha:todayISO(), protocolo:'urge_surfing', duracion_min:5, payload:{localizacion:loc, evitar:ev}, resultado_subjetivo_1_5:3 }); });
+    XP.add(15,'Urge Surfing');
+    UI.toast('Urge surfing completado. +15 XP','success');
+    Router.navigate('protocolos');
+  };
+}
+
+function renderSelfCompassion() {
+  const s = State.get();
+  const todayCount = s.protocols_log.filter(p => p.protocolo==='self_compassion' && p.fecha===todayISO()).length;
+  if (todayCount >= 3) return `<div class="banner banner-warn">Ya hiciste 3 hoy. El XP está cappado a 3 por día (Neff 2003).</div>`;
+  return `
+    <div class="card mb-md">
+      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Neff 2003: autocompasión predice mejor adherencia que la autodisciplina dura. 3 componentes en 60 segundos.</p>
+    </div>
+    <div id="sc-steps">
+      <div class="protocol-step"><div class="protocol-step-num" id="sc-n">1</div>
+        <div><strong id="sc-title">Mindfulness</strong><br><p class="text-sm text-md" id="sc-body">"Esto es un momento difícil."</p></div>
+      </div>
+    </div>
+    <div class="timer-circle mt-lg mb-lg">
+      <svg width="120" height="120"><circle class="timer-circle-track" cx="60" cy="60" r="52"/><circle class="timer-circle-fill" id="sc-fill" cx="60" cy="60" r="52" stroke-dasharray="${2*Math.PI*52}" stroke-dashoffset="${2*Math.PI*52}"/></svg>
+      <div class="timer-text" id="sc-timer">20s</div>
+    </div>
+    <input id="sc-kindness" class="input hidden" placeholder="¿Qué necesitas oír ahora?">
+    <button class="btn btn-primary btn-block" id="sc-btn" onclick="scStart()">Comenzar (60 seg)</button>`;
+}
+
+function initSCTimer() {
+  const PHASES = [
+    { title:'Mindfulness', body:'"Esto es un momento difícil."' },
+    { title:'Humanidad compartida', body:'"El sufrimiento es parte de ser humano. No estoy solo."' },
+    { title:'Auto-amabilidad', body:'¿Qué necesitas oír ahora? Escríbelo.' },
+  ];
+  window.scStart = () => {
+    document.getElementById('sc-btn').disabled = true;
+    let phase = 0, secs = 20;
+    const circ = 2*Math.PI*52;
+    const iv = setInterval(() => {
+      const fill = document.getElementById('sc-fill');
+      const timer = document.getElementById('sc-timer');
+      const title = document.getElementById('sc-title');
+      const body = document.getElementById('sc-body');
+      if (!fill) { clearInterval(iv); return; }
+      fill.style.strokeDashoffset = circ * (1 - (20-secs)/20);
+      if (timer) timer.textContent = secs+'s';
+      secs--;
+      if (secs < 0) {
+        phase++;
+        if (phase < PHASES.length) {
+          if(title) title.textContent = PHASES[phase].title;
+          if(body) body.textContent = PHASES[phase].body;
+          if(document.getElementById('sc-n')) document.getElementById('sc-n').textContent = phase+1;
+          if (phase === 2) document.getElementById('sc-kindness')?.classList.remove('hidden');
+          secs = 20;
+          fill.style.strokeDashoffset = circ;
+        } else {
+          clearInterval(iv);
+          if(timer) timer.textContent = '✓';
+          const btn = document.getElementById('sc-btn');
+          if(btn) { btn.textContent = 'Completado (+5 XP)'; btn.disabled = false; btn.onclick = scFinish; }
+        }
+      }
+    }, 1000);
+  };
+  window.scFinish = () => {
+    const kindness = document.getElementById('sc-kindness')?.value || '';
+    State.update(s => { s.protocols_log.unshift({ fecha:todayISO(), protocolo:'self_compassion', duracion_min:1, payload:{kindness}, resultado_subjetivo_1_5:4 }); });
+    XP.add(5,'Self-compassion pause');
+    UI.toast('+5 XP. Bien por detenerte.','success');
+    Router.navigate('protocolos');
+  };
+}
+
+function renderNSDR() {
+  return `
+    <div class="card mb-md">
+      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">No-Sleep Deep Rest (Huberman Lab). 10-30 min de relajación profunda. Recarga dopamina sin cafeína.</p>
+    </div>
+    <div class="field mb-md">
+      <label>Duración</label>
+      <select id="nsdr-dur" class="input"><option value="10">10 min</option><option value="20" selected>20 min</option><option value="30">30 min</option></select>
+    </div>
+    <a href="https://www.youtube.com/watch?v=AKGrmY8OISE" target="_blank" class="btn btn-secondary btn-block mb-md">
+      Abrir Yoga Nidra en YouTube ↗
+    </a>
+    <button class="btn btn-primary btn-block" onclick="startNSDRTimer()">Comenzar timer aquí</button>
+    <div id="nsdr-timer-area"></div>`;
+}
+
+function renderHuberman() {
+  const s = State.get();
+  const todayChecks = s.protocols_log.filter(p => p.protocolo==='huberman' && p.fecha===todayISO());
+  const done = todayChecks.length > 0;
+  const items = ['Hidratación: 500ml agua','Luz solar 5-10 min fuera','Movimiento tiny 2 min','Café ESPERAR 90-120 min','Primer bocado: proteína'];
+  const ticks = done ? [true,true,true,true,true] : Array(5).fill(false);
+  return `
+    ${done ? `<div class="banner banner-comeback mb-md">Protocolo completado hoy.</div>` : ''}
+    <div class="stack stack-sm" id="hub-list">
+      ${items.map((item,i) => `<label class="habit-card cursor-pointer" style="gap:12px">
+        <input type="checkbox" class="sr-only" name="hub" ${ticks[i]?'checked':''} onchange="checkHuberman(${i},this.checked)" id="hub-${i}">
+        <div class="habit-check ${ticks[i]?'done':''}" id="hubcheck-${i}">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span>${esc(item)}</span>
+      </label>`).join('')}
+    </div>
+    <button class="btn btn-primary btn-block mt-lg" onclick="finishHuberman()">Completar protocolo (+15 XP)</button>`;
+}
+
+function renderIfThen() {
+  const s = State.get();
+  const thisWeek = weekISO();
+  const existing = s.implementation_intentions.filter(i => i.semana_iso === thisWeek);
+  return `
+    <div class="card mb-md">
+      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Gollwitzer & Sheeran 2006: d=0.65. 5 if-then por semana. Sé específico con el contexto.</p>
+    </div>
+    ${existing.length ? `<div class="section-title mb-sm">Esta semana (${existing.length}/5)</div>
+      ${existing.map(i => `<div class="card mb-sm">
+        <div class="text-sm"><strong>Si</strong> ${esc(i.si)},</div>
+        <div class="text-sm mt-sm"><strong>entonces</strong> ${esc(i.entonces)}.</div>
+      </div>`).join('')}` : ''}
+    ${existing.length < 5 ? `
+      <div class="field mb-md"><label>Si...</label><input id="ift-si" class="input" placeholder="Ej: son las 8:00 y estoy en mi escritorio"></div>
+      <div class="field mb-md"><label>Entonces...</label><input id="ift-ent" class="input" placeholder="Ej: abro el plan de Sinergy antes de cualquier otra app"></div>
+      <button class="btn btn-secondary btn-block" onclick="saveIfThen()">+ Agregar if-then</button>` : ''}
+    ${existing.length >= 5 ? `<button class="btn btn-primary btn-block mt-lg" onclick="finishIfThen()">Completar ritual (+50 XP)</button>` : ''}`;
+}
+
+function render2MinReset() {
+  const s = State.get();
+  return `
+    <div class="card mb-md">
+      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Clear + Fogg B=MAP: cuando un hábito se siente pesado, colapsa temporalmente a versión tiny × 7 días.</p>
+    </div>
+    <div class="stack stack-sm">
+      ${s.habits.map(h => `<div class="habit-card">
+        <div class="habit-info">
+          <div class="habit-name">${esc(h.nombre)}</div>
+          <div class="habit-anchor">${esc(h.escala_actual==='tiny'?'Ya en versión tiny':'Actualmente: '+h.escala_actual)}</div>
+        </div>
+        ${h.escala_actual !== 'tiny' ? `<button class="btn btn-sm btn-secondary" onclick="scaleHabit('${h.id}','tiny')">Reset a tiny</button>` : `<span class="chip chip-primary">Tiny ✓</span>`}
+      </div>`).join('')}
+    </div>`;
+}
+
+// Protocol global handlers
+window.startNSDRTimer = () => {
+  const min = parseInt(document.getElementById('nsdr-dur')?.value)||20;
+  let secs = min * 60;
+  const area = document.getElementById('nsdr-timer-area');
+  if (area) area.innerHTML = `<div class="text-center mt-lg"><div class="text-2xl font-bold num" id="nsdr-t">${min}:00</div><div class="text-sm text-lo">Relájate completamente</div></div>`;
+  const iv = setInterval(() => {
+    secs--;
+    const el = document.getElementById('nsdr-t');
+    if (!el) { clearInterval(iv); return; }
+    el.textContent = `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+    if (secs <= 0) {
+      clearInterval(iv);
+      State.update(s => { s.protocols_log.unshift({ fecha:todayISO(), protocolo:'nsdr', duracion_min:min, payload:{}, resultado_subjetivo_1_5:4 }); });
+      XP.add(15,'NSDR');
+      UI.haptic([30,50,30]);
+      UI.toast('NSDR completado. +15 XP','success');
+    }
+  }, 1000);
+};
+window.checkHuberman = (i, v) => {
+  const check = document.getElementById(`hubcheck-${i}`);
+  if (check) check.classList.toggle('done', v);
+};
+window.finishHuberman = () => {
+  State.update(s => { s.protocols_log.unshift({ fecha:todayISO(), protocolo:'huberman', duracion_min:10, payload:{}, resultado_subjetivo_1_5:4 }); });
+  XP.add(15,'Protocolo Huberman mañanero');
+  UI.toast('Protocolo mañanero completado. +15 XP','success');
+  Router.navigate('protocolos');
+};
+window.saveIfThen = () => {
+  const si = document.getElementById('ift-si')?.value.trim();
+  const ent = document.getElementById('ift-ent')?.value.trim();
+  if (!si || !ent) { UI.toast('Completa ambos campos.','warn'); return; }
+  State.update(s => { s.implementation_intentions.push({ id:Date.now().toString(), semana_iso:weekISO(), si, entonces:ent, activada:false, cumplida_count:0, oportunidades_count:0 }); });
+  UI.toast('If-then guardado.','success');
+  renderProtocolo('if_then');
+};
+window.finishIfThen = () => {
+  XP.add(50,'Ritual dominical if-then');
+  UI.toast('Ritual dominical completado. +50 XP','success');
+  Router.navigate('hoy');
+};
+
+/* ═══════════════════════════════════════════════════════════
+   VISTA: CRISIS
+═══════════════════════════════════════════════════════════ */
+function renderCrisis() {
+  const s = State.get();
+  const partnerTel = s.settings.accountability_partner.contacto || '';
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="crisis-screen">
+      <button class="btn btn-icon btn-ghost" style="position:absolute;top:max(var(--safe-t),20px);left:16px" onclick="Router.navigate('hoy')" aria-label="Volver">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="breathing-circle" id="breath-bg"></div>
+      <h2 class="crisis-title">Estás aquí. Eso importa.</h2>
+      <p class="text-sm text-lo" style="max-width:260px;line-height:var(--lh-relaxed)">No tienes que hacer nada todavía.</p>
+      <div class="stack stack-md w-full" style="max-width:320px">
+        <button class="btn btn-primary btn-block btn-lg" onclick="Router.navigate('protocolo/urge_surfing')">
+          🌊 Urge surf 3 min
+        </button>
+        <button class="btn btn-secondary btn-block btn-lg" onclick="Router.navigate('protocolo/self_compassion')">
+          💙 Self-compassion 60 seg
+        </button>
+        <button class="btn btn-secondary btn-block btn-lg" onclick="Router.navigate('protocolo/abcde')">
+          🧩 ABCDE si hubo un fallo
+        </button>
+        ${partnerTel ? `<a href="tel:${esc(partnerTel)}" class="btn btn-secondary btn-block btn-lg">
+          📞 Llamar a ${esc(s.settings.accountability_partner.nombre||'partner')}
+        </a>` : ''}
+        <button class="btn btn-ghost btn-block" onclick="startBreathTimer()" id="breath-btn">
+          Solo quiero respirar (2 min)
+        </button>
+      </div>
+      <div style="margin-top:24px;padding:12px 16px;background:rgba(229,115,115,.08);border:1px solid rgba(229,115,115,.2);border-radius:12px;text-align:center">
+        <div class="text-xs text-lo mb-sm">Si es urgente:</div>
+        <a href="tel:6003607777" class="font-bold text-danger" style="font-size:var(--fs-base)">Salud Responde 600 360 7777</a>
+        <div class="text-xs text-lo mt-sm">(Chile, gratuito)</div>
+      </div>
+    </div>`;
+
+  window.startBreathTimer = () => {
+    const btn = document.getElementById('breath-btn');
+    if (btn) btn.disabled = true;
+    let secs = 120;
+    const iv = setInterval(() => {
+      secs--;
+      if (btn) btn.textContent = `Respirando... ${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+      if (secs <= 0) { clearInterval(iv); if(btn){btn.textContent='Listo. Bien.';btn.disabled=false;} }
+    }, 1000);
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VISTA: INSIGHTS
+═══════════════════════════════════════════════════════════ */
+const InsightsEngine = (() => {
+  const rules = [
+    {
+      id:'sinergy_work_no_output',
+      check: s => {
+        const last28 = s.sinergy.outputs_log.filter(o => (Date.now()-new Date(o.fecha+'T00:00:00').getTime()) < 28*86400000);
+        const deepW = s.habits.find(h => h.id==='h2');
+        const adh = deepW ? deepW.completions.filter(d => (Date.now()-new Date(d+'T00:00:00').getTime()) < 28*86400000).length / 28 : 0;
+        return adh > 0.8 && last28.length === 0;
+      },
+      msg: 'Adherencia de deep work >80% este mes, pero outputs reales = 0. El tiempo es input, no output. ¿Estás construyendo algo que quiere la gente?',
+      accion: 'Pivota la métrica: de horas a clientes nuevos.',
+    },
+    {
+      id:'sinergy_gm_critico',
+      check: s => {
+        const meses = s.sinergy.mensual.slice(-2);
+        return meses.length >= 2 && meses.every(m => {
+          const costos = m.costo_infra+m.costo_licencias+m.costo_personal+m.costo_servicios+m.costo_otros;
+          return m.facturacion_clp > 0 && (m.facturacion_clp-costos)/m.facturacion_clp < 0.10;
+        });
+      },
+      msg: 'Gross margin <10% dos meses seguidos. El problema no son las horas, es el modelo. ¿Hay revenue share oculto? ¿Infraestructura sobredimensionada?',
+      accion: 'Agenda 2h esta semana solo para analizar estructura de costos.',
+    },
+    {
+      id:'sueno_bajo',
+      check: s => {
+        const last21 = s.sueño.filter(d => (Date.now()-new Date(d.fecha+'T00:00:00').getTime()) < 21*86400000);
+        if (last21.length < 7) return false;
+        const avg = last21.reduce((a,b) => a+b.horas, 0) / last21.length;
+        return avg < 7;
+      },
+      msg: 'Promedio de sueño bajo 7h las últimas semanas. Nedeltcheva 2010: con mismo déficit calórico, dormir <6h reduce 55% la pérdida de grasa.',
+      accion: 'Priorizar sueño ES priorizar la meta 12% grasa.',
+    },
+    {
+      id:'patron_emocional_celular',
+      check: s => {
+        const last14 = s.emociones_pre_procrastinacion.filter(e => (Date.now()-new Date(e.fecha+'T00:00:00').getTime()) < 14*86400000);
+        if (last14.length < 5) return false;
+        const ansiedad = last14.filter(e => e.emocion.some(em => ['Ansiedad','Aburrimiento'].includes(em))).length;
+        return ansiedad / last14.length > 0.6;
+      },
+      msg: 'Más del 60% de tus episodios previos a distraerte son ansiedad o aburrimiento. Procrastinación = regulación emocional fallida (Sirois & Pychyl 2013).',
+      accion: 'Urge surfing 3 min o self-compassion pause antes del celular.',
+    },
+    {
+      id:'sin_partner_checkin',
+      check: s => {
+        const lastCI = s.accountability_checkins[0];
+        if (!lastCI) return s.settings.accountability_partner.nombre && s.settings.fase >= 1;
+        return (Date.now()-new Date(lastCI.fecha+'T00:00:00').getTime()) > 10*86400000;
+      },
+      msg: 'Llevas más de 10 días sin check-in con tu partner. Matthews 2015: reportar sube el logro de 4/10 a 7.6/10.',
+      accion: 'Agenda una llamada de 15 min esta semana.',
+    },
+    {
+      id:'fallo_sin_abcde',
+      check: s => {
+        let consec = 0;
+        for (let i=0; i<2; i++) {
+          const d = new Date(); d.setDate(d.getDate()-i);
+          const ds = dateStr(d);
+          if (s.habits.every(h => !h.completions.includes(ds))) consec++;
+        }
+        const lastABCDE = s.protocols_log.find(p => p.protocolo==='abcde');
+        const recentABCDE = lastABCDE && (Date.now()-new Date(lastABCDE.fecha+'T00:00:00').getTime()) < 2*86400000;
+        return consec >= 2 && !recentABCDE;
+      },
+      msg: 'Dos fallos consecutivos sin ABCDE. Un fallo es un evento; dos seguidos sin procesar se vuelve patrón (Marlatt & Gordon).',
+      accion: '5 min de ABCDE ahora.',
+    },
+    {
+      id:'progresion_fisica_ok',
+      check: s => {
+        const med = s.fisico.mediciones;
+        if (med.length < 2) return false;
+        const last = med.slice(-1)[0]; const prev = med.slice(-2)[0];
+        const weeks = (new Date(last.fecha+'T00:00:00').getTime()-new Date(prev.fecha+'T00:00:00').getTime())/(7*86400000);
+        return weeks >= 3 && last.grasa_pct < prev.grasa_pct && (prev.grasa_pct-last.grasa_pct) <= 1.5;
+      },
+      msg: 'Tu porcentaje de grasa bajó a ritmo saludable (0.5-1pp/semana). Sigue. No aceleres el déficit.',
+      accion: 'Mantén el ritmo. Consistencia > intensidad.',
+    },
+  ];
+
+  function generate() {
+    const s = State.get();
+    const lastGen = s.insights[0]?.fecha;
+    if (lastGen === todayISO() && s.insights.filter(i=>!i.descartado).length >= 3) return;
+
+    let newInsights = 0;
+    rules.forEach(rule => {
+      if (newInsights >= 3) return;
+      const alreadyActive = s.insights.find(i => i.tipo===rule.id && !i.descartado);
+      if (alreadyActive) return;
+      try {
+        if (rule.check(s)) {
+          State.update(st => { st.insights.unshift({ id:Date.now().toString()+rule.id, fecha:todayISO(), tipo:rule.id, mensaje:rule.msg, accion_sugerida:rule.accion, descartado:false }); if(st.insights.length>30) st.insights.length=30; });
+          newInsights++;
+        }
+      } catch(e) {}
+    });
+  }
+
+  return { generate };
+})();
+
+function renderInsights() {
+  InsightsEngine.generate();
+  const s = State.get();
+  const active = s.insights.filter(i => !i.descartado);
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="page">
+      <div class="page-header" style="position:static;padding:8px 0 16px">
+        <button class="btn btn-icon btn-ghost" onclick="Router.navigate('yo')" aria-label="Volver">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h2>Insights</h2>
+      </div>
+      ${active.length === 0
+        ? `<div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></div><div class="empty-title">Sin insights nuevos</div><div class="empty-sub">Necesitas al menos 7 días de datos para que se generen.</div></div>`
+        : active.map(ins => `
+          <div class="insight-card" id="ins-${ins.id}">
+            <div class="insight-meta">${formatDate(ins.fecha)}</div>
+            <div class="insight-msg">${esc(ins.mensaje)}</div>
+            ${ins.accion_sugerida ? `<div class="text-xs text-primary mt-sm font-semibold">→ ${esc(ins.accion_sugerida)}</div>` : ''}
+            <div class="insight-actions">
+              <button class="insight-btn" onclick="dismissInsight('${ins.id}','ok')">Me sirve</button>
+              <button class="insight-btn" onclick="dismissInsight('${ins.id}','know')">Ya lo sé</button>
+              <button class="insight-btn" onclick="dismissInsight('${ins.id}','dismiss')">Descartar</button>
+            </div>
+          </div>`).join('')}
+    </div>`;
+
+  window.dismissInsight = (id, action) => {
+    State.update(s => { const ins = s.insights.find(i=>i.id===id); if(ins) ins.descartado = true; });
+    document.getElementById(`ins-${id}`)?.remove();
+    if (action === 'ok') UI.toast('Guardado como útil.','success');
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VISTA: PARTNER
+═══════════════════════════════════════════════════════════ */
+function renderPartner() {
+  const s = State.get();
+  const p = s.settings.accountability_partner;
+  const semana = weekISO();
+  const checkin = s.accountability_checkins.find(c => c.semana_iso===semana);
+  const cumplidos = s.habits.filter(h => {
+    const last7 = Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return dateStr(d);});
+    const done = last7.filter(d=>h.completions.includes(d)).length;
+    return done >= 5;
+  }).length;
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="page">
+      <div class="page-header" style="position:static;padding:8px 0 16px">
+        <button class="btn btn-icon btn-ghost" onclick="Router.navigate('yo')" aria-label="Volver">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h2>Accountability Partner</h2>
+      </div>
+
+      ${!p.nombre ? `<div class="card card-warn mb-md">
+        <p class="text-sm" style="color:var(--warn)">Sin partner configurado. Matthews 2015: +78% de logro con reporte semanal.</p>
+      </div>` : ''}
+
+      <div class="card mb-lg">
+        <div class="field mb-md"><label>Nombre del partner</label><input id="pt-nombre" class="input" value="${esc(p.nombre)}" placeholder="Nombre"></div>
+        <div class="field mb-md"><label>Contacto (WhatsApp/tel)</label><input id="pt-contacto" class="input" value="${esc(p.contacto)}" placeholder="+56 9..."></div>
+        <div class="field mb-md"><label>Día de check-in</label>
+          <select id="pt-dia" class="input">
+            ${['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map(d=>`<option ${p.dia_checkin===d?'selected':''}>${d}</option>`).join('')}
+          </select>
+        </div>
+        <button class="btn btn-secondary btn-block" onclick="savePartnerData()">Guardar</button>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Check-in esta semana</div>
+        <div class="checkin-card">
+          <p class="text-sm text-md mb-md">Template para enviar por WhatsApp:</p>
+          <div id="checkin-preview" style="background:var(--bg-2);border-radius:8px;padding:12px;font-size:var(--fs-sm);white-space:pre-wrap;line-height:var(--lh-relaxed);color:var(--text-md)">
+${generateCheckinTemplate(s, cumplidos)}
+          </div>
+          <button class="btn btn-primary btn-block mt-md" onclick="copyCheckin()">Copiar para WhatsApp</button>
+          ${p.contacto ? `<a href="https://wa.me/${p.contacto.replace(/\D/g,'')}" target="_blank" class="btn btn-ghost btn-block mt-sm">Abrir WhatsApp ↗</a>` : ''}
+        </div>
+      </div>
+    </div>`;
+
+  window.savePartnerData = () => {
+    State.update(s => {
+      s.settings.accountability_partner.nombre = document.getElementById('pt-nombre')?.value.trim()||'';
+      s.settings.accountability_partner.contacto = document.getElementById('pt-contacto')?.value.trim()||'';
+      s.settings.accountability_partner.dia_checkin = document.getElementById('pt-dia')?.value||'Domingo';
+      s.fase0_checklist.accountability_partner_confirmado = !!s.settings.accountability_partner.nombre;
+    });
+    UI.toast('Partner actualizado.','success');
+  };
+  window.copyCheckin = () => {
+    const text = document.getElementById('checkin-preview')?.textContent||'';
+    navigator.clipboard?.writeText(text).then(()=>UI.toast('Copiado al portapapeles.','success')).catch(()=>UI.toast('Selecciona y copia manualmente.','warn'));
+  };
+}
+
+function generateCheckinTemplate(s, cumplidos) {
+  const semana = new Date().toLocaleDateString('es-CL',{week:'long'});
+  return `Hola ${s.settings.accountability_partner.nombre||'partner'}, check-in semanal:
+
+✅ Hábitos cumplidos: ${cumplidos}/${s.habits.length} (>5 días/semana)
+📊 XP esta semana: ${s.xp.history.filter(h=>(Date.now()-new Date(h.fecha+'T00:00:00').getTime())<7*86400000).reduce((a,b)=>a+b.delta,0).toLocaleString('es-CL')}
+
+Para la próxima semana me comprometo a:
+1.
+2.
+3.
+
+Estado emocional: /10
+Notas: `;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VISTA: EXPERIMENTOS
+═══════════════════════════════════════════════════════════ */
+function renderExperimentos() {
+  const s = State.get();
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="page">
+      <div class="page-header" style="position:static;padding:8px 0 16px">
+        <button class="btn btn-icon btn-ghost" onclick="Router.navigate('yo')" aria-label="Volver">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h2>Experimentos</h2>
+      </div>
+      <p class="text-sm text-lo mb-lg" style="line-height:var(--lh-relaxed)">Locke & Latham: primero learning goals, luego performance goals. Define hipótesis y métrica.</p>
+      <button class="btn btn-primary btn-block mb-lg" onclick="addExperimentoModal()">+ Nuevo experimento</button>
+      ${s.experimentos.length === 0
+        ? `<div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg></div><div class="empty-title">Sin experimentos</div><div class="empty-sub">Un experimento es una pregunta con hipótesis y métrica. No un proyecto.</div></div>`
+        : s.experimentos.map(e => `<div class="exp-card">
+            <div class="row-between mb-sm">
+              <div class="font-semibold">${esc(e.nombre)}</div>
+              <span class="exp-status ${e.estado==='concluido'?'done':''}">${e.estado==='activo'?'Activo':'Concluido'}</span>
+            </div>
+            <div class="text-sm text-md mb-sm">${esc(e.hipotesis)}</div>
+            <div class="text-xs text-lo">Métrica: ${esc(e.metrica)} · Fin: ${formatDate(e.fecha_fin)}</div>
+            ${e.estado==='activo' ? `<button class="btn btn-sm btn-ghost mt-sm" onclick="concludeExperimento('${e.id}')">Concluir + aprendizaje</button>` : e.aprendizaje ? `<div class="text-xs text-primary mt-sm font-semibold">Aprendizaje: ${esc(e.aprendizaje)}</div>` : ''}
+          </div>`).join('')}
+    </div>`;
+
+  window.addExperimentoModal = () => {
+    UI.modal({
+      title:'Nuevo experimento',
+      body:`<div class="stack stack-md">
+        <div class="field"><label>Nombre</label><input id="exp-n" class="input" placeholder="Ej: Llamadas frías lunes"></div>
+        <div class="field"><label>Hipótesis</label><textarea id="exp-h" class="input" rows="2" placeholder="Si hago X durante Y semanas, entonces Z..."></textarea></div>
+        <div class="field"><label>Métrica de éxito</label><input id="exp-m" class="input" placeholder="Ej: tasa de conversión %"></div>
+        <div class="field"><label>Fecha de conclusión</label><input id="exp-f" class="input" type="date"></div>
+      </div>`,
+      actions:[{ label:'Crear', action:() => {
+        const nombre = document.getElementById('exp-n')?.value.trim();
+        if (!nombre) { UI.toast('Nombre requerido.','warn'); return false; }
+        State.update(s => { s.experimentos.unshift({ id:Date.now().toString(), nombre, hipotesis:document.getElementById('exp-h')?.value||'', metrica:document.getElementById('exp-m')?.value||'', fecha_inicio:todayISO(), fecha_fin:document.getElementById('exp-f')?.value||'', estado:'activo', resultado:'', aprendizaje:'' }); });
+        UI.toast('Experimento creado.','success');
+        renderExperimentos();
+      }}],
+    });
+  };
+  window.concludeExperimento = (id) => {
+    UI.modal({
+      title:'Concluir experimento',
+      body:`<div class="stack stack-md">
+        <div class="field"><label>Resultado</label><textarea id="exp-res" class="input" rows="2" placeholder="¿Qué observaste?"></textarea></div>
+        <div class="field"><label>Aprendizaje principal</label><textarea id="exp-ap" class="input" rows="2" placeholder="¿Qué sabes ahora que no sabías?"></textarea></div>
+      </div>`,
+      actions:[{ label:'Guardar + 150 XP', action:() => {
+        State.update(s => { const e = s.experimentos.find(x=>x.id===id); if(e){ e.estado='concluido'; e.resultado=document.getElementById('exp-res')?.value||''; e.aprendizaje=document.getElementById('exp-ap')?.value||''; } });
+        XP.add(150,'Experimento concluido');
+        UI.confetti(40);
+        UI.toast('Experimento concluido. +150 XP','success');
+        renderExperimentos();
+      }}],
+    });
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VISTA: AJUSTES
+═══════════════════════════════════════════════════════════ */
+function renderAjustes() {
+  const s = State.get();
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="page">
+      <div class="page-header" style="position:static;padding:8px 0 16px">
+        <button class="btn btn-icon btn-ghost" onclick="Router.navigate('yo')" aria-label="Volver">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <h2>Ajustes</h2>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Preferencias</div>
+        <div class="card">
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-label">Tema</div></div>
+            <select id="set-theme" class="input" style="width:auto;min-height:36px;padding:4px 28px 4px 10px;font-size:var(--fs-sm)" onchange="setTheme(this.value)">
+              <option value="dark" ${s.settings.theme==='dark'?'selected':''}>Oscuro</option>
+              <option value="light" ${s.settings.theme==='light'?'selected':''}>Claro</option>
+              <option value="auto" ${s.settings.theme==='auto'?'selected':''}>Auto</option>
+            </select>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-label">Sonido</div><div class="settings-row-sub">Efecto al completar hábito</div></div>
+            <label class="toggle">
+              <input type="checkbox" ${s.settings.sonido?'checked':''} onchange="toggleSetting('sonido',this.checked)">
+              <div class="toggle-track"><div class="toggle-thumb"></div></div>
+            </label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-label">Háptica</div><div class="settings-row-sub">Vibración en checks</div></div>
+            <label class="toggle">
+              <input type="checkbox" ${s.settings.haptics?'checked':''} onchange="toggleSetting('haptics',this.checked)">
+              <div class="toggle-track"><div class="toggle-thumb"></div></div>
+            </label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-label">Notificaciones</div></div>
+            <label class="toggle">
+              <input type="checkbox" ${s.settings.notificaciones_activas?'checked':''} onchange="toggleNotifs(this.checked)">
+              <div class="toggle-track"><div class="toggle-thumb"></div></div>
+            </label>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-label">Hora objetivo sueño</div></div>
+            <input class="input" type="time" style="width:auto" value="${s.settings.bedtime_target}" onchange="State.set('settings.bedtime_target',this.value)">
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-label">Hora objetivo despertar</div></div>
+            <input class="input" type="time" style="width:auto" value="${s.settings.wake_target}" onchange="State.set('settings.wake_target',this.value)">
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Datos</div>
+        <div class="card">
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-label">Exportar datos</div><div class="settings-row-sub">JSON backup completo</div></div>
+            <button class="btn btn-sm btn-secondary" onclick="State.exportJSON()">Exportar</button>
+          </div>
+          <div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-label">Importar datos</div><div class="settings-row-sub">Restaurar desde backup</div></div>
+            <label class="btn btn-sm btn-secondary" style="cursor:pointer">
+              Importar<input type="file" accept=".json" style="display:none" onchange="importData(this)">
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <div class="section-title">Info</div>
+        <div class="card">
+          <div class="settings-row"><span class="text-sm text-lo">Versión</span><span class="text-sm">1.0.0</span></div>
+          <div class="settings-row"><span class="text-sm text-lo">Schema</span><span class="text-sm num">v3</span></div>
+          <div class="settings-row"><span class="text-sm text-lo">Fase actual</span><span class="text-sm">Fase ${s.settings.fase}</span></div>
+        </div>
+      </div>
+
+      <div class="danger-zone">
+        <div class="font-semibold mb-md" style="color:var(--danger)">Zona peligrosa</div>
+        <button class="btn btn-danger btn-block" onclick="confirmReset()">Borrar todos los datos</button>
+      </div>
+    </div>`;
+
+  window.setTheme = (t) => {
+    State.set('settings.theme', t);
+    applyTheme(t);
+  };
+  window.toggleSetting = (k, v) => { State.set(`settings.${k}`, v); };
+  window.toggleNotifs = async (v) => {
+    if (v) {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') { UI.toast('Permiso de notificaciones denegado.','warn'); return; }
+    }
+    State.set('settings.notificaciones_activas', v);
+  };
+  window.importData = async (input) => {
+    const file = input.files[0]; if (!file) return;
+    try {
+      await State.importJSON(file);
+      UI.toast('Datos importados. Recargando...','success');
+      setTimeout(() => location.reload(), 1500);
+    } catch(e) { UI.toast('Error al importar. Verifica el archivo.','warn'); }
+  };
+  window.confirmReset = async () => {
+    const ok1 = await UI.confirm('¿Quieres pausar 7 días en lugar de borrar? El sistema esperará. Tus datos siguen aquí.', { title:'Antes de borrar', ok:'Pausar 7 días', cancel:'Borrar de todas formas', danger:false });
+    if (ok1) { State.set('settings.modo_crisis', true); UI.toast('Modo pausa activado por 7 días.','success'); Router.navigate('hoy'); return; }
+    const ok2 = await UI.confirm('Esta acción es irreversible. ¿Seguro que quieres borrar todo?', { ok:'Sí, borrar todo', cancel:'Cancelar', danger:true });
+    if (ok2) { State.reset(); location.reload(); }
+  };
+}
+
 function renderNav() {
   const fase = State.get('settings.fase');
   if (fase === 0 || !State.get('onboarding_done')) return;
@@ -3016,6 +4029,119 @@ function renderNav() {
   document.body.appendChild(nav);
 }
 
+/* ═══════════════════════════════════════════════════════════
+   THEME & UTILS
+═══════════════════════════════════════════════════════════ */
+function applyTheme(t) {
+  const html = document.documentElement;
+  if (t === 'auto') {
+    const pref = window.matchMedia('(prefers-color-scheme:dark)').matches ? 'dark' : 'light';
+    html.setAttribute('data-theme', pref);
+  } else {
+    html.setAttribute('data-theme', t);
+  }
+  const meta = document.querySelector('meta[name="theme-color"]');
+  if (meta) meta.content = t === 'light' ? '#FAFAF7' : '#0F1419';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   NOTIFICATIONS
+═══════════════════════════════════════════════════════════ */
+const Notifs = (() => {
+  function schedule() {
+    const s = State.get();
+    if (!s.settings.notificaciones_activas) return;
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const now = new Date();
+    const tomorrow8 = new Date(now); tomorrow8.setDate(tomorrow8.getDate()+1); tomorrow8.setHours(8,0,0,0);
+    const tonight22 = new Date(now); tonight22.setHours(22,0,0,0);
+    const nombre = s.profile.nombre || '';
+
+    if (tonight22 > now) {
+      const ms = tonight22.getTime() - now.getTime();
+      setTimeout(() => {
+        const yStr = (() => { const d = new Date(); d.setDate(d.getDate()-1); return dateStr(d); })();
+        const allDoneToday = s.habits.every(h => h.completions.includes(today()));
+        if (!allDoneToday) send('MI SISTEMA', 'Sueño es la meta 12% empezando. Cierra y sube.', { tag:'bedtime' });
+      }, Math.min(ms, 2147483647));
+    }
+
+    // Comeback
+    const anoche = s.habits.some(h => { const d = new Date(); d.setDate(d.getDate()-1); return !h.completions.includes(dateStr(d)); });
+    if (anoche && tomorrow8 > now) {
+      const ms = tomorrow8.getTime() - now.getTime();
+      setTimeout(() => send('MI SISTEMA', 'Ayer se pasó. Hoy está aquí. Versión mínima cuenta.', { tag:'comeback' }), Math.min(ms, 2147483647));
+    }
+  }
+
+  function send(title, body, opts = {}) {
+    try { new Notification(title, { body, icon:'./icon-192.png', badge:'./icon-192.png', ...opts }); } catch(e) {}
+  }
+
+  return { schedule, send };
+})();
+
+/* ═══════════════════════════════════════════════════════════
+   APP INIT
+═══════════════════════════════════════════════════════════ */
+const App = (() => {
+  function registerRoutes() {
+    Router.register('onboarding', () => renderOnboarding());
+    Router.register('fase0', () => renderFase0());
+    Router.register('hoy', () => { renderNav(); renderHoy(); });
+    Router.register('habitos', () => { renderNav(); renderHabitos(); });
+    Router.register('sinergy', () => { renderNav(); renderSinergy(); });
+    Router.register('diario', () => { renderNav(); renderDiario(); });
+    Router.register('yo', () => { renderNav(); renderYo(); });
+    Router.register('protocolos', () => { renderNav(); renderProtocolos(); });
+    Router.register('protocolo', (hash) => { renderNav(); const id = hash.split('/')[1]; renderProtocolo(id); });
+    Router.register('partner', () => { renderNav(); renderPartner(); });
+    Router.register('experimentos', () => { renderNav(); renderExperimentos(); });
+    Router.register('insights', () => { renderNav(); renderInsights(); });
+    Router.register('ajustes', () => { renderNav(); renderAjustes(); });
+    Router.register('crisis', () => renderCrisis());
+  }
+
+  function registerSW() {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW error:', e));
+    }
+  }
+
+  function checkDailyComebackFlag() {
+    const s = State.get();
+    const yStr = (() => { const d = new Date(); d.setDate(d.getDate()-1); return dateStr(d); })();
+    const failedYesterday = s.habits.some(h => !h.completions.includes(yStr));
+    if (failedYesterday && !s.xp.comeback_pendiente) {
+      State.set('xp.comeback_pendiente', true);
+    }
+  }
+
+  function init() {
+    State.load();
+    XP.checkMonthReset();
+    checkDailyComebackFlag();
+    applyTheme(State.get('settings.theme') || 'dark');
+    registerRoutes();
+    Router.init();
+    registerSW();
+    Notifs.schedule();
+    // Run insights if enough data
+    const diasSistema = State.get('settings.fase_start')
+      ? Math.floor((Date.now() - new Date(State.get('settings.fase_start')+'T00:00:00').getTime())/86400000)+1 : 0;
+    if (diasSistema >= 21) InsightsEngine.generate();
+    // Auto theme media listener
+    window.matchMedia('(prefers-color-scheme:dark)').addEventListener('change', () => {
+      if (State.get('settings.theme') === 'auto') applyTheme('auto');
+    });
+    // Initialize Web Audio on first user gesture
+    document.addEventListener('click', () => { UI.playSound && State.get('settings.sonido'); }, { once: true });
+  }
+
+  return { init };
+})();
+
+App.init();
 </script>
 </body>
 </html>
