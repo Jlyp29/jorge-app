@@ -1208,7 +1208,7 @@ const State = (() => {
       outputs_log:[],
     },
     fisico: {
-      mediciones:[], sesiones:[], nutricion:[],
+      mediciones:[], sesiones:[], nutricion:[], agua:{},
       target_proteina_g:145, target_sesiones_fuerza_sem:4, target_cardio_z2_sem:3,
     },
     sueño:[],
@@ -1247,6 +1247,9 @@ const State = (() => {
     if (!data.experimentos) data.experimentos = [];
     if (!data.fase0_checklist) data.fase0_checklist = defaults().fase0_checklist;
     if (!data.habits || !data.habits.length) data.habits = defaultHabits();
+    if (!data.fisico) data.fisico = defaults().fisico;
+    if (!data.fisico.agua) data.fisico.agua = {};
+    if (!data.fisico.nutricion) data.fisico.nutricion = [];
     // ensure each habit has all fields
     data.habits = data.habits.map(h => ({ ...defaultHabits()[0], ...h }));
     if (!data.profile.identidad) data.profile.identidad = '';
@@ -1868,11 +1871,11 @@ function renderFase0() {
           <div class="fase0-item">
             <div class="fase0-num ${cl.pnl_sinergy_completo?'done':''}">1</div>
             <div class="fase0-content">
-              <div class="fase0-label">P&L de Sinergy línea por línea</div>
-              <div class="fase0-sub">Calcula tu gross margin real. Es crítico.</div>
+              <div class="fase0-label">Conoce tu ganancia real en Sinergy</div>
+              <div class="fase0-sub">Ingresa la ganancia neta del mes en Sinergy (lo que queda después de todos los gastos). Necesitas saber de dónde partes.</div>
               ${cl.pnl_sinergy_completo
                 ? `<span class="chip chip-success mt-sm">Completado</span>`
-                : `<button class="btn btn-sm btn-secondary mt-sm" onclick="Router.navigate('sinergy')">Abrir P&L</button>`}
+                : `<button class="btn btn-sm btn-secondary mt-sm" onclick="Router.navigate('sinergy')">Ir a Sinergy</button>`}
             </div>
           </div>
 
@@ -1880,8 +1883,8 @@ function renderFase0() {
           <div class="fase0-item">
             <div class="fase0-num ${cl.psicologo_agendado?'done':''}">2</div>
             <div class="fase0-content">
-              <div class="fase0-label">Psicólogo TCC/ACT agendado</div>
-              <div class="fase0-sub">La ansiedad crónica necesita apoyo profesional.</div>
+              <div class="fase0-label">Reserva una hora con un psicólogo</div>
+              <div class="fase0-sub">La procrastinación y la ansiedad se trabajan mejor con apoyo profesional. FONASA lo cubre o puedes buscar centros universitarios con precios accesibles.</div>
               ${cl.psicologo_agendado
                 ? `<span class="chip chip-success mt-sm">Fecha: ${esc(cl.psicologo_fecha)}</span>`
                 : `<div class="field mt-sm">
@@ -1896,14 +1899,14 @@ function renderFase0() {
           <div class="fase0-item">
             <div class="fase0-num ${cl.accountability_partner_confirmado?'done':''}">3</div>
             <div class="fase0-content">
-              <div class="fase0-label">Accountability partner confirmado</div>
-              <div class="fase0-sub">Matthews 2015: +78% de logro con reporte semanal.</div>
+              <div class="fase0-label">Tu persona de apoyo semanal</div>
+              <div class="fase0-sub">Alguien que sepa lo que te propones y a quien le reportes cada semana (15 min). Puede ser un amigo, familiar, o compañero. Reportar a alguien aumenta el logro de metas significativamente.</div>
               ${cl.accountability_partner_confirmado
                 ? `<span class="chip chip-success mt-sm">Confirmado: ${esc(s.settings.accountability_partner.nombre)}</span>`
                 : `<div class="field mt-sm">
-                    <input id="partner-nombre" class="input" placeholder="Nombre del partner" value="${esc(s.settings.accountability_partner.nombre)}">
+                    <input id="partner-nombre" class="input" placeholder="Nombre de tu persona de apoyo" value="${esc(s.settings.accountability_partner.nombre)}">
                     <input id="partner-contacto" class="input mt-sm" placeholder="WhatsApp / email" value="${esc(s.settings.accountability_partner.contacto)}">
-                    <button class="btn btn-sm btn-secondary mt-sm" onclick="savePartner()">Confirmar partner</button>
+                    <button class="btn btn-sm btn-secondary mt-sm" onclick="savePartner()">Confirmar</button>
                   </div>`}
             </div>
           </div>
@@ -1913,7 +1916,7 @@ function renderFase0() {
             <div class="fase0-num ${(cl.yt_desinstalado&&cl.ig_desinstalado&&cl.clash_desinstalado)?'done':''}">4</div>
             <div class="fase0-content">
               <div class="fase0-label">Desinstalar apps distractoras</div>
-              <div class="fase0-sub">Ward 2017: la sola presencia del teléfono reduce capacidad cognitiva.</div>
+              <div class="fase0-sub">El celular cerca distrae aunque esté apagado. Desinstálalas por 30 días para ganar foco. Si las necesitas, úsalas solo desde el computador.</div>
               <div class="stack stack-sm mt-sm">
                 ${[
                   ['yt_desinstalado','YouTube'],
@@ -1933,12 +1936,12 @@ function renderFase0() {
           <div class="fase0-item">
             <div class="fase0-num ${(cl.grayscale_activado&&cl.app_blocker_instalado)?'done':''}">5</div>
             <div class="fase0-content">
-              <div class="fase0-label">Grayscale + app blocker</div>
-              <div class="fase0-sub">Reduce el atractivo visual del teléfono.</div>
+              <div class="fase0-label">Pantalla en blanco y negro + bloqueador de apps</div>
+              <div class="fase0-sub">Quitar el color del celular lo hace menos atractivo y reduce el tiempo que pasas en él. El bloqueador de apps te ayuda a poner horarios para no entrar a ciertas apps.</div>
               <div class="stack stack-sm mt-sm">
                 ${[
-                  ['grayscale_activado','Grayscale activado (Accesibilidad)'],
-                  ['app_blocker_instalado','App blocker instalado (One Sec / Opal)'],
+                  ['grayscale_activado','Pantalla en blanco y negro activada (Ajustes → Accesibilidad)'],
+                  ['app_blocker_instalado','App bloqueadora instalada (One Sec o Opal)'],
                 ].map(([key,label]) => `
                   <label class="toggle">
                     <input type="checkbox" ${cl[key]?'checked':''} onchange="toggleFase0('${key}', this.checked)">
@@ -1953,11 +1956,11 @@ function renderFase0() {
           <div class="fase0-item">
             <div class="fase0-num ${cl.baseline_medido?'done':''}">6</div>
             <div class="fase0-content">
-              <div class="fase0-label">Baseline medido</div>
-              <div class="fase0-sub">Peso, % grasa, cintura, sueño promedio.</div>
+              <div class="fase0-label">Tus medidas de partida</div>
+              <div class="fase0-sub">Registra tu peso, % de grasa corporal, cintura y horas de sueño actuales. Sin esto no sabes si estás progresando.</div>
               ${cl.baseline_medido
                 ? `<span class="chip chip-success mt-sm">Registrado</span>`
-                : `<button class="btn btn-sm btn-secondary mt-sm" onclick="openBaselineModal()">Registrar baseline</button>`}
+                : `<button class="btn btn-sm btn-secondary mt-sm" onclick="openBaselineModal()">Registrar medidas</button>`}
             </div>
           </div>
 
@@ -2008,7 +2011,7 @@ function renderFase0() {
       s.settings.accountability_partner.contacto = c;
       s.fase0_checklist.accountability_partner_confirmado = true;
     });
-    UI.toast(`${n} confirmado como partner.`,'success');
+    UI.toast(`${n} confirmado como persona de apoyo.`,'success');
     renderFase0();
   };
   window.saveStallNote = () => {
@@ -2194,6 +2197,34 @@ function renderHoy() {
         <div class="card card-identity cursor-pointer" onclick="Router.navigate('yo')">
           <p class="text-sm font-semibold text-identity">${esc(s.profile.identidad || 'Soy alguien que construye.')}</p>
           ${s.profile.porque ? `<p class="text-xs text-md mt-sm">${esc(s.profile.porque.slice(0,120))}${s.profile.porque.length>120?'...':''}</p>` : ''}
+        </div>
+      </div>
+
+      <!-- Acceso rápido Cuerpo -->
+      <div class="section">
+        <div class="section-title">Cuerpo · hoy</div>
+        <div class="card cursor-pointer" onclick="Router.navigate('cuerpo')" style="display:flex;gap:16px;align-items:center">
+          ${(() => {
+            const hoy = todayISO();
+            const sesion = s.fisico.sesiones.find(e => e.fecha === hoy);
+            const vasos = (s.fisico.agua || {})[hoy] || 0;
+            const comidas = (s.fisico.nutricion || []).filter(c => c.fecha === hoy);
+            const prot = comidas.reduce((sum,c) => sum + (c.proteina_g||0), 0);
+            return `
+              <div style="flex:1;text-align:center">
+                <div style="font-size:24px">${sesion ? '🏋️' : '⬜'}</div>
+                <div class="text-xs text-lo mt-sm">${sesion ? esc(sesion.tipo) : 'Sin entreno'}</div>
+              </div>
+              <div style="flex:1;text-align:center">
+                <div style="font-size:24px">💧</div>
+                <div class="text-xs text-lo mt-sm">${vasos}/8 vasos</div>
+              </div>
+              <div style="flex:1;text-align:center">
+                <div style="font-size:24px">🥩</div>
+                <div class="text-xs text-lo mt-sm">${prot}g proteína</div>
+              </div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:.4"><polyline points="9 18 15 12 9 6"/></svg>`;
+          })()}
         </div>
       </div>
 
@@ -3083,6 +3114,288 @@ function renderJournalGratitud(body, s) {
     State.update(s => { s.gratitud.unshift({ fecha:todayISO(), items }); });
     UI.toast('Gratitud guardada.','success');
     renderDiario('gratitud');
+  };
+}
+
+/* ═══════════════════════════════════════════════════════════
+   VISTA: CUERPO
+═══════════════════════════════════════════════════════════ */
+function renderCuerpo(sub = 'entreno') {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="page-full">
+      <div class="page-header">
+        <h2 class="flex-1">Cuerpo</h2>
+      </div>
+      <div class="journal-tabs">
+        ${[
+          ['entreno','Entreno'],['agua','Agua'],['comidas','Comidas'],
+        ].map(([key,label]) =>
+          `<button class="journal-tab ${sub===key?'active':''}" onclick="renderCuerpo('${key}')">${label}</button>`
+        ).join('')}
+      </div>
+      <div class="page" style="padding-top:0" id="cuerpo-body"></div>
+    </div>`;
+
+  const body = document.getElementById('cuerpo-body');
+  const s = State.get();
+  if (sub === 'entreno') renderCuerpoEntreno(body, s);
+  else if (sub === 'agua') renderCuerpoAgua(body, s);
+  else if (sub === 'comidas') renderCuerpoComidas(body, s);
+}
+
+function renderCuerpoEntreno(body, s) {
+  const hoy = todayISO();
+  const sesionesHoy = s.fisico.sesiones.filter(e => e.fecha === hoy);
+  const ultimas = s.fisico.sesiones.slice(0, 7);
+
+  body.innerHTML = `
+    <div class="row-between mb-md mt-md">
+      <div>
+        <div class="text-xs text-lo font-semibold uppercase">Esta semana</div>
+        <div class="num" style="font-size:var(--fs-2xl);font-weight:800;color:var(--primary)">${s.fisico.sesiones.filter(e => {
+          const d = new Date(e.fecha+'T00:00:00');
+          return (Date.now() - d.getTime()) < 7*86400000;
+        }).length}<span class="text-sm text-lo font-normal"> sesiones</span></div>
+      </div>
+      <button class="btn btn-primary" onclick="abrirModalEntreno()">+ Registrar entreno</button>
+    </div>
+
+    ${sesionesHoy.length ? `
+      <div class="card card-primary mb-md">
+        <div class="text-xs text-lo mb-sm">✅ Ya entrenaste hoy</div>
+        ${sesionesHoy.map(e => `<div class="font-semibold">${esc(e.tipo)}</div>
+          <div class="text-sm text-lo">${e.duracion_min} min${e.notas ? ' · ' + esc(e.notas) : ''}</div>`).join('')}
+      </div>` : `
+      <div class="card card-warn mb-md">
+        <p class="text-sm">Sin sesión registrada hoy. ¿Entrenaste?</p>
+        <button class="btn btn-sm btn-secondary mt-sm" onclick="abrirModalEntreno()">Registrar ahora</button>
+      </div>`}
+
+    ${ultimas.length ? `
+      <div class="section-title mb-sm">Últimas sesiones</div>
+      <div class="stack stack-sm">
+        ${ultimas.map(e => `
+          <div class="card">
+            <div class="row-between">
+              <div>
+                <div class="font-semibold">${esc(e.tipo)}</div>
+                <div class="text-xs text-lo mt-sm">${formatDate(e.fecha)} · ${e.duracion_min} min</div>
+                ${e.ejercicios && e.ejercicios.length ? `<div class="text-xs text-md mt-sm">${e.ejercicios.map(ej => esc(ej.nombre)).join(' · ')}</div>` : ''}
+              </div>
+              <div class="text-right">
+                ${e.tipo === 'Fuerza' ? '<span style="font-size:22px">🏋️</span>' : e.tipo === 'Cardio' ? '<span style="font-size:22px">🚴</span>' : '<span style="font-size:22px">🤸</span>'}
+              </div>
+            </div>
+          </div>`).join('')}
+      </div>` : '<div class="card"><p class="text-sm text-lo">Aún no registraste entrenamientos. ¡Empieza hoy!</p></div>'}`;
+
+  window.abrirModalEntreno = () => {
+    let ejercicios = [];
+    UI.modal({
+      title: 'Registrar entreno',
+      body: `
+        <div class="stack stack-md">
+          <div class="field">
+            <label>Tipo de entreno</label>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">
+              ${['Fuerza','Cardio','Movilidad','Otro'].map(t =>
+                `<button type="button" class="suggestion-chip tipo-chip" id="tipo-${t}" onclick="selectTipo('${t}')">${t === 'Fuerza' ? '🏋️' : t === 'Cardio' ? '🚴' : t === 'Movilidad' ? '🤸' : '⚡'} ${t}</button>`
+              ).join('')}
+            </div>
+          </div>
+          <div class="field">
+            <label>Duración (minutos)</label>
+            <input id="entreno-dur" class="input" type="number" min="5" max="180" placeholder="45" value="45">
+          </div>
+          <div class="field">
+            <label>Ejercicios (opcional)</label>
+            <div id="ejercicios-list" class="stack stack-sm mb-sm"></div>
+            <button type="button" class="btn btn-sm btn-ghost" onclick="agregarEjercicio()">+ Agregar ejercicio</button>
+          </div>
+          <div class="field">
+            <label>Notas (opcional)</label>
+            <input id="entreno-notas" class="input" placeholder="¿Cómo te sentiste? ¿Nuevo récord?">
+          </div>
+        </div>`,
+      actions:[{ label:'Guardar entreno', cls:'btn-primary btn-block', action:() => {
+        const tipo = document.querySelector('.tipo-chip.active')?.textContent?.trim()?.replace(/[🏋️🚴🤸⚡]/gu,'').trim() || 'Fuerza';
+        const dur = parseInt(document.getElementById('entreno-dur')?.value) || 45;
+        const notas = document.getElementById('entreno-notas')?.value.trim() || '';
+        const ejList = Array.from(document.querySelectorAll('.ej-input')).map(i => ({ nombre: i.value.trim() })).filter(e => e.nombre);
+        State.update(s => {
+          s.fisico.sesiones.unshift({ id:Date.now().toString(), fecha:hoy, tipo, duracion_min:dur, ejercicios:ejList, notas });
+        });
+        XP.add(30, 'Entreno registrado');
+        UI.toast('¡Entreno guardado! +30 XP 💪','success');
+        renderCuerpo('entreno');
+      }}],
+    });
+  };
+
+  window.selectTipo = (t) => {
+    document.querySelectorAll('.tipo-chip').forEach(b => b.classList.remove('active', 'chip-primary'));
+    const btn = document.getElementById(`tipo-${t}`);
+    if (btn) { btn.classList.add('active'); btn.style.background='var(--primary)'; btn.style.color='#fff'; btn.style.borderColor='var(--primary)'; }
+    document.querySelectorAll('.tipo-chip').forEach(b => { if (b.id !== `tipo-${t}`) { b.style.background=''; b.style.color=''; b.style.borderColor=''; } });
+  };
+
+  window.agregarEjercicio = () => {
+    const list = document.getElementById('ejercicios-list');
+    if (!list || list.children.length >= 10) return;
+    const row = document.createElement('div');
+    row.className = 'row row-gap-sm';
+    row.innerHTML = `<input class="input flex-1 ej-input" placeholder="Ej: Sentadilla, Press banca...">
+      <button type="button" class="btn btn-sm btn-icon btn-ghost" onclick="this.parentNode.remove()" style="flex-shrink:0">✕</button>`;
+    list.appendChild(row);
+  };
+}
+
+function renderCuerpoAgua(body, s) {
+  const hoy = todayISO();
+  const agua = s.fisico.agua || {};
+  const vasos = agua[hoy] || 0;
+  const META = 8;
+  const pct = Math.min(100, Math.round(vasos / META * 100));
+
+  const dias = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = dateStr(d);
+    dias.push({ ds, label: i === 0 ? 'Hoy' : ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][d.getDay()], vasos: agua[ds] || 0 });
+  }
+
+  body.innerHTML = `
+    <div class="card text-center mb-lg mt-md">
+      <div class="text-xs text-lo font-semibold uppercase mb-sm">Meta diaria</div>
+      <div class="num" style="font-size:var(--fs-3xl);font-weight:900;color:${vasos >= META ? 'var(--success)' : 'var(--primary)'}">
+        ${vasos}<span class="text-sm text-lo font-normal">/${META} vasos</span>
+      </div>
+      <div class="progress-bar mt-md"><div class="progress-fill" style="width:${pct}%;background:${vasos >= META ? 'var(--success)' : 'var(--primary)'}"></div></div>
+      <div class="text-xs text-lo mt-sm">${vasos >= META ? '¡Meta cumplida! 🎉' : `${META - vasos} vasos para llegar a 2 litros`}</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:24px">
+      ${Array.from({length: META}, (_,i) => `
+        <button onclick="toggleVaso(${i+1})" style="
+          aspect-ratio:1;border-radius:16px;border:2px solid ${i < vasos ? 'var(--primary)' : 'var(--border)'};
+          background:${i < vasos ? 'var(--primary-alpha)' : 'transparent'};
+          font-size:28px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+          transition:all var(--dur-2) var(--ease-standard)">
+          ${i < vasos ? '💧' : '○'}
+        </button>`).join('')}
+    </div>
+
+    <div class="row row-gap-sm mb-lg" style="justify-content:center">
+      <button class="btn btn-secondary" onclick="ajustarAgua(-1)">− Un vaso</button>
+      <button class="btn btn-primary" onclick="ajustarAgua(1)">+ Un vaso</button>
+    </div>
+
+    <div class="section-title mb-sm">Últimos 7 días</div>
+    <div class="card">
+      <div style="display:flex;align-items:flex-end;gap:6px;height:80px">
+        ${dias.map(d => `
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
+            <div style="flex:1;display:flex;align-items:flex-end;width:100%">
+              <div style="width:100%;border-radius:4px 4px 0 0;background:${d.vasos >= META ? 'var(--success)' : d.vasos > 0 ? 'var(--primary)' : 'var(--bg-2)'};height:${Math.max(4, Math.min(100, d.vasos/META*100))}%" title="${d.vasos} vasos"></div>
+            </div>
+            <div class="text-xs text-lo" style="white-space:nowrap">${d.label}</div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  window.ajustarAgua = (delta) => {
+    State.update(s => {
+      if (!s.fisico.agua) s.fisico.agua = {};
+      const actual = s.fisico.agua[hoy] || 0;
+      s.fisico.agua[hoy] = Math.max(0, Math.min(META, actual + delta));
+    });
+    renderCuerpo('agua');
+  };
+  window.toggleVaso = (n) => {
+    State.update(s => {
+      if (!s.fisico.agua) s.fisico.agua = {};
+      s.fisico.agua[hoy] = n;
+    });
+    renderCuerpo('agua');
+  };
+}
+
+function renderCuerpoComidas(body, s) {
+  const hoy = todayISO();
+  const comidas = s.fisico.nutricion.filter(c => c.fecha === hoy);
+  const targetProteina = s.fisico.target_proteina_g || 145;
+  const totalProteina = comidas.reduce((sum, c) => sum + (c.proteina_g || 0), 0);
+  const TIPOS = [
+    { id:'desayuno', label:'Desayuno', emoji:'🌅', hint:'Incluye proteína: huevos, yogur, requesón...' },
+    { id:'almuerzo', label:'Almuerzo', emoji:'☀️', hint:'Proteína + verduras + carbohidratos.' },
+    { id:'cena', label:'Cena', emoji:'🌙', hint:'Proteína + algo liviano.' },
+    { id:'snack', label:'Snack', emoji:'🍎', hint:'Fruta, frutos secos, proteína...' },
+  ];
+
+  body.innerHTML = `
+    <div class="card mb-lg mt-md" style="text-align:center">
+      <div class="text-xs text-lo font-semibold uppercase mb-sm">Proteína hoy</div>
+      <div class="num" style="font-size:var(--fs-3xl);font-weight:900;color:${totalProteina >= targetProteina ? 'var(--success)' : 'var(--primary)'}">
+        ${totalProteina}g<span class="text-sm text-lo font-normal"> / ${targetProteina}g</span>
+      </div>
+      <div class="progress-bar mt-md"><div class="progress-fill" style="width:${Math.min(100, Math.round(totalProteina/targetProteina*100))}%;background:${totalProteina >= targetProteina ? 'var(--success)' : 'var(--primary)'}"></div></div>
+      <div class="text-xs text-lo mt-sm">${totalProteina >= targetProteina ? '¡Meta de proteína cumplida! 💪' : `${targetProteina - totalProteina}g más para llegar a la meta`}</div>
+    </div>
+
+    <div class="stack stack-sm">
+      ${TIPOS.map(t => {
+        const comida = comidas.find(c => c.tipo === t.id);
+        return `
+          <div class="card">
+            <div class="row-between mb-sm">
+              <div class="row row-gap-sm">
+                <span style="font-size:20px">${t.emoji}</span>
+                <span class="font-semibold">${t.label}</span>
+              </div>
+              ${comida ? `<span class="chip chip-primary">${comida.proteina_g}g prot.</span>` : ''}
+            </div>
+            ${comida
+              ? `<div class="text-sm text-md">${esc(comida.descripcion)}</div>
+                 <button class="btn btn-sm btn-ghost mt-sm" onclick="editarComida('${t.id}')">Editar</button>`
+              : `<div class="text-xs text-lo mb-sm">${t.hint}</div>
+                 <button class="btn btn-sm btn-secondary" onclick="editarComida('${t.id}')">+ Registrar ${t.label.toLowerCase()}</button>`}
+          </div>`;
+      }).join('')}
+    </div>`;
+
+  window.editarComida = (tipo) => {
+    const tipoInfo = TIPOS.find(t => t.id === tipo);
+    const existing = comidas.find(c => c.tipo === tipo);
+    UI.modal({
+      title: `${tipoInfo.emoji} ${tipoInfo.label}`,
+      body: `
+        <div class="stack stack-md">
+          <div class="field">
+            <label>¿Qué comiste?</label>
+            <textarea id="comida-desc" class="input" rows="3" placeholder="${tipoInfo.hint}">${esc(existing?.descripcion || '')}</textarea>
+          </div>
+          <div class="field">
+            <label>Proteína estimada (g)</label>
+            <input id="comida-prot" class="input" type="number" min="0" max="150" placeholder="0" value="${existing?.proteina_g || ''}">
+            <div class="hint">Ejemplo: 3 huevos ≈ 18g · 200g pollo ≈ 46g · Yogur griego ≈ 15g</div>
+          </div>
+        </div>`,
+      actions:[{ label:'Guardar', cls:'btn-primary btn-block', action:() => {
+        const desc = document.getElementById('comida-desc')?.value.trim() || '';
+        const prot = parseInt(document.getElementById('comida-prot')?.value) || 0;
+        if (!desc) { UI.toast('Escribe qué comiste.','warn'); return false; }
+        State.update(s => {
+          if (!s.fisico.nutricion) s.fisico.nutricion = [];
+          const idx = s.fisico.nutricion.findIndex(c => c.fecha === hoy && c.tipo === tipo);
+          const entry = { id: idx>=0 ? s.fisico.nutricion[idx].id : Date.now().toString(), fecha:hoy, tipo, descripcion:desc, proteina_g:prot };
+          if (idx>=0) s.fisico.nutricion[idx] = entry; else s.fisico.nutricion.unshift(entry);
+        });
+        XP.add(5, 'Comida registrada');
+        UI.toast('Guardado. +5 XP','success');
+        renderCuerpo('comidas');
+      }}],
+    });
   };
 }
 
@@ -4110,6 +4423,7 @@ function renderNav() {
   nav.innerHTML = [
     ['hoy','Hoy',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`],
     ['habitos','Hábitos',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>`],
+    ['cuerpo','Cuerpo',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6.5 6.5h11M6.5 17.5h11M4 10h4M16 10h4M4 14h4M16 14h4M8 10v4M16 10v4"/></svg>`],
     ['sinergy','Sinergy',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`],
     ['diario','Diario',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`],
     ['yo','Yo',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`],
@@ -4182,6 +4496,7 @@ const App = (() => {
     Router.register('fase0', () => renderFase0());
     Router.register('hoy', () => { renderNav(); renderHoy(); });
     Router.register('habitos', () => { renderNav(); renderHabitos(); });
+    Router.register('cuerpo', () => { renderNav(); renderCuerpo(); });
     Router.register('sinergy', () => { renderNav(); renderSinergy(); });
     Router.register('diario', () => { renderNav(); renderDiario(); });
     Router.register('yo', () => { renderNav(); renderYo(); });
