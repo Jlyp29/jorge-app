@@ -1132,12 +1132,33 @@ const clamp = (v,mn,mx) => Math.min(mx, Math.max(mn, v));
 const randItem = arr => arr[Math.floor(Math.random() * arr.length)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+// Calcula la racha real contando hacia atrás desde las completions almacenadas.
+// Permite un día de gracia si no completó hoy (día en curso).
+function calcLiveStreak(completions) {
+  const t = today();
+  const hasDoneToday = completions.includes(t);
+  let streak = 0;
+  let gapAllowed = !hasDoneToday; // si no lo hizo hoy, el día de hoy no rompe la racha
+  for (let i = hasDoneToday ? 0 : 1; i < 400; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    if (completions.includes(dateStr(d))) {
+      streak++;
+      gapAllowed = true; // después de un éxito se puede usar el gap nunca-fallar-dos
+    } else if (gapAllowed) {
+      gapAllowed = false; // usar la única gracia permitida
+    } else {
+      break;
+    }
+  }
+  return streak;
+}
+
 /* ═══════════════════════════════════════════════════════════
    STATE MODULE
 ═══════════════════════════════════════════════════════════ */
 const State = (() => {
   const KEY = 'misistema';
-  const V = 3;
+  const V = 4;
 
   const defaultHabits = () => [
     {
@@ -1258,6 +1279,11 @@ const State = (() => {
     if (!data.fisico) data.fisico = defaults().fisico;
     if (!data.fisico.agua) data.fisico.agua = {};
     if (!data.fisico.nutricion) data.fisico.nutricion = [];
+    // Limpiar insights con citas académicas viejas
+    if (data.insights) {
+      const STALE_PATTERNS = ['Matthews 2015','Nedeltcheva','Sirois','Marlatt & Gordon','Neff 2003','Lally'];
+      data.insights = data.insights.filter(i => !STALE_PATTERNS.some(p => i.mensaje?.includes(p)));
+    }
     // ensure each habit has all fields
     data.habits = data.habits.map(h => ({ ...defaultHabits()[0], ...h, xp_awarded_dates: h.xp_awarded_dates || [] }));
     if (!data.profile.identidad) data.profile.identidad = '';
@@ -1360,6 +1386,8 @@ const XP = (() => {
     });
   }
 
+  let _levelUpCallback = null;
+
   function add(delta, reason, opts = {}) {
     checkMonthReset();
     // Fresh start multiplier
@@ -1370,9 +1398,9 @@ const XP = (() => {
     if (new Date().getDate() === 1) mult = 1.5;
 
     const effective = Math.round(delta > 0 ? delta * mult : delta);
+    let levelUpData = null;
 
     State.update(s => {
-      const prev = s.xp.total;
       s.xp.total = Math.max(0, s.xp.total + effective);
       s.xp.history.unshift({ fecha: todayISO(), delta: effective, razon: reason });
       if (s.xp.history.length > 200) s.xp.history.length = 200;
@@ -1382,9 +1410,14 @@ const XP = (() => {
       if (newLevel > s.xp.nivel) {
         s.xp.nivel = newLevel;
         s.xp.proximoNivel = getLevelThreshold(newLevel + 1);
+        levelUpData = { level: newLevel, name: getLevelName(newLevel) };
         if (opts.onLevelUp) opts.onLevelUp(newLevel, getLevelName(newLevel));
       }
     });
+
+    if (levelUpData && _levelUpCallback) {
+      setTimeout(() => _levelUpCallback(levelUpData.level, levelUpData.name), 400);
+    }
 
     if (opts.animate !== false && delta > 0) {
       animateXPDelta(effective, mult > 1);
@@ -1477,7 +1510,7 @@ const XP = (() => {
     el.addEventListener('animationend', () => el.remove());
   }
 
-  return { add, calcLevel, getProgress, checkStreak, handleDecay, useFreeze, getLevelName, getLevelThreshold, checkMonthReset };
+  return { add, calcLevel, getProgress, checkStreak, handleDecay, useFreeze, getLevelName, getLevelThreshold, checkMonthReset, setLevelUpCallback: cb => { _levelUpCallback = cb; } };
 })();
 
 /* ═══════════════════════════════════════════════════════════
@@ -1618,19 +1651,29 @@ const UI = (() => {
   }
 
   /* LEVEL UP OVERLAY */
+  const LEVEL_MSG = {
+    2: 'Empezaste a construir. Eso ya es más que la mayoría.',
+    3: 'El foco llega cuando actúas antes de sentirte listo.',
+    4: 'La serenidad no se declama. Se construye así.',
+    5: 'Eres un ancla para ti mismo. Eso no tiene precio.',
+    6: 'Operas con intención. No reaccionas, eliges.',
+    7: 'La maestría no es talento. Es consistencia acumulada.',
+    8: 'Visión + acción. Ya no son separadas para ti.',
+    9: 'Lideras tu vida. El resto viene después.',
+    10: 'Legado en construcción. Esto es lo que queda.',
+  };
   function levelUp(level, name) {
     confetti(70);
     haptic([30,50,30,50,60]);
+    const msg = LEVEL_MSG[level] || 'Llevas tiempo construyendo. Esto lo demuestra.';
     const ol = document.createElement('div');
     ol.className = 'levelup-overlay';
     ol.innerHTML = `
       <div class="levelup-badge">⭐</div>
       <div class="levelup-title">¡Nivel ${level}!</div>
       <div class="levelup-sub">"${esc(name)}"</div>
-      <p style="font-size:var(--fs-sm);color:var(--text-lo);max-width:240px;line-height:var(--lh-relaxed)">
-        Llevas un tiempo construyendo. Esto lo demuestra.
-      </p>
-      <button class="btn btn-primary" id="lu-close">Seguir</button>`;
+      <p style="font-size:var(--fs-sm);color:var(--text-lo);max-width:240px;line-height:var(--lh-relaxed)">${esc(msg)}</p>
+      <button class="btn btn-primary" id="lu-close">Seguir construyendo</button>`;
     ol.querySelector('#lu-close').onclick = () => ol.remove();
     document.body.appendChild(ol);
     setTimeout(() => ol.querySelector('#lu-close')?.focus(), 100);
@@ -1638,6 +1681,9 @@ const UI = (() => {
 
   return { toast, modal, confirm, confetti, celebration, haptic, playSound, levelUp };
 })();
+
+// Wire level-up to UI overlay now that both modules exist
+XP.setLevelUpCallback((level, name) => UI.levelUp(level, name));
 
 /* ═══════════════════════════════════════════════════════════
    ROUTER
@@ -1663,6 +1709,7 @@ const Router = (() => {
       const app = document.getElementById('app');
       if (app) { app.innerHTML = ''; fn(hash); }
     }
+    window.scrollTo(0, 0);
     updateNav(hash);
   }
 
@@ -2103,6 +2150,15 @@ function renderHoy() {
   const todayCompletions = s.habits.map(h => h.completions.includes(today()));
   const allDoneToday = todayCompletions.every(Boolean);
 
+  // Weekly completion rate (last 7 days)
+  const weekDays = Array.from({length:7},(_,i) => { const d = new Date(); d.setDate(d.getDate()-i); return dateStr(d); });
+  const weekChecks = weekDays.reduce((sum, d) => sum + s.habits.filter(h => h.completions.includes(d)).length, 0);
+  const weekMax = 7 * s.habits.length;
+  const weekPct = weekMax > 0 ? Math.round(weekChecks / weekMax * 100) : 0;
+
+  // Monday summary: best streak
+  const maxStreakHabit = s.habits.reduce((best, h) => h.currentStreak > (best?.currentStreak||0) ? h : best, null);
+
   // Progress XP today
   const { pct, current, needed } = XP.getProgress();
   const nivel = xpData.nivel;
@@ -2130,7 +2186,10 @@ function renderHoy() {
         </div>` : ''}
       ${esFreshStart && !hayComeback ? `
         <div class="banner banner-fresh">
-          ${esLunes ? 'Lunes.' : 'Primero de mes.'} XP ×1.5 hoy. Arrancar distinto es válido.
+          ${esLunes
+            ? `Lunes · XP ×1.5 hoy.${maxStreakHabit && maxStreakHabit.currentStreak > 1 ? ` Mejor racha: <strong>${maxStreakHabit.currentStreak} días</strong> de ${esc(maxStreakHabit.nombre)}.` : ' A construir.'}`
+            : `Primero de mes · XP ×1.5 hoy. ${weekPct >= 70 ? 'La semana pasada fue sólida.' : 'Esta semana puede ser diferente.'}`
+          }
         </div>` : ''}
       ${s.settings.modo_crisis ? `
         <div class="banner banner-crisis">
@@ -2146,15 +2205,19 @@ function renderHoy() {
           </div>
           <div class="text-right">
             <div class="level-badge">Nv. ${nivel} · ${esc(levelName)}</div>
-            <div class="text-xs text-lo mt-sm">${current} / ${needed} XP</div>
+            <div class="text-xs text-primary font-semibold mt-sm">${needed - current} XP para nivel ${nivel+1}</div>
           </div>
         </div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="progress-bar" style="height:8px"><div class="progress-fill" style="width:${pct}%;transition:width 1s var(--ease-standard)"></div></div>
         <div class="row-between mt-sm">
-          <div class="text-xs text-lo">Freezes disponibles</div>
-          <div class="freeze-dots" title="${xpData.freezes_disponibles} de 4">
+          <div class="text-xs text-lo">Semana: ${weekPct}% · ${weekChecks}/${weekMax} checks</div>
+          <div class="text-xs text-lo">${xpData.freezes_disponibles}/4 🧊</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
+          <div class="progress-bar" style="flex:1;height:4px;background:var(--bg-3)"><div style="height:4px;background:var(--success);width:${weekPct}%;border-radius:var(--r-full);transition:width 1s var(--ease-standard)"></div></div>
+          <div class="freeze-dots" title="${xpData.freezes_disponibles} de 4" aria-label="${xpData.freezes_disponibles} protecciones disponibles">
             ${Array.from({length:4},(_,i) =>
-              `<div class="freeze-dot ${i < xpData.freezes_disponibles ? 'available' : 'used'}" title="${i < xpData.freezes_disponibles ? 'Disponible':'Usado'}"></div>`
+              `<div class="freeze-dot ${i < xpData.freezes_disponibles ? 'available' : 'used'}" aria-hidden="true"></div>`
             ).join('')}
           </div>
         </div>
@@ -2268,6 +2331,7 @@ function renderHoy() {
 
 function renderHabitCard(h, done, idx) {
   const xpVal = h.escala_actual === 'tiny' ? (h.xp_por_check === 20 ? 20 : 10) : h.xp_por_check;
+  const liveStreak = calcLiveStreak(h.completions || []);
   return `
     <div class="habit-card ${done ? 'done' : ''}" id="hcard-${h.id}">
       <button class="habit-check ${done ? 'done' : ''}" id="hcheck-${h.id}"
@@ -2279,8 +2343,8 @@ function renderHabitCard(h, done, idx) {
         <div class="habit-name">${esc(h.nombre)}</div>
         <div class="habit-anchor">${esc(h.escala_actual === 'tiny' ? h.version_tiny : h.version_target)}</div>
         <div class="streak-row">
-          <span class="streak-flame" style="${h.currentStreak > 0 ? 'animation:firePop .5s ease both' : ''}">🔥</span>
-          <span class="streak-val num">${h.currentStreak}</span>
+          <span class="streak-flame" style="${liveStreak > 0 ? 'animation:firePop .5s ease both' : ''}">🔥</span>
+          <span class="streak-val num">${liveStreak}</span>
           <span class="streak-label">días</span>
         </div>
       </div>
@@ -2319,12 +2383,24 @@ function wireHabitChecks() {
           habit.xp_awarded_dates.push(t);
         }
         // Streak badge check
-        if (habit.currentStreak === 21) {
-          UI.toast(`¡21 días de ${habit.nombre}! Badge "${habit.identity_tag.replace('Soy alguien que ','').replace('Soy alguien con ','')}" desbloqueado.`,'success', 4000);
-        }
-        if (habit.currentStreak === 66) {
+        const cs = habit.currentStreak;
+        if (cs === 3) {
+          UI.toast(`3 días seguidos de ${habit.nombre}. El hábito está despertando.`,'success', 3500);
+        } else if (cs === 7) {
+          UI.confetti(30);
+          UI.toast(`🔥 ¡Semana perfecta de ${habit.nombre}! 7 días. Sigue.`,'success', 4500);
+        } else if (cs === 14) {
+          UI.confetti(40);
+          UI.toast(`💪 ¡14 días de ${habit.nombre}! Dos semanas sólidas.`,'success', 4500);
+        } else if (cs === 21) {
           UI.confetti(60);
-          UI.toast('¡66 días! El hábito ya está automatizado. Es parte de ti.','success', 5000);
+          UI.toast(`⭐ ¡21 días de ${habit.nombre}! Badge "${habit.identity_tag.replace('Soy alguien que ','').replace('Soy alguien con ','')}" desbloqueado.`,'success', 5000);
+        } else if (cs === 30) {
+          UI.confetti(60);
+          UI.toast(`🏆 ¡30 días de ${habit.nombre}! Un mes entero. Eres de los que cumplen.`,'success', 5000);
+        } else if (cs === 66) {
+          UI.confetti(80);
+          UI.toast(`🌟 ¡66 días! El hábito ya está automatizado. Es parte de ti.`,'success', 6000);
         }
       }
     });
@@ -2339,12 +2415,17 @@ function wireHabitChecks() {
       check.setAttribute('aria-pressed','true');
       UI.haptic([15]);
       UI.playSound();
-      const COPY = ['Un voto por quien quieres ser.','Eso suma.','Constructor.','Así se hace.','Tu sistema está funcionando.'];
-      const copy = randItem(COPY);
+      const COPY = ['Un voto por quien quieres ser.','Eso suma.','Constructor.','Así se hace.','Tu sistema está funcionando.','Uno más. Sigue.'];
       const s2 = State.get();
       const allDone = s2.habits.every(h2 => h2.completions.includes(today()));
-      if (allDone) { setTimeout(() => UI.confetti(45), 200); UI.toast('¡Los 3! ' + copy,'success'); }
-      else UI.toast(copy,'success',2500);
+      if (allDone) {
+        const ALL_COPY = ['¡Día completo! Los 3. Eso es el sistema.','Tres de tres. Ninguno te gana hoy.','Los 3 hechos. El día fue tuyo.','Día perfecto. Eso se acumula.'];
+        setTimeout(() => UI.confetti(55), 200);
+        UI.haptic([20,30,20,30,60]);
+        UI.toast(randItem(ALL_COPY),'success',4000);
+      } else {
+        UI.toast(randItem(COPY),'success',2500);
+      }
       // refresh XP display
       const xpEl = document.getElementById('xp-display');
       if (xpEl) animateCount(xpEl, parseInt(xpEl.textContent.replace(/\D/g,'')||'0'), State.get('xp.total'));
@@ -2485,6 +2566,7 @@ function renderHabitos() {
 
 function renderHabitoDetail(h) {
   const completionsArr = h.completions || [];
+  const liveStreak = calcLiveStreak(completionsArr);
   // 8-week heatmap (56 days)
   const cells = [];
   for (let i = 55; i >= 0; i--) {
@@ -2508,7 +2590,7 @@ function renderHabitoDetail(h) {
           <div class="chip chip-identity mt-sm">${esc(h.identity_tag)}</div>
         </div>
         <div class="text-right">
-          <div class="num" style="font-size:var(--fs-xl);font-weight:800;color:var(--accent)">${h.currentStreak}</div>
+          <div class="num" style="font-size:var(--fs-xl);font-weight:800;color:var(--accent)">${liveStreak}</div>
           <div class="text-xs text-lo">racha actual</div>
         </div>
       </div>
@@ -2929,13 +3011,14 @@ function renderJournalDaily(body, s) {
   window.saveDailyJournal = (e) => {
     e.preventDefault();
     const d = new FormData(e.target);
+    const isNew = !s.journal.find(j => j.fecha===todayISO() && j.tipo==='daily');
     State.update(s => {
       const idx = s.journal.findIndex(j => j.fecha===todayISO() && j.tipo==='daily');
       const entry = { id: idx>=0 ? s.journal[idx].id : Date.now().toString(), fecha:todayISO(), tipo:'daily', payload:{ respuesta:d.get('respuesta'), estado:d.get('estado') }, tags:[] };
       if (idx>=0) s.journal[idx] = entry; else s.journal.unshift(entry);
     });
-    XP.add(10,'Diario daily');
-    UI.toast('Entrada guardada. +10 XP','success');
+    if (isNew) XP.add(10,'Diario daily');
+    UI.toast(isNew ? 'Entrada guardada. +10 XP' : 'Entrada actualizada.','success');
     renderDiario('daily');
   };
 }
@@ -2969,7 +3052,7 @@ function renderJournalEmocional(body, s) {
       </div>
       <button type="submit" class="btn btn-primary btn-block">Registrar y actuar</button>
     </form>
-    <button class="btn btn-ghost btn-block mt-sm" onclick="Router.navigate('protocolo/urge_surfing')">Abrir Urge Surfing →</button>`;
+    <button class="btn btn-ghost btn-block mt-sm" onclick="Router.navigate('protocolo/urge_surfing')">Abrir "Surfea el impulso" →</button>`;
 
   window.saveEmocional = (e) => {
     e.preventDefault();
@@ -3453,6 +3536,11 @@ function renderYo() {
   })();
   const longestStreak = Math.max(...s.habits.map(h=>h.longestStreak),0);
   const medicion = s.fisico.mediciones.slice(-1)[0];
+  // Gross margin real del último mes con datos
+  const lastMesConDatos = s.sinergy.mensual.slice().reverse().find(m => m.ganancia_neta_clp > 0);
+  const gmDisplay = lastMesConDatos
+    ? `${(lastMesConDatos.ganancia_neta_clp/1000).toFixed(0)}k CLP (${new Date(lastMesConDatos.mes+'-01').toLocaleDateString('es-CL',{month:'short',year:'numeric'})})`
+    : 'Sin datos aún';
 
   const app = document.getElementById('app');
   app.innerHTML = `
@@ -3517,21 +3605,22 @@ function renderYo() {
           <div class="projection-row"><span>% grasa en 6m</span><span class="projection-goal"></span><span class="projection-real">→ 17-18%</span></div>
           <div class="projection-row"><span>% grasa en 12m</span><span class="projection-goal"></span><span class="projection-real">→ 15-16%</span></div>
           <div class="projection-row"><span>Ingreso USD +3m</span><span class="projection-real">+$500 si GM mejora</span></div>
-          <div class="projection-row"><span>Gross margin 3m</span><span class="projection-goal">0.27% (hoy)</span><span class="projection-real">→ 20-35%</span></div>
+          <div class="projection-row"><span>Ganancia Sinergy</span><span class="projection-goal">${esc(gmDisplay)}</span><span class="projection-real">→ meta 35% GM</span></div>
         </div>
         <p class="text-xs text-lo mt-sm" style="line-height:var(--lh-relaxed)">La meta 12% grasa en 3 meses no es realista. El ritmo sano es 0.5-1pp/mes. La evidencia primero.</p>
       </div>
 
       <!-- Metas 5 años -->
       <div class="section">
-        <div class="section-title">North Star · 5 años (2030)</div>
+        <div class="section-title">North Star · 5 años</div>
         <div class="card card-identity">
           ${Object.entries({
-            'Ingreso': '$10,000 USD/mes',
-            'Cuerpo': '12% grasa',
-            'Auto': 'Golf GTI/R o Scirocco',
-            'Sinergy': 'CEO consolidado',
-          }).map(([k,v]) => `<div class="projection-row"><span>${k}</span><span class="text-primary font-semibold">${v}</span></div>`).join('')}
+            'Ingreso': s.metas_5y?.ingreso_usd_mes ? `$${s.metas_5y.ingreso_usd_mes.toLocaleString('es-CL')} USD/mes` : '$10,000 USD/mes',
+            'Cuerpo': s.metas_5y?.grasa_pct ? `${s.metas_5y.grasa_pct}% grasa` : '12% grasa',
+            'Auto': s.metas_5y?.auto || 'Golf GTI/R',
+            'Sinergy': s.metas_5y?.sinergy_rol || 'CEO consolidado',
+          }).map(([k,v]) => `<div class="projection-row"><span>${k}</span><span class="text-primary font-semibold">${esc(v)}</span></div>`).join('')}
+          <button class="btn btn-ghost btn-sm mt-sm" onclick="editarMetas5y()">Editar metas →</button>
         </div>
       </div>
 
@@ -3593,22 +3682,46 @@ function renderYo() {
       }}],
     });
   };
+
+  window.editarMetas5y = () => {
+    const m = State.get('metas_5y') || {};
+    UI.modal({
+      title: 'Editar North Star',
+      body: `<div class="stack stack-md">
+        <div class="field"><label>Ingreso objetivo (USD/mes)</label><input id="m5-ingreso" class="input" type="number" value="${m.ingreso_usd_mes||10000}" placeholder="10000"></div>
+        <div class="field"><label>% grasa objetivo</label><input id="m5-grasa" class="input" type="number" step="0.5" value="${m.grasa_pct||12}" placeholder="12"></div>
+        <div class="field"><label>Auto soñado</label><input id="m5-auto" class="input" value="${esc(m.auto||'Golf GTI/R')}" placeholder="Golf GTI/R..."></div>
+        <div class="field"><label>Sinergy en 5 años</label><input id="m5-sinergy" class="input" value="${esc(m.sinergy_rol||'CEO consolidado')}" placeholder="CEO consolidado..."></div>
+      </div>`,
+      actions:[{ label:'Guardar', action:() => {
+        State.update(s => {
+          if (!s.metas_5y) s.metas_5y = {};
+          s.metas_5y.ingreso_usd_mes = parseInt(document.getElementById('m5-ingreso')?.value)||10000;
+          s.metas_5y.grasa_pct = parseFloat(document.getElementById('m5-grasa')?.value)||12;
+          s.metas_5y.auto = document.getElementById('m5-auto')?.value.trim()||'Golf GTI/R';
+          s.metas_5y.sinergy_rol = document.getElementById('m5-sinergy')?.value.trim()||'CEO consolidado';
+        });
+        UI.toast('North Star actualizado.','success');
+        renderYo();
+      }}],
+    });
+  };
 }
 
 /* ═══════════════════════════════════════════════════════════
    VISTA: PROTOCOLOS
 ═══════════════════════════════════════════════════════════ */
 const PROTOCOLS = [
-  { id:'huberman', nombre:'Rutina mañanera', emoji:'☀️', desc:'Luz solar, hidratación, movimiento, café después de 90 min.', xp:15 },
-  { id:'if_then', nombre:'Plan de la semana', emoji:'📋', desc:'5 intenciones claras para la semana. +50 XP.', xp:50 },
-  { id:'abcde', nombre:'Reencuadra el fallo', emoji:'🧩', desc:'Convierte un pensamiento negativo en aprendizaje. 5 pasos. +30 XP.', xp:30 },
-  { id:'pennebaker', nombre:'Escritura libre', emoji:'✍️', desc:'15-20 min sin filtro. 4 días seguidos. +40 XP.', xp:40 },
-  { id:'urge_surfing', nombre:'Surfea el impulso', emoji:'🌊', desc:'3-5 min. El impulso sube y baja solo — no tienes que ceder.', xp:15 },
-  { id:'self_compassion', nombre:'Pausa de autocompasión', emoji:'💙', desc:'60 seg, 3x/día. Para cuando te tratas muy duro. +5 XP.', xp:5 },
-  { id:'nsdr', nombre:'Descanso profundo', emoji:'🧘', desc:'10-30 min. Restaura el foco y la energía mental.', xp:15 },
-  { id:'bps', nombre:'Mi mejor yo posible', emoji:'🌟', desc:'Mensual. Visualiza tu futuro ideal en 3 horizontes. +100 XP.', xp:100 },
-  { id:'valores', nombre:'Reflexión de valores', emoji:'🎯', desc:'Mensual. Reflexiona sobre lo que más importa para ti. +80 XP.', xp:80 },
-  { id:'2min_reset', nombre:'Resetea el hábito (2 min)', emoji:'⏱️', desc:'Cuando un hábito se siente pesado, vuelve a la versión mínima.', xp:0 },
+  { id:'huberman', nombre:'Rutina mañanera', emoji:'☀️', desc:'Checklist de 5 pasos para arrancar bien el día: sol, agua, movimiento, café tarde.', xp:15 },
+  { id:'if_then', nombre:'Plan semanal Si→Entonces', emoji:'📋', desc:'Escribe 5 planes concretos tipo "Si son las 19:00, entonces abro Sinergy por 25 min". +50 XP.', xp:50 },
+  { id:'abcde', nombre:'Reencuadra el fallo', emoji:'🧩', desc:'Cuando falló algo, convierte el pensamiento negativo en aprendizaje en 5 preguntas. +30 XP.', xp:30 },
+  { id:'pennebaker', nombre:'Escritura libre sin filtro', emoji:'✍️', desc:'Escribe 15-20 min lo que te pesa, sin editar. Timer incluido. Quémalo o guárdalo. +40 XP.', xp:40 },
+  { id:'urge_surfing', nombre:'Surfea el impulso', emoji:'🌊', desc:'Cuando quieras ceder a una distracción: pausa, respira y observa pasar el impulso. 3-5 min. +15 XP.', xp:15 },
+  { id:'self_compassion', nombre:'Pausa de autocompasión', emoji:'💙', desc:'60 segundos en 3 pasos para cuando te estás tratando muy duro. 3 veces al día máx. +5 XP.', xp:5 },
+  { id:'nsdr', nombre:'Descanso profundo (10-30 min)', emoji:'🧘', desc:'Relajación guiada que restaura el foco sin dormir. Ideal después de almorzar o de un bloque intenso.', xp:15 },
+  { id:'bps', nombre:'Visualiza tu mejor yo', emoji:'🌟', desc:'Una vez al mes: escribe cómo te ves en 1, 5 y 10 años con el máximo detalle. +100 XP.', xp:100 },
+  { id:'valores', nombre:'¿Qué te importa de verdad?', emoji:'🎯', desc:'Elige tus 3 valores más importantes y reflexiona cómo los viviste esta semana. Una vez al mes. +80 XP.', xp:80 },
+  { id:'2min_reset', nombre:'Baja el hábito a 2 minutos', emoji:'⏱️', desc:'Si un hábito se siente imposible, bájalo a su versión mínima por 7 días. La racha sigue contando.', xp:0 },
 ];
 
 function renderProtocolos() {
@@ -3658,6 +3771,7 @@ function renderProtocolo(id) {
 
   if (id === 'abcde') {
     app.innerHTML = `<div class="page"><div class="page" style="padding:0">${header}</div>${renderABCDE()}</div>`;
+    window._abcdePaint?.();
   } else if (id === 'urge_surfing') {
     app.innerHTML = `<div class="page">${header}${renderUrgeSurfing()}</div>`;
     initUrgeSurfingTimer();
@@ -3692,10 +3806,11 @@ function renderABCDE() {
   ];
   const answers = {};
 
-  const container = document.createElement('div');
   function paint() {
+    const el = document.getElementById('abcde-container');
+    if (!el) return;
     const s2 = STEPS_ABCDE[step];
-    container.innerHTML = `
+    el.innerHTML = `
       <div class="card mb-md">
         <div class="text-xs text-lo mb-sm">Paso ${step+1}/5 · Reencuadra el pensamiento</div>
         <h3>${esc(s2.label)}</h3>
@@ -3707,11 +3822,13 @@ function renderABCDE() {
       <div class="row row-gap-sm">
         ${step > 0 ? `<button class="btn btn-secondary" onclick="abcdeBack()">Atrás</button>` : ''}
         <button class="btn btn-primary flex-1" onclick="abcdeNext()">
-          ${step < 4 ? 'Siguiente paso' : 'Completar ABCDE (+30 XP)'}
+          ${step < 4 ? 'Siguiente paso →' : 'Completar ABCDE (+30 XP)'}
         </button>
       </div>`;
+    document.getElementById('abcde-ans')?.focus();
   }
 
+  window._abcdePaint = paint;
   window.abcdeNext = () => {
     answers[step] = document.getElementById('abcde-ans')?.value || '';
     if (step < 4) { step++; paint(); }
@@ -3726,8 +3843,8 @@ function renderABCDE() {
     }
   };
   window.abcdeBack = () => { answers[step] = document.getElementById('abcde-ans')?.value||''; if(step>0){step--;paint();} };
-  paint();
-  return container.outerHTML + '<div id="abcde-placeholder"></div>';
+
+  return `<div id="abcde-container"></div>`;
 }
 
 function renderUrgeSurfing() {
@@ -3963,7 +4080,7 @@ window.startNSDRTimer = () => {
       State.update(s => { s.protocols_log.unshift({ fecha:todayISO(), protocolo:'nsdr', duracion_min:min, payload:{}, resultado_subjetivo_1_5:4 }); });
       XP.add(15,'NSDR');
       UI.haptic([30,50,30]);
-      UI.toast('NSDR completado. +15 XP','success');
+      UI.toast('Descanso profundo completado. +15 XP 🧘','success');
     }
   }, 1000);
 };
@@ -4139,8 +4256,10 @@ const InsightsEngine = (() => {
 
   function generate() {
     const s = State.get();
+    const active = s.insights.filter(i=>!i.descartado);
+    // Regenerar si: no hay ninguno activo, o si el último fue hace más de 1 día
     const lastGen = s.insights[0]?.fecha;
-    if (lastGen === todayISO() && s.insights.filter(i=>!i.descartado).length >= 3) return;
+    if (lastGen === todayISO() && active.length >= 2) return;
 
     let newInsights = 0;
     rules.forEach(rule => {
@@ -4214,11 +4333,11 @@ function renderPartner() {
         <button class="btn btn-icon btn-ghost" onclick="Router.navigate('yo')" aria-label="Volver">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
-        <h2>Accountability Partner</h2>
+        <h2>Tu persona de apoyo</h2>
       </div>
 
       ${!p.nombre ? `<div class="card card-warn mb-md">
-        <p class="text-sm" style="color:var(--warn)">Sin partner configurado. Matthews 2015: +78% de logro con reporte semanal.</p>
+        <p class="text-sm" style="color:var(--warn)">Aún no tienes persona de apoyo configurada. Reportar tu progreso a alguien cada semana aumenta mucho el logro de metas.</p>
       </div>` : ''}
 
       <div class="card mb-lg">
@@ -4241,6 +4360,9 @@ ${generateCheckinTemplate(s, cumplidos)}
           </div>
           <button class="btn btn-primary btn-block mt-md" onclick="copyCheckin()">Copiar para WhatsApp</button>
           ${p.contacto ? `<a href="https://wa.me/${p.contacto.replace(/\D/g,'')}" target="_blank" class="btn btn-ghost btn-block mt-sm">Abrir WhatsApp ↗</a>` : ''}
+          ${checkin
+            ? `<div class="chip chip-success mt-md">✓ Check-in registrado esta semana</div>`
+            : `<button class="btn btn-secondary btn-block mt-sm" onclick="registrarCheckin()">✓ Marcar check-in como hecho</button>`}
         </div>
       </div>
     </div>`;
@@ -4258,11 +4380,22 @@ ${generateCheckinTemplate(s, cumplidos)}
     const text = document.getElementById('checkin-preview')?.textContent||'';
     navigator.clipboard?.writeText(text).then(()=>UI.toast('Copiado al portapapeles.','success')).catch(()=>UI.toast('Selecciona y copia manualmente.','warn'));
   };
+  window.registrarCheckin = () => {
+    const semana = weekISO();
+    State.update(s => {
+      if (!s.accountability_checkins.find(c => c.semana_iso === semana)) {
+        s.accountability_checkins.unshift({ semana_iso: semana, fecha: todayISO(), cumplidos });
+      }
+    });
+    XP.add(20, 'Check-in semanal con partner');
+    UI.toast('Check-in registrado. +20 XP 🤝','success');
+    renderPartner();
+  };
 }
 
 function generateCheckinTemplate(s, cumplidos) {
-  const semana = new Date().toLocaleDateString('es-CL',{week:'long'});
-  return `Hola ${s.settings.accountability_partner.nombre||'partner'}, check-in semanal:
+  const semana = new Date().toLocaleDateString('es-CL',{day:'numeric',month:'long',year:'numeric'});
+  return `Hola ${s.settings.accountability_partner.nombre||'partner'}, check-in semanal (${semana}):
 
 ✅ Hábitos cumplidos: ${cumplidos}/${s.habits.length} (>5 días/semana)
 📊 XP esta semana: ${s.xp.history.filter(h=>(Date.now()-new Date(h.fecha+'T00:00:00').getTime())<7*86400000).reduce((a,b)=>a+b.delta,0).toLocaleString('es-CL')}
@@ -4290,7 +4423,7 @@ function renderExperimentos() {
         </button>
         <h2>Experimentos</h2>
       </div>
-      <p class="text-sm text-lo mb-lg" style="line-height:var(--lh-relaxed)">Locke & Latham: primero learning goals, luego performance goals. Define hipótesis y métrica.</p>
+      <p class="text-sm text-lo mb-lg" style="line-height:var(--lh-relaxed)">Un experimento es una apuesta concreta: "Si hago X durante Y semanas, espero ver Z." Define la métrica antes de empezar.</p>
       <button class="btn btn-primary btn-block mb-lg" onclick="addExperimentoModal()">+ Nuevo experimento</button>
       ${s.experimentos.length === 0
         ? `<div class="empty-state"><div class="empty-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg></div><div class="empty-title">Sin experimentos</div><div class="empty-sub">Un experimento es una pregunta con hipótesis y métrica. No un proyecto.</div></div>`
@@ -4418,8 +4551,8 @@ function renderAjustes() {
       <div class="section">
         <div class="section-title">Info</div>
         <div class="card">
-          <div class="settings-row"><span class="text-sm text-lo">Versión</span><span class="text-sm">1.0.0</span></div>
-          <div class="settings-row"><span class="text-sm text-lo">Schema</span><span class="text-sm num">v3</span></div>
+          <div class="settings-row"><span class="text-sm text-lo">Versión</span><span class="text-sm">2.1.0</span></div>
+          <div class="settings-row"><span class="text-sm text-lo">Schema</span><span class="text-sm num">v4</span></div>
           <div class="settings-row"><span class="text-sm text-lo">Fase actual</span><span class="text-sm">Fase ${s.settings.fase}</span></div>
         </div>
       </div>
