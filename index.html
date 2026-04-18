@@ -2165,7 +2165,7 @@ function renderHoy() {
 
   // Revisión semanal pendiente
   const semanaActual = weekISO();
-  const revisionHecha = s.revisiones_semanales.some(r => r.semana_iso === semanaActual);
+  const revisionHecha = (s.revisiones_semanales || []).some(r => r.semana_iso === semanaActual);
   const mostrarRevision = (esDomingo || esLunes) && !revisionHecha && diasSistema >= 7;
 
   // Today completions
@@ -3774,11 +3774,11 @@ function renderYo() {
       </div>
 
       <!-- Revisiones semanales -->
-      ${s.revisiones_semanales.length > 0 ? `
+      ${(s.revisiones_semanales || []).length > 0 ? `
       <div class="section">
         <div class="section-title">Revisiones semanales</div>
         <div class="stack stack-sm">
-          ${s.revisiones_semanales.slice(0,5).map(r => `
+          ${(s.revisiones_semanales || []).slice(0,5).map(r => `
             <div class="card" style="padding:12px 14px">
               <div class="row-between mb-sm">
                 <div class="text-xs text-lo font-semibold">Semana ${esc(r.semana_iso)}</div>
