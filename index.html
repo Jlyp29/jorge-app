@@ -2397,7 +2397,7 @@ function renderHabitos() {
         <h2>Hábitos</h2>
         <p class="text-sm text-lo mt-sm">Fase ${fase} · ${s.habits.length}/3 hábitos núcleo${fase < 2 ? ' (máx. 3 en Fase 1)' : ''}</p>
         <div class="row row-gap-sm mt-md">
-          <div class="chip chip-primary">🧊 ${s.xp.freezes_disponibles}/4 freezes</div>
+          <div class="chip chip-primary">🧊 ${s.xp.freezes_disponibles}/4 protecciones de racha</div>
           ${s.xp.domingo_libre_usado
             ? `<div class="chip chip-accent">🌴 Domingo usado</div>`
             : `<button class="chip chip-success" onclick="useDomingoLibre()">🌴 Domingo libre</button>`}
@@ -2409,7 +2409,7 @@ function renderHabitos() {
       ${fase >= 2 && s.habits.length < 5
         ? `<button class="btn btn-secondary btn-block mt-lg" onclick="addHabitoModal()">+ Agregar hábito</button>`
         : fase < 2 ? `<div class="card card-warn mt-lg">
-            <p class="text-sm" style="color:var(--warn)">Lally 2010: un hábito tarda ~66 días en automatizarse. En Fase 1 solo 3 hábitos para maximizar la probabilidad de los tres.</p>
+            <p class="text-sm" style="color:var(--warn)">Un hábito tarda entre 60 y 90 días en volverse automático. En esta fase limitamos a 3 para que puedas enfocarte en los que más importan.</p>
           </div>` : ''}
     </div>`;
 
@@ -2455,14 +2455,14 @@ function renderHabitoDetail(h) {
       <div class="stack stack-sm mb-md">
         <div class="row row-gap-sm">
           <span class="text-xs text-lo" style="min-width:70px">Versión actual:</span>
-          <span class="text-sm ${h.escala_actual==='tiny'?'text-primary':'text-success'} font-semibold">${esc(h.escala_actual === 'tiny' ? 'Tiny' : h.escala_actual === 'medio' ? 'Medio' : 'Target')}</span>
+          <span class="text-sm ${h.escala_actual==='tiny'?'text-primary':'text-success'} font-semibold">${esc(h.escala_actual === 'tiny' ? 'Mínima (2 min)' : h.escala_actual === 'medio' ? 'Media' : 'Completa')}</span>
         </div>
         <div class="row row-gap-sm">
           <span class="text-xs text-lo" style="min-width:70px">Descripción:</span>
           <span class="text-sm">${esc(h.escala_actual === 'tiny' ? h.version_tiny : h.version_target)}</span>
         </div>
         <div class="row row-gap-sm">
-          <span class="text-xs text-lo" style="min-width:70px">Anchor:</span>
+          <span class="text-xs text-lo" style="min-width:70px">Disparador:</span>
           <span class="text-sm text-md">${esc(h.anchor)}</span>
         </div>
       </div>
@@ -2487,10 +2487,10 @@ function renderHabitoDetail(h) {
 
       <div class="row row-gap-sm mt-md flex-wrap">
         ${h.escala_actual === 'tiny'
-          ? `<button class="btn btn-sm btn-ghost" onclick="scaleHabit('${h.id}','target')">Escalar a Target</button>`
-          : `<button class="btn btn-sm btn-ghost" onclick="scaleHabit('${h.id}','tiny')">2-min reset</button>`}
-        <button class="btn btn-sm btn-secondary" onclick="useFreeze('${h.id}')">Usar freeze 🧊</button>
-        <button class="btn btn-sm btn-ghost" onclick="editAnchor('${h.id}')">Editar anchor</button>
+          ? `<button class="btn btn-sm btn-ghost" onclick="scaleHabit('${h.id}','target')">Subir a versión completa</button>`
+          : `<button class="btn btn-sm btn-ghost" onclick="scaleHabit('${h.id}','tiny')">Bajar a versión mínima</button>`}
+        <button class="btn btn-sm btn-secondary" onclick="useFreeze('${h.id}')">Proteger racha 🧊</button>
+        <button class="btn btn-sm btn-ghost" onclick="editAnchor('${h.id}')">Editar disparador</button>
       </div>
     </div>`;
 }
@@ -2511,15 +2511,15 @@ window.useFreeze = (id) => {
 window.editAnchor = (id) => {
   const h = State.get('habits').find(x => x.id===id);
   UI.modal({
-    title: 'Editar anchor',
+    title: 'Editar disparador',
     body: `<div class="field">
       <label>Después de...</label>
       <input id="anchor-input" class="input" value="${esc(h?.anchor||'')}" placeholder="Después de X, haré Y">
-      <div class="hint">Wood 2019: los mejores cues son contexto + acción previa, no hora de reloj.</div>
+      <div class="hint">Lo mejor es ligarlo a algo que ya haces: "Después de lavarme los dientes, haré..."</div>
     </div>`,
     actions:[{ label:'Guardar', action:() => {
       const v = document.getElementById('anchor-input')?.value.trim();
-      if(v) { State.update(s => { const habit = s.habits.find(x=>x.id===id); if(habit) habit.anchor=v; }); UI.toast('Anchor actualizado.','success'); renderHabitos(); }
+      if(v) { State.update(s => { const habit = s.habits.find(x=>x.id===id); if(habit) habit.anchor=v; }); UI.toast('Disparador actualizado.','success'); renderHabitos(); }
     }}],
   });
 };
@@ -2529,7 +2529,7 @@ window.addHabitoModal = () => {
     body: `<div class="stack stack-md">
       <div class="field"><label>Nombre</label><input id="nh-nombre" class="input" placeholder="Ej: Meditación"></div>
       <div class="field"><label>Versión tiny (2 min)</label><input id="nh-tiny" class="input" placeholder="Ej: Sentarme y respirar 1 min"></div>
-      <div class="field"><label>Anchor (después de...)</label><input id="nh-anchor" class="input" placeholder="Después de lavarme los dientes"></div>
+      <div class="field"><label>Disparador (después de...)</label><input id="nh-anchor" class="input" placeholder="Después de lavarme los dientes"></div>
       <div class="field"><label>Identidad</label><input id="nh-identity" class="input" placeholder="Soy alguien que..."></div>
     </div>`,
     actions:[{ label:'Agregar', action:() => {
@@ -2808,8 +2808,8 @@ function renderDiario(sub = 'daily') {
       </div>
       <div class="journal-tabs">
         ${[
-          ['daily','Diario'],['emocional','Emocional'],['pennebaker','Pennebaker'],
-          ['bps','Best Self'],['valores','Valores'],['gratitud','Gratitud'],
+          ['daily','Diario'],['emocional','Emocional'],['pennebaker','Escritura libre'],
+          ['bps','Mi mejor yo'],['valores','Valores'],['gratitud','Gratitud'],
         ].map(([key,label]) =>
           `<button class="journal-tab ${sub===key?'active':''}" onclick="renderDiario('${key}')">${label}</button>`
         ).join('')}
@@ -2883,7 +2883,7 @@ function renderJournalEmocional(body, s) {
   const EMOCIONES = ['Ansiedad','Aburrimiento','Tristeza','Frustración','Cansancio','Soledad','Ira','Culpa','Miedo','Vacío'];
   body.innerHTML = `
     <div class="card mb-md">
-      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Sirois & Pychyl 2013: la procrastinación es regulación emocional fallida. Esto es para el momento antes de abrir una app distractora.</p>
+      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Antes de abrir YouTube, Instagram u otra app distractora, pausa y registra lo que sientes. La mayoría de las veces postergamos para evitar una emoción incómoda.</p>
     </div>
     <form id="em-form" onsubmit="saveEmocional(event)">
       <div class="field mb-md">
@@ -2932,7 +2932,7 @@ function renderJournalPennebaker(body, s) {
   body.innerHTML = `
     <div class="card mb-md">
       <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">${esc(PENNEBAKER_COPY)}</p>
-      <p class="text-xs text-lo mt-sm">Frattaroli 2006: meta-análisis d~0.15 en salud mental. 4 días seguidos, 15-20 min.</p>
+      <p class="text-xs text-lo mt-sm">4 días seguidos, 15-20 min. La investigación muestra que reduce el estrés y mejora el bienestar.</p>
     </div>
     <div class="field mb-md">
       <label>¿Cuántos minutos? <span id="p-min-val">15</span></label>
@@ -2944,7 +2944,7 @@ function renderJournalPennebaker(body, s) {
   window.startPennebaker = () => {
     const min = parseInt(document.getElementById('p-dur')?.value)||15;
     UI.modal({
-      title: `Pennebaker · ${min} minutos`,
+      title: `Escritura libre · ${min} minutos`,
       body: `
         <div class="timer-circle mb-md" id="penn-timer">
           <svg width="120" height="120"><circle class="timer-circle-track" cx="60" cy="60" r="52"/><circle class="timer-circle-fill" id="penn-fill" cx="60" cy="60" r="52" stroke-dasharray="${2*Math.PI*52}" stroke-dashoffset="0"/></svg>
@@ -2991,7 +2991,7 @@ function renderJournalBPS(body, s) {
   const canDo = !last || (Date.now() - new Date(last.fecha+'T00:00:00').getTime()) > 25*86400000;
   body.innerHTML = `
     <div class="card mb-md">
-      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Sheldon & Lyubomirsky 2006: visualizar tu mejor yo posible mejora el bienestar y la motivación. Mensual.</p>
+      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Visualizar tu mejor yo posible mejora el bienestar y la motivación. Hazlo una vez al mes — tarda solo 15 minutos.</p>
     </div>
     ${!canDo ? `<div class="banner banner-primary mb-md">Ya hiciste BPS este mes. Próxima vez en ${30 - Math.floor((Date.now()-new Date(last.fecha+'T00:00:00').getTime())/86400000)} días.</div>` : ''}
     <form id="bps-form" onsubmit="saveBPS(event)">
@@ -3001,7 +3001,7 @@ function renderJournalBPS(body, s) {
         ['10year','Dentro de 10 años. ¿Quién eres? ¿Qué legado?'],
         ['sensorial','Detalle sensorial: ¿qué ves? ¿qué escuchas? ¿cómo te sientes?'],
       ].map(([n,l]) => `<div class="field mb-md"><label>${l}</label><textarea class="input" name="${n}" rows="3"></textarea></div>`).join('')}
-      <button type="submit" class="btn btn-primary btn-block" ${!canDo?'disabled':''}>Guardar Best Possible Self</button>
+      <button type="submit" class="btn btn-primary btn-block" ${!canDo?'disabled':''}>Guardar mi mejor yo posible</button>
     </form>`;
 
   window.saveBPS = (e) => {
@@ -3022,7 +3022,7 @@ function renderJournalValores(body, s) {
   let selected = [];
   body.innerHTML = `
     <div class="card mb-md">
-      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Cohen & Sherman 2014: reflexionar sobre valores personales protege frente al estrés y mejora adherencia.</p>
+      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Reflexionar sobre tus valores te protege del estrés y hace tus hábitos más duraderos. Hazlo una vez al mes.</p>
     </div>
     <div class="field mb-md">
       <label>Elige 3 valores que más te definen</label>
@@ -3063,11 +3063,11 @@ function renderJournalGratitud(body, s) {
   const canDo = graitudSemana < 3;
   body.innerHTML = `
     <div class="card mb-md">
-      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Lyubomirsky: 3 veces/semana máximo. La gratitud diaria pierde efecto por adaptación hedónica.</p>
+      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Máximo 3 veces por semana. Si lo haces todos los días, pierde efecto — mejor menos y con atención plena.</p>
       <div class="text-xs text-lo mt-sm">${graitudSemana}/3 esta semana</div>
     </div>
     ${!canDo
-      ? `<div class="banner banner-warn">Ya completaste 3 esta semana. La gratitud diaria se adapta (hedonic adaptation, Lyubomirsky). Mejor vuelve el lunes.</div>`
+      ? `<div class="banner banner-warn">Ya completaste 3 esta semana. La gratitud pierde su efecto si se hace todos los días — mejor espaciarla. Vuelve el lunes.</div>`
       : `<form id="grat-form" onsubmit="saveGratitud(event)">
           ${[1,2,3].map(i => `<div class="field mb-md"><label>Cosa ${i}</label><input class="input" name="item" placeholder="Hoy agradezco..."></div>`).join('')}
           <button type="submit" class="btn btn-primary btn-block">Guardar gratitud</button>
@@ -3245,16 +3245,16 @@ function renderYo() {
    VISTA: PROTOCOLOS
 ═══════════════════════════════════════════════════════════ */
 const PROTOCOLS = [
-  { id:'huberman', nombre:'Protocolo Huberman mañanero', emoji:'☀️', desc:'Luz solar, hidratación, movimiento, café delayed.', xp:15 },
-  { id:'if_then', nombre:'If-Then dominical', emoji:'📋', desc:'5 implementation intentions para la semana. +50 XP.', xp:50 },
-  { id:'abcde', nombre:'ABCDE post-fallo', emoji:'🧩', desc:'Seligman: disputa cognitiva en 5 pasos. +30 XP.', xp:30 },
-  { id:'pennebaker', nombre:'Pennebaker expresivo', emoji:'✍️', desc:'15-20 min sin filtro. 4 días seguidos. +40 XP.', xp:40 },
-  { id:'urge_surfing', nombre:'Urge Surfing', emoji:'🌊', desc:'3-5 min. Marlatt & Bowen: el urge es una ola.', xp:15 },
-  { id:'self_compassion', nombre:'Self-compassion pause', emoji:'💙', desc:'60 seg, 3x/día. Neff 2003. +5 XP.', xp:5 },
-  { id:'nsdr', nombre:'NSDR / Yoga Nidra', emoji:'🧘', desc:'10-30 min. Huberman Lab.', xp:15 },
-  { id:'bps', nombre:'Best Possible Self', emoji:'🌟', desc:'Mensual. 3 horizontes. +100 XP.', xp:100 },
-  { id:'valores', nombre:'Reflexión de valores', emoji:'🎯', desc:'Cohen & Sherman 2014. Mensual. +80 XP.', xp:80 },
-  { id:'2min_reset', nombre:'2-min rule reset', emoji:'⏱️', desc:'Cuando un hábito se siente pesado.', xp:0 },
+  { id:'huberman', nombre:'Rutina mañanera', emoji:'☀️', desc:'Luz solar, hidratación, movimiento, café después de 90 min.', xp:15 },
+  { id:'if_then', nombre:'Plan de la semana', emoji:'📋', desc:'5 intenciones claras para la semana. +50 XP.', xp:50 },
+  { id:'abcde', nombre:'Reencuadra el fallo', emoji:'🧩', desc:'Convierte un pensamiento negativo en aprendizaje. 5 pasos. +30 XP.', xp:30 },
+  { id:'pennebaker', nombre:'Escritura libre', emoji:'✍️', desc:'15-20 min sin filtro. 4 días seguidos. +40 XP.', xp:40 },
+  { id:'urge_surfing', nombre:'Surfea el impulso', emoji:'🌊', desc:'3-5 min. El impulso sube y baja solo — no tienes que ceder.', xp:15 },
+  { id:'self_compassion', nombre:'Pausa de autocompasión', emoji:'💙', desc:'60 seg, 3x/día. Para cuando te tratas muy duro. +5 XP.', xp:5 },
+  { id:'nsdr', nombre:'Descanso profundo', emoji:'🧘', desc:'10-30 min. Restaura el foco y la energía mental.', xp:15 },
+  { id:'bps', nombre:'Mi mejor yo posible', emoji:'🌟', desc:'Mensual. Visualiza tu futuro ideal en 3 horizontes. +100 XP.', xp:100 },
+  { id:'valores', nombre:'Reflexión de valores', emoji:'🎯', desc:'Mensual. Reflexiona sobre lo que más importa para ti. +80 XP.', xp:80 },
+  { id:'2min_reset', nombre:'Resetea el hábito (2 min)', emoji:'⏱️', desc:'Cuando un hábito se siente pesado, vuelve a la versión mínima.', xp:0 },
 ];
 
 function renderProtocolos() {
@@ -3343,7 +3343,7 @@ function renderABCDE() {
     const s2 = STEPS_ABCDE[step];
     container.innerHTML = `
       <div class="card mb-md">
-        <div class="text-xs text-lo mb-sm">Paso ${step+1}/5 · Seligman ABCDE</div>
+        <div class="text-xs text-lo mb-sm">Paso ${step+1}/5 · Reencuadra el pensamiento</div>
         <h3>${esc(s2.label)}</h3>
         ${s2.hint ? `<p class="text-xs text-lo mt-sm">${esc(s2.hint)}</p>` : ''}
       </div>
@@ -3380,7 +3380,7 @@ function renderUrgeSurfing() {
   return `
     <div id="urge-container">
       <div class="card card-primary mb-md">
-        <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">El urge es una ola. Sube, llega al pico, baja. No tienes que hacer nada. Solo observa. (Marlatt & Bowen MBRP 2009)</p>
+        <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">El impulso es como una ola. Sube, llega al pico y baja solo. No tienes que hacer nada — solo observarlo pasar.</p>
       </div>
       <div class="protocol-step" id="urge-step-1">
         <div class="protocol-step-num">1</div>
@@ -3388,7 +3388,7 @@ function renderUrgeSurfing() {
       </div>
       <div class="protocol-step" id="urge-step-2">
         <div class="protocol-step-num">2</div>
-        <div><strong>Localiza el urge</strong><br>
+        <div><strong>Localiza el impulso</strong><br>
           <input id="urge-loc" class="input mt-sm" placeholder="¿Dónde lo sientes en el cuerpo?"></div>
       </div>
       <div class="protocol-step" id="urge-step-3">
@@ -3456,10 +3456,10 @@ function initUrgeSurfingTimer() {
 function renderSelfCompassion() {
   const s = State.get();
   const todayCount = s.protocols_log.filter(p => p.protocolo==='self_compassion' && p.fecha===todayISO()).length;
-  if (todayCount >= 3) return `<div class="banner banner-warn">Ya hiciste 3 hoy. El XP está cappado a 3 por día (Neff 2003).</div>`;
+  if (todayCount >= 3) return `<div class="banner banner-warn">Ya hiciste 3 hoy. El XP está limitado a 3 pausas por día — suficiente para notar el cambio.</div>`;
   return `
     <div class="card mb-md">
-      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Neff 2003: autocompasión predice mejor adherencia que la autodisciplina dura. 3 componentes en 60 segundos.</p>
+      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Tratarte bien cuando fallas predice mejor adherencia que la autodisciplina dura. 3 pasos en 60 segundos.</p>
     </div>
     <div id="sc-steps">
       <div class="protocol-step"><div class="protocol-step-num" id="sc-n">1</div>
@@ -3523,7 +3523,7 @@ function initSCTimer() {
 function renderNSDR() {
   return `
     <div class="card mb-md">
-      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">No-Sleep Deep Rest (Huberman Lab). 10-30 min de relajación profunda. Recarga dopamina sin cafeína.</p>
+      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">10-30 min de relajación profunda sin dormir. Recarga el foco y la energía mental — ideal después del almuerzo o de una sesión de trabajo intensa.</p>
     </div>
     <div class="field mb-md">
       <label>Duración</label>
@@ -3562,7 +3562,7 @@ function renderIfThen() {
   const existing = s.implementation_intentions.filter(i => i.semana_iso === thisWeek);
   return `
     <div class="card mb-md">
-      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Gollwitzer & Sheeran 2006: d=0.65. 5 if-then por semana. Sé específico con el contexto.</p>
+      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Define 5 situaciones concretas y qué harás en cada una. Cuanto más específico, más fácil actuar cuando llegue el momento.</p>
     </div>
     ${existing.length ? `<div class="section-title mb-sm">Esta semana (${existing.length}/5)</div>
       ${existing.map(i => `<div class="card mb-sm">
@@ -3572,23 +3572,23 @@ function renderIfThen() {
     ${existing.length < 5 ? `
       <div class="field mb-md"><label>Si...</label><input id="ift-si" class="input" placeholder="Ej: son las 8:00 y estoy en mi escritorio"></div>
       <div class="field mb-md"><label>Entonces...</label><input id="ift-ent" class="input" placeholder="Ej: abro el plan de Sinergy antes de cualquier otra app"></div>
-      <button class="btn btn-secondary btn-block" onclick="saveIfThen()">+ Agregar if-then</button>` : ''}
-    ${existing.length >= 5 ? `<button class="btn btn-primary btn-block mt-lg" onclick="finishIfThen()">Completar ritual (+50 XP)</button>` : ''}`;
+      <button class="btn btn-secondary btn-block" onclick="saveIfThen()">+ Agregar intención</button>` : ''}
+    ${existing.length >= 5 ? `<button class="btn btn-primary btn-block mt-lg" onclick="finishIfThen()">Completar plan de la semana (+50 XP)</button>` : ''}`;
 }
 
 function render2MinReset() {
   const s = State.get();
   return `
     <div class="card mb-md">
-      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Clear + Fogg B=MAP: cuando un hábito se siente pesado, colapsa temporalmente a versión tiny × 7 días.</p>
+      <p class="text-sm text-md" style="line-height:var(--lh-relaxed)">Cuando un hábito se siente pesado, bájalo a su versión mínima por 7 días. Mantener la racha importa más que la intensidad.</p>
     </div>
     <div class="stack stack-sm">
       ${s.habits.map(h => `<div class="habit-card">
         <div class="habit-info">
           <div class="habit-name">${esc(h.nombre)}</div>
-          <div class="habit-anchor">${esc(h.escala_actual==='tiny'?'Ya en versión tiny':'Actualmente: '+h.escala_actual)}</div>
+          <div class="habit-anchor">${esc(h.escala_actual==='tiny'?'Ya en versión mínima':'Versión: '+h.escala_actual)}</div>
         </div>
-        ${h.escala_actual !== 'tiny' ? `<button class="btn btn-sm btn-secondary" onclick="scaleHabit('${h.id}','tiny')">Reset a tiny</button>` : `<span class="chip chip-primary">Tiny ✓</span>`}
+        ${h.escala_actual !== 'tiny' ? `<button class="btn btn-sm btn-secondary" onclick="scaleHabit('${h.id}','tiny')">Bajar a mínima</button>` : `<span class="chip chip-primary">Mínima ✓</span>`}
       </div>`).join('')}
     </div>`;
 }
