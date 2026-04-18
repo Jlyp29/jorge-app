@@ -1262,6 +1262,7 @@ const State = (() => {
       proyeccion_realista:{ grasa_pct_fin_trimestre:19, ingreso_usd_delta:600, mrr_delta_sinergy:0, gross_margin_sinergy_target:35 },
     },
     fresh_start_triggers:[],
+    revisiones_semanales:[],
   });
 
   function migrate(data) {
@@ -1295,6 +1296,7 @@ const State = (() => {
     if (!data.profile.mision_personal) data.profile.mision_personal = '';
     if (!data.settings.fase) data.settings.fase = 0;
     if (data.onboarding_done === undefined) data.onboarding_done = false;
+    if (!data.revisiones_semanales) data.revisiones_semanales = [];
     data.__v = V;
     return data;
   }
@@ -2148,8 +2150,14 @@ function renderHoy() {
   // Fresh start check
   const hoy = new Date();
   const esLunes = hoy.getDay() === 1;
+  const esDomingo = hoy.getDay() === 0;
   const esPrimero = hoy.getDate() === 1;
   const esFreshStart = esLunes || esPrimero;
+
+  // Revisión semanal pendiente
+  const semanaActual = weekISO();
+  const revisionHecha = s.revisiones_semanales.some(r => r.semana_iso === semanaActual);
+  const mostrarRevision = (esDomingo || esLunes) && !revisionHecha && diasSistema >= 7;
 
   // Today completions
   const todayCompletions = s.habits.map(h => h.completions.includes(today()));
@@ -2199,6 +2207,16 @@ function renderHoy() {
       ${s.settings.modo_crisis ? `
         <div class="banner banner-crisis">
           Modo pausa activo. Tómate el tiempo que necesites. <a href="#" onclick="toggleCrisisMode(false)">Retomar</a>
+        </div>` : ''}
+      ${mostrarRevision ? `
+        <div class="card mb-md" style="border:1.5px solid var(--primary);background:var(--primary-glow);padding:14px 16px">
+          <div class="row-between">
+            <div>
+              <div class="font-semibold text-sm">📋 Revisión de la semana</div>
+              <div class="text-xs text-lo mt-sm">5 minutos · Cierra la semana · +50 XP</div>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="openRevisionSemanal()">Revisar →</button>
+          </div>
         </div>` : ''}
 
       <!-- XP / Nivel -->
@@ -2305,6 +2323,75 @@ function renderHoy() {
   };
 
   wireHabitChecks();
+
+  window.openRevisionSemanal = () => {
+    const s = State.get();
+    const semana = weekISO();
+
+    // Calcular datos reales de la semana
+    const dias7 = Array.from({length:7},(_,i) => { const d = new Date(); d.setDate(d.getDate()-i); return dateStr(d); });
+    const checks = dias7.reduce((sum,d) => sum + s.habits.filter(h => h.completions.includes(d)).length, 0);
+    const maxChecks = 7 * s.habits.length;
+    const adh = maxChecks > 0 ? Math.round(checks/maxChecks*100) : 0;
+    const xpSemana = s.xp.history.filter(e => dias7.includes(e.fecha?.slice(0,10))).reduce((sum,e) => sum + (e.delta||0), 0);
+    const outputsSemana = s.sinergy.outputs_log.filter(o => dias7.includes(o.fecha)).length;
+    const entrenSemana = s.fisico.sesiones.filter(e => dias7.includes(e.fecha)).length;
+
+    const emojiAdh = adh >= 80 ? '🟢' : adh >= 50 ? '🟡' : '🔴';
+
+    UI.modal({
+      title: '📋 Revisión de la semana',
+      body: `
+        <div class="card mb-md" style="background:var(--bg-2);padding:12px 14px">
+          <div class="text-xs text-lo font-semibold uppercase mb-sm" style="letter-spacing:.06em">Lo que pasó esta semana</div>
+          <div class="grid-2" style="gap:10px">
+            <div class="stat-card"><div class="stat-val num">${adh}%</div><div class="stat-label">${emojiAdh} Hábitos</div></div>
+            <div class="stat-card"><div class="stat-val num">+${xpSemana}</div><div class="stat-label">⚡ XP ganado</div></div>
+            <div class="stat-card"><div class="stat-val num">${outputsSemana}</div><div class="stat-label">💼 Outputs Sinergy</div></div>
+            <div class="stat-card"><div class="stat-val num">${entrenSemana}</div><div class="stat-label">🏋️ Entrenos</div></div>
+          </div>
+        </div>
+        <div class="stack stack-md">
+          <div class="field">
+            <label>¿Qué funcionó esta semana?</label>
+            <textarea id="rev-funciono" class="input" rows="2" placeholder="Un hábito, una decisión, algo concreto..."></textarea>
+          </div>
+          <div class="field">
+            <label>¿Qué no funcionó?</label>
+            <textarea id="rev-no-funciono" class="input" rows="2" placeholder="Sin juicio, solo los hechos..."></textarea>
+          </div>
+          <div class="field">
+            <label>Una cosa concreta que cambia esta semana</label>
+            <textarea id="rev-cambia" class="input" rows="2" placeholder="Específico y pequeño. Ej: Acostarme a las 22:30 en vez de 23:30"></textarea>
+          </div>
+          <div class="field">
+            <label>¿Cómo fue la semana en general? (1-10)</label>
+            <input id="rev-estado" class="input" type="number" min="1" max="10" placeholder="7">
+          </div>
+        </div>`,
+      actions: [
+        { label: 'Cerrar la semana · +50 XP', action: () => {
+          const funciono = document.getElementById('rev-funciono')?.value.trim() || '';
+          const noFunciono = document.getElementById('rev-no-funciono')?.value.trim() || '';
+          const cambia = document.getElementById('rev-cambia')?.value.trim() || '';
+          const estado = parseInt(document.getElementById('rev-estado')?.value) || 0;
+          if (!funciono || !cambia) { UI.toast('Responde al menos qué funcionó y qué cambia.','warn'); return false; }
+          State.update(st => {
+            st.revisiones_semanales.unshift({
+              id: Date.now().toString(), semana_iso: semana, fecha: todayISO(),
+              adherencia_pct: adh, xp_ganado: xpSemana, sinergy_outputs: outputsSemana, entrenos: entrenSemana,
+              estado_general: estado, que_funciono: funciono, que_no_funciono: noFunciono, que_cambia: cambia,
+            });
+          });
+          XP.add(50, 'Revisión semanal');
+          UI.confetti(30);
+          UI.toast('Semana cerrada. +50 XP 🎯','success', 4000);
+          renderHoy();
+        }},
+        { label: 'Ahora no', action: () => {} },
+      ],
+    });
+  };
 }
 
 function renderHabitCard(h, done, idx) {
@@ -3676,6 +3763,27 @@ function renderYo() {
           <button class="btn btn-ghost btn-sm mt-sm" onclick="editarMetas5y()">Editar metas →</button>
         </div>
       </div>
+
+      <!-- Revisiones semanales -->
+      ${s.revisiones_semanales.length > 0 ? `
+      <div class="section">
+        <div class="section-title">Revisiones semanales</div>
+        <div class="stack stack-sm">
+          ${s.revisiones_semanales.slice(0,5).map(r => `
+            <div class="card" style="padding:12px 14px">
+              <div class="row-between mb-sm">
+                <div class="text-xs text-lo font-semibold">Semana ${esc(r.semana_iso)}</div>
+                <div class="chip chip-primary">${r.estado_general ? `${r.estado_general}/10` : ''}</div>
+              </div>
+              <div class="grid-3 mb-sm" style="gap:6px">
+                <div class="stat-card" style="padding:6px"><div class="stat-val num" style="font-size:var(--fs-sm)">${r.adherencia_pct}%</div><div class="stat-label">Hábitos</div></div>
+                <div class="stat-card" style="padding:6px"><div class="stat-val num" style="font-size:var(--fs-sm)">+${r.xp_ganado}</div><div class="stat-label">XP</div></div>
+                <div class="stat-card" style="padding:6px"><div class="stat-val num" style="font-size:var(--fs-sm)">${r.sinergy_outputs}</div><div class="stat-label">Sinergy</div></div>
+              </div>
+              ${r.que_cambia ? `<div class="text-xs text-lo" style="line-height:var(--lh-relaxed)">→ <em>${esc(r.que_cambia)}</em></div>` : ''}
+            </div>`).join('')}
+        </div>
+      </div>` : ''}
 
       <!-- Links secundarios -->
       <div class="section">
