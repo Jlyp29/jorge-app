@@ -2241,10 +2241,11 @@ function renderHoy() {
         <div class="section-title">Sinergy · outputs de hoy</div>
         <div class="card">
           ${(() => {
+            const TLABEL = { crm_llamada:'📞 Llamada', crm_cliente:'🎉 Cliente cerrado', crm_feature:'🚀 Feature', crm_bug:'🔧 Bug resuelto', ml_listing:'🛍️ Listing', ml_campaña:'📣 Campaña', ml_record:'🏆 Hito ML', llamada:'📞 Llamada', cliente_nuevo:'🎉 Cliente', feature:'🚀 Feature', margen_millon:'💰 Millón' };
             const todayOutputs = s.sinergy.outputs_log.filter(o => o.fecha === today());
             return todayOutputs.length
               ? todayOutputs.map(o => `<div class="row row-gap-sm mb-sm">
-                  <span class="chip chip-primary">${esc(o.tipo)}</span>
+                  <span class="chip chip-primary">${TLABEL[o.tipo] || esc(o.tipo)}</span>
                   <span class="text-sm text-md flex-1">${esc(o.detalle||'')}</span>
                   <span class="text-xs text-primary font-bold">+${o.xp_ganado} XP</span>
                 </div>`).join('')
@@ -2269,34 +2270,6 @@ function renderHoy() {
             })()}
             <button class="btn btn-ghost btn-sm mt-sm" onclick="openSmallWinsModal()">+ Agregar</button>
           </div>
-        </div>
-      </div>
-
-      <!-- Acceso rápido Cuerpo -->
-      <div class="section">
-        <div class="section-title">Cuerpo · hoy</div>
-        <div class="card cursor-pointer" onclick="Router.navigate('cuerpo')" style="display:flex;gap:16px;align-items:center" role="button" aria-label="Ver registro de cuerpo de hoy">
-          ${(() => {
-            const hoy = todayISO();
-            const sesion = s.fisico.sesiones.find(e => e.fecha === hoy);
-            const vasos = (s.fisico.agua || {})[hoy] || 0;
-            const comidas = (s.fisico.nutricion || []).filter(c => c.fecha === hoy);
-            const prot = comidas.reduce((sum,c) => sum + (c.proteina_g||0), 0);
-            return `
-              <div style="flex:1;text-align:center">
-                <div style="font-size:24px" aria-hidden="true">${sesion ? '🏋️' : '⬜'}</div>
-                <div class="text-xs text-lo mt-sm">${sesion ? esc(sesion.tipo) : 'Sin entreno'}</div>
-              </div>
-              <div style="flex:1;text-align:center">
-                <div style="font-size:24px" aria-hidden="true">💧</div>
-                <div class="text-xs text-lo mt-sm">${vasos}/8 vasos</div>
-              </div>
-              <div style="flex:1;text-align:center">
-                <div style="font-size:24px" aria-hidden="true">🥩</div>
-                <div class="text-xs text-lo mt-sm">${prot}g proteína</div>
-              </div>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;opacity:.4" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>`;
-          })()}
         </div>
       </div>
 
@@ -3004,6 +2977,8 @@ function renderSinergy() {
    VISTA: DIARIO
 ═══════════════════════════════════════════════════════════ */
 function renderDiario(sub = 'daily') {
+  const SECONDARY = ['emocional','pennebaker','bps','valores','gratitud'];
+  const isSecondary = SECONDARY.includes(sub);
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="page-full">
@@ -3011,12 +2986,14 @@ function renderDiario(sub = 'daily') {
         <h2 class="flex-1">Diario</h2>
       </div>
       <div class="journal-tabs">
-        ${[
-          ['daily','Diario'],['emocional','Emocional'],['pennebaker','Escritura libre'],
-          ['bps','Mi mejor yo'],['valores','Valores'],['gratitud','Gratitud'],
-        ].map(([key,label]) =>
-          `<button class="journal-tab ${sub===key?'active':''}" onclick="renderDiario('${key}')">${label}</button>`
-        ).join('')}
+        <button class="journal-tab ${sub==='daily'?'active':''}" onclick="renderDiario('daily')">Diario</button>
+        <button class="journal-tab ${isSecondary?'active':''}" onclick="toggleDiarioExtra()" id="diario-mas-btn">
+          ${isSecondary ? ['emocional','Emocional','pennebaker','Escritura libre','bps','Mi mejor yo','valores','Valores','gratitud','Gratitud'].reduce((a,v,i,arr)=>i%2===0&&arr[i]===sub?arr[i+1]:a,'Más') : 'Más ＋'}
+        </button>
+      </div>
+      <div id="diario-extra-tabs" style="display:${isSecondary?'flex':'none'};padding:0 16px 8px;gap:8px;overflow-x:auto;border-bottom:1px solid var(--border)">
+        ${[['emocional','Emocional'],['pennebaker','Escritura libre'],['bps','Mi mejor yo'],['valores','Valores'],['gratitud','Gratitud']]
+          .map(([key,label]) => `<button class="journal-tab ${sub===key?'active':''}" onclick="renderDiario('${key}')" style="white-space:nowrap;flex-shrink:0">${label}</button>`).join('')}
       </div>
       <div class="page" style="padding-top:0" id="journal-body"></div>
     </div>`;
@@ -3030,6 +3007,15 @@ function renderDiario(sub = 'daily') {
   else if (sub === 'bps') renderJournalBPS(body, s);
   else if (sub === 'valores') renderJournalValores(body, s);
   else if (sub === 'gratitud') renderJournalGratitud(body, s);
+
+  window.toggleDiarioExtra = () => {
+    const el = document.getElementById('diario-extra-tabs');
+    if (!el) return;
+    const open = el.style.display === 'flex';
+    el.style.display = open ? 'none' : 'flex';
+    const btn = document.getElementById('diario-mas-btn');
+    if (btn) btn.textContent = open ? 'Más ＋' : 'Más ✕';
+  };
 }
 
 function renderJournalDaily(body, s) {
