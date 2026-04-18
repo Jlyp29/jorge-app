@@ -2438,21 +2438,28 @@ function wireHabitChecks() {
 
   window.openOutputModal = () => {
     UI.modal({
-      title: 'Registrar output Sinergy',
+      title: 'Output rápido',
       body: `
         <div class="stack stack-md">
           <div class="field">
-            <label>Tipo de output</label>
+            <label>¿Qué hiciste?</label>
             <select id="out-tipo" class="input">
-              <option value="llamada">Llamada de venta (+50 XP)</option>
-              <option value="cliente_nuevo">Cliente nuevo (+200 XP)</option>
-              <option value="feature">Feature a producción (+500 XP)</option>
-              <option value="margen_millon">1M CLP margen neto (+1000 XP)</option>
+              <optgroup label="CRM · Sinergy">
+                <option value="crm_llamada">📞 Llamada de prospección (+50 XP)</option>
+                <option value="crm_cliente">🎉 Cliente CRM cerrado (+300 XP)</option>
+                <option value="crm_feature">🚀 Feature a producción (+500 XP)</option>
+                <option value="crm_bug">🔧 Bug crítico resuelto (+100 XP)</option>
+              </optgroup>
+              <optgroup label="MercadoLibre">
+                <option value="ml_listing">🛍️ Listing optimizada (+30 XP)</option>
+                <option value="ml_campaña">📣 Campaña ajustada (+50 XP)</option>
+                <option value="ml_record">🏆 Hito de ventas ML (+150 XP)</option>
+              </optgroup>
             </select>
           </div>
           <div class="field">
             <label>Detalle (opcional)</label>
-            <input id="out-detalle" class="input" placeholder="Ej: llamada a Empresa X">
+            <input id="out-detalle" class="input" placeholder="ej. Empresa ABC — interesados">
           </div>
         </div>`,
       actions:[{
@@ -2460,11 +2467,12 @@ function wireHabitChecks() {
         action: () => {
           const tipo = document.getElementById('out-tipo')?.value;
           const detalle = document.getElementById('out-detalle')?.value.trim();
-          const xpMap = { llamada:50, cliente_nuevo:200, feature:500, margen_millon:1000 };
+          const xpMap = { crm_llamada:50, crm_cliente:300, crm_feature:500, crm_bug:100, ml_listing:30, ml_campaña:50, ml_record:150 };
           const xp = xpMap[tipo] || 50;
           State.update(s => { s.sinergy.outputs_log.unshift({ fecha:todayISO(), tipo, detalle, xp_ganado: xp }); });
-          XP.add(xp, `Output Sinergy: ${tipo}`);
-          UI.toast(`¡+${xp} XP! Output registrado.`,'success');
+          XP.add(xp, `Sinergy: ${tipo}`);
+          if (tipo === 'crm_cliente') { UI.confetti(60); UI.toast(`🎉 ¡Cliente cerrado! +${xp} XP`, 'success', 5000); }
+          else UI.toast(`+${xp} XP — Registrado.`, 'success');
           renderHoy();
         }
       }],
@@ -2700,10 +2708,15 @@ function renderSinergy() {
   const s = State.get();
   const mes = monthStr();
   const mesOutputs = s.sinergy.outputs_log.filter(o => o.fecha.startsWith(mes));
-  const llamadas  = mesOutputs.filter(o => o.tipo === 'llamada').length;
-  const clientes  = mesOutputs.filter(o => o.tipo === 'cliente_nuevo').length;
-  const features  = mesOutputs.filter(o => o.tipo === 'feature').length;
-  const xpMes     = mesOutputs.reduce((a, o) => a + (o.xp_ganado || 0), 0);
+  const crmLlamadas = mesOutputs.filter(o => ['crm_llamada','llamada'].includes(o.tipo)).length;
+  const crmClientes = mesOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
+  const crmFeatures = mesOutputs.filter(o => ['crm_feature','feature'].includes(o.tipo)).length;
+  const mlListings  = mesOutputs.filter(o => o.tipo === 'ml_listing').length;
+  const mlCampañas  = mesOutputs.filter(o => o.tipo === 'ml_campaña').length;
+  const mlRecords   = mesOutputs.filter(o => o.tipo === 'ml_record').length;
+  const xpMes       = mesOutputs.reduce((a, o) => a + (o.xp_ganado || 0), 0);
+  // legacy compat
+  const llamadas = crmLlamadas; const clientes = crmClientes; const features = crmFeatures;
   const mesNombre = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
   const fase      = s.settings.fase;
 
@@ -2719,10 +2732,20 @@ function renderSinergy() {
 
   // Tipo de acción labels amigables
   const TIPO_LABEL = {
-    llamada:       { emoji: '📞', label: 'Llamada de venta',     desc: 'Contactaste a un cliente potencial' },
-    cliente_nuevo: { emoji: '🎉', label: 'Cliente nuevo',        desc: 'Cerraste un cliente' },
-    feature:       { emoji: '🚀', label: 'Mejora al producto',   desc: 'Lanzaste algo nuevo en Sinergy' },
-    margen_millon: { emoji: '💰', label: 'Millón extra de ganancia', desc: '+1M CLP de ganancia neta' },
+    // CRM Sinergy
+    crm_llamada:  { emoji:'📞', label:'Llamada de prospección',   area:'CRM', desc:'Contactaste a alguien para venderle Sinergy' },
+    crm_cliente:  { emoji:'🎉', label:'Cliente CRM cerrado',      area:'CRM', desc:'Firmaste un cliente nuevo en Sinergy' },
+    crm_feature:  { emoji:'🚀', label:'Feature a producción',     area:'CRM', desc:'Lanzaste algo que los clientes ya pueden usar' },
+    crm_bug:      { emoji:'🔧', label:'Bug crítico resuelto',     area:'CRM', desc:'Problema que afectaba clientes solucionado' },
+    // MercadoLibre
+    ml_listing:   { emoji:'🛍️', label:'Listing optimizada',       area:'ML',  desc:'Mejoraste título, fotos, precio o ficha' },
+    ml_campaña:   { emoji:'📣', label:'Campaña ajustada',         area:'ML',  desc:'Lanzaste o afinaste publicidad en ML' },
+    ml_record:    { emoji:'🏆', label:'Hito de ventas ML',        area:'ML',  desc:'Día récord o meta de ventas alcanzada' },
+    // Legacy (para historial antiguo)
+    llamada:       { emoji:'📞', label:'Llamada de venta',    area:'CRM', desc:'' },
+    cliente_nuevo: { emoji:'🎉', label:'Cliente nuevo',       area:'CRM', desc:'' },
+    feature:       { emoji:'🚀', label:'Mejora al producto',  area:'CRM', desc:'' },
+    margen_millon: { emoji:'💰', label:'Millón de ganancia',  area:'CRM', desc:'' },
   };
 
   const app = document.getElementById('app');
@@ -2765,20 +2788,38 @@ function renderSinergy() {
         <div class="section-title">Lo que hiciste este mes</div>
         <div class="card mb-md">
           <p class="text-xs text-lo mb-md" style="line-height:var(--lh-relaxed)">
-            Cada acción real cuenta. No el tiempo frente al computador, sino lo que pasó de verdad.
+            Lo que hiciste, no el tiempo que estuviste sentado.
           </p>
-          <div class="grid-3 mb-lg">
+
+          <div class="text-xs text-lo font-semibold uppercase mb-sm" style="letter-spacing:.06em">CRM · Sinergy</div>
+          <div class="grid-3 mb-md">
             <div class="stat-card">
-              <div class="stat-val num">${llamadas}</div>
-              <div class="stat-label">📞 Llamadas</div>
+              <div class="stat-val num">${crmLlamadas}</div>
+              <div class="stat-label">📞 Prospectos</div>
             </div>
             <div class="stat-card">
-              <div class="stat-val num">${clientes}</div>
+              <div class="stat-val num">${crmClientes}</div>
               <div class="stat-label">🎉 Clientes</div>
             </div>
             <div class="stat-card">
-              <div class="stat-val num">${features}</div>
-              <div class="stat-label">🚀 Mejoras</div>
+              <div class="stat-val num">${crmFeatures}</div>
+              <div class="stat-label">🚀 Features</div>
+            </div>
+          </div>
+
+          <div class="text-xs text-lo font-semibold uppercase mb-sm" style="letter-spacing:.06em">MercadoLibre</div>
+          <div class="grid-3 mb-lg">
+            <div class="stat-card">
+              <div class="stat-val num">${mlListings}</div>
+              <div class="stat-label">🛍️ Listings</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val num">${mlCampañas}</div>
+              <div class="stat-label">📣 Campañas</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val num">${mlRecords}</div>
+              <div class="stat-label">🏆 Hitos</div>
             </div>
           </div>
           ${xpMes > 0 ? `<div class="text-xs text-primary font-semibold mb-md">+${xpMes} XP ganados en Sinergy este mes</div>` : ''}
@@ -2868,47 +2909,59 @@ function renderSinergy() {
 
   window.openSinergyAccionModal = () => {
     const OPCIONES = [
-      { tipo:'llamada',       emoji:'📞', label:'Llamada de venta',       sub:'Llamaste a alguien para venderle Sinergy',       xp:50  },
-      { tipo:'cliente_nuevo', emoji:'🎉', label:'Cliente nuevo',          sub:'Cerraste un cliente nuevo',                      xp:200 },
-      { tipo:'feature',       emoji:'🚀', label:'Mejora al producto',     sub:'Lanzaste algo nuevo que los clientes pueden usar', xp:500 },
-      { tipo:'margen_millon', emoji:'💰', label:'Millón extra de ganancia', sub:'La ganancia neta subió +1M CLP este mes',       xp:1000 },
+      { group:'CRM · Sinergy', items: [
+        { tipo:'crm_llamada', emoji:'📞', label:'Llamada de prospección', sub:'Contactaste a alguien para venderle Sinergy', xp:50 },
+        { tipo:'crm_cliente', emoji:'🎉', label:'Cliente CRM cerrado',    sub:'Firmaste un cliente nuevo en Sinergy',        xp:300 },
+        { tipo:'crm_feature', emoji:'🚀', label:'Feature a producción',   sub:'Algo nuevo disponible para los clientes',     xp:500 },
+        { tipo:'crm_bug',     emoji:'🔧', label:'Bug crítico resuelto',   sub:'Problema que afectaba clientes solucionado',  xp:100 },
+      ]},
+      { group:'MercadoLibre', items: [
+        { tipo:'ml_listing', emoji:'🛍️', label:'Listing optimizada',  sub:'Mejoraste título, fotos, precio o ficha',   xp:30  },
+        { tipo:'ml_campaña', emoji:'📣', label:'Campaña ajustada',    sub:'Lanzaste o afinaste publicidad en ML',      xp:50  },
+        { tipo:'ml_record',  emoji:'🏆', label:'Hito de ventas ML',   sub:'Día récord o meta de ventas alcanzada',     xp:150 },
+      ]},
     ];
+    const XP_MAP = Object.fromEntries(OPCIONES.flatMap(g => g.items.map(o => [o.tipo, o.xp])));
+
     UI.modal({
       title: '¿Qué hiciste hoy?',
       body: `
-        <p class="text-sm text-lo mb-md">Elige el tipo de acción y agrega un detalle opcional.</p>
-        <div class="stack stack-sm mb-md" id="accion-opts">
-          ${OPCIONES.map(o => `
-            <label style="cursor:pointer">
-              <input type="radio" name="accion-tipo" value="${o.tipo}" style="display:none" class="accion-radio">
-              <div class="card" style="padding:12px 14px;cursor:pointer;transition:border-color .2s" id="acard-${o.tipo}"
-                onclick="selectAccion('${o.tipo}')">
-                <div class="row row-gap-sm">
-                  <span style="font-size:22px">${o.emoji}</span>
-                  <div class="flex-1">
-                    <div class="font-semibold text-sm">${o.label}</div>
-                    <div class="text-xs text-lo">${o.sub}</div>
+        <p class="text-sm text-lo mb-md">Solo lo que pasó de verdad.</p>
+        ${OPCIONES.map(g => `
+          <div class="text-xs text-lo font-semibold uppercase mb-sm mt-md" style="letter-spacing:.06em">${g.group}</div>
+          <div class="stack stack-sm" id="accion-opts">
+            ${g.items.map(o => `
+              <label style="cursor:pointer">
+                <input type="radio" name="accion-tipo" value="${o.tipo}" style="display:none" class="accion-radio">
+                <div class="card" style="padding:10px 14px;cursor:pointer;transition:border-color .15s" id="acard-${o.tipo}"
+                  onclick="selectAccion('${o.tipo}')">
+                  <div class="row row-gap-sm">
+                    <span style="font-size:20px">${o.emoji}</span>
+                    <div class="flex-1">
+                      <div class="font-semibold text-sm">${o.label}</div>
+                      <div class="text-xs text-lo">${o.sub}</div>
+                    </div>
+                    <span class="text-xs text-primary font-bold">+${o.xp} XP</span>
                   </div>
-                  <span class="text-xs text-primary font-bold">+${o.xp} XP</span>
                 </div>
-              </div>
-            </label>`).join('')}
-        </div>
-        <div class="field">
+              </label>`).join('')}
+          </div>`).join('')}
+        <div class="field mt-md">
           <label>Detalle (opcional)</label>
-          <input id="accion-detalle" class="input" placeholder="ej. Llamé a Empresa ABC, interesados">
+          <input id="accion-detalle" class="input" placeholder="ej. Empresa ABC — quedaron en llamarme">
         </div>`,
       actions: [{
-        label: 'Registrar acción',
+        label: 'Registrar',
         action: () => {
           const tipo = document.querySelector('.accion-radio:checked')?.value;
           if (!tipo) { UI.toast('Elige una acción primero.', 'warn'); return false; }
           const detalle = document.getElementById('accion-detalle')?.value.trim() || '';
-          const xp = { llamada:50, cliente_nuevo:200, feature:500, margen_millon:1000 }[tipo] || 50;
+          const xp = XP_MAP[tipo] || 50;
           State.update(s => { s.sinergy.outputs_log.unshift({ fecha: todayISO(), tipo, detalle, xp_ganado: xp }); });
           XP.add(xp, `Sinergy: ${TIPO_LABEL[tipo]?.label || tipo}`);
-          if (tipo === 'cliente_nuevo') { UI.confetti(50); UI.toast(`¡Cliente nuevo! +${xp} XP`, 'success', 4000); }
-          else UI.toast(`+${xp} XP — ¡Registrado!`, 'success');
+          if (tipo === 'crm_cliente') { UI.confetti(60); UI.toast(`🎉 ¡Cliente cerrado! +${xp} XP`, 'success', 5000); }
+          else if (tipo === 'ml_record') { UI.confetti(40); UI.toast(`🏆 Hito ML. +${xp} XP`, 'success', 4000); }
+          else UI.toast(`+${xp} XP — Registrado.`, 'success');
           renderSinergy();
         }
       }],
