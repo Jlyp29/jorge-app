@@ -1866,7 +1866,7 @@ function renderFase0() {
 
           <!-- 1. P&L -->
           <div class="fase0-item">
-            <div class="fase0-num ${cl.pnl_sinergy_completo?'done'}">1</div>
+            <div class="fase0-num ${cl.pnl_sinergy_completo?'done':''}">1</div>
             <div class="fase0-content">
               <div class="fase0-label">P&L de Sinergy línea por línea</div>
               <div class="fase0-sub">Calcula tu gross margin real. Es crítico.</div>
@@ -1878,7 +1878,7 @@ function renderFase0() {
 
           <!-- 2. Psicólogo -->
           <div class="fase0-item">
-            <div class="fase0-num ${cl.psicologo_agendado?'done'}">2</div>
+            <div class="fase0-num ${cl.psicologo_agendado?'done':''}">2</div>
             <div class="fase0-content">
               <div class="fase0-label">Psicólogo TCC/ACT agendado</div>
               <div class="fase0-sub">La ansiedad crónica necesita apoyo profesional.</div>
@@ -1894,7 +1894,7 @@ function renderFase0() {
 
           <!-- 3. Partner -->
           <div class="fase0-item">
-            <div class="fase0-num ${cl.accountability_partner_confirmado?'done'}">3</div>
+            <div class="fase0-num ${cl.accountability_partner_confirmado?'done':''}">3</div>
             <div class="fase0-content">
               <div class="fase0-label">Accountability partner confirmado</div>
               <div class="fase0-sub">Matthews 2015: +78% de logro con reporte semanal.</div>
@@ -1910,7 +1910,7 @@ function renderFase0() {
 
           <!-- 4-6. Apps -->
           <div class="fase0-item">
-            <div class="fase0-num ${(cl.yt_desinstalado&&cl.ig_desinstalado&&cl.clash_desinstalado)?'done'}">4</div>
+            <div class="fase0-num ${(cl.yt_desinstalado&&cl.ig_desinstalado&&cl.clash_desinstalado)?'done':''}">4</div>
             <div class="fase0-content">
               <div class="fase0-label">Desinstalar apps distractoras</div>
               <div class="fase0-sub">Ward 2017: la sola presencia del teléfono reduce capacidad cognitiva.</div>
@@ -1931,7 +1931,7 @@ function renderFase0() {
 
           <!-- 5. Grayscale + blocker -->
           <div class="fase0-item">
-            <div class="fase0-num ${(cl.grayscale_activado&&cl.app_blocker_instalado)?'done'}">5</div>
+            <div class="fase0-num ${(cl.grayscale_activado&&cl.app_blocker_instalado)?'done':''}">5</div>
             <div class="fase0-content">
               <div class="fase0-label">Grayscale + app blocker</div>
               <div class="fase0-sub">Reduce el atractivo visual del teléfono.</div>
@@ -1951,7 +1951,7 @@ function renderFase0() {
 
           <!-- 6. Baseline -->
           <div class="fase0-item">
-            <div class="fase0-num ${cl.baseline_medido?'done'}">6</div>
+            <div class="fase0-num ${cl.baseline_medido?'done':''}">6</div>
             <div class="fase0-content">
               <div class="fase0-label">Baseline medido</div>
               <div class="fase0-sub">Peso, % grasa, cintura, sueño promedio.</div>
