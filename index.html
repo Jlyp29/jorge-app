@@ -2556,151 +2556,233 @@ window.addHabitoModal = () => {
 function renderSinergy() {
   const s = State.get();
   const mes = monthStr();
+  const mesOutputs = s.sinergy.outputs_log.filter(o => o.fecha.startsWith(mes));
+  const llamadas  = mesOutputs.filter(o => o.tipo === 'llamada').length;
+  const clientes  = mesOutputs.filter(o => o.tipo === 'cliente_nuevo').length;
+  const features  = mesOutputs.filter(o => o.tipo === 'feature').length;
+  const xpMes     = mesOutputs.reduce((a, o) => a + (o.xp_ganado || 0), 0);
+  const mesNombre = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+  const fase      = s.settings.fase;
+
+  // Ganancia neta ingresada manualmente (simple)
   let mesData = s.sinergy.mensual.find(m => m.mes === mes);
   if (!mesData) {
-    mesData = { mes, facturacion_clp:0, costo_infra:0, costo_licencias:0, costo_personal:0, costo_servicios:0, costo_otros:0, mrr:0, nuevos_clientes:0, churn_pct:0, notas:'' };
+    mesData = { mes, ganancia_neta_clp: 0, notas: '' };
+    // no mutar state aquí, solo para display
   }
-  const totalCostos = mesData.costo_infra + mesData.costo_licencias + mesData.costo_personal + mesData.costo_servicios + mesData.costo_otros;
-  const ganancia = mesData.facturacion_clp - totalCostos;
-  const gm = mesData.facturacion_clp > 0 ? ((ganancia / mesData.facturacion_clp)*100).toFixed(1) : 0;
-  const gmCritical = parseFloat(gm) < 10;
-  const todayOutputs = s.sinergy.outputs_log;
-  const mesOutputs = todayOutputs.filter(o => o.fecha.startsWith(mes));
-  const llamadas = mesOutputs.filter(o=>o.tipo==='llamada').length;
-  const clientes = mesOutputs.filter(o=>o.tipo==='cliente_nuevo').length;
-  const features = mesOutputs.filter(o=>o.tipo==='feature').length;
-  const fase = s.settings.fase;
+
+  // Metas del trimestre
+  const metas = s.sinergy.metas_trimestre.learning_goals || [];
+
+  // Tipo de acción labels amigables
+  const TIPO_LABEL = {
+    llamada:       { emoji: '📞', label: 'Llamada de venta',     desc: 'Contactaste a un cliente potencial' },
+    cliente_nuevo: { emoji: '🎉', label: 'Cliente nuevo',        desc: 'Cerraste un cliente' },
+    feature:       { emoji: '🚀', label: 'Mejora al producto',   desc: 'Lanzaste algo nuevo en Sinergy' },
+    margen_millon: { emoji: '💰', label: 'Millón extra de ganancia', desc: '+1M CLP de ganancia neta' },
+  };
 
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="page">
-      <div class="row-between mb-lg" style="padding-top:8px">
+
+      <!-- Header -->
+      <div style="padding-top:8px;margin-bottom:20px">
+        <p class="text-xs text-lo font-semibold uppercase" style="letter-spacing:.08em">${mesNombre}</p>
         <h2>Sinergy</h2>
-        <select class="input" style="width:auto;min-height:36px;padding:6px 28px 6px 10px;font-size:var(--fs-sm)" onchange="loadMesSinergy(this.value)" id="mes-select">
-          ${(() => {
-            const meses = [];
-            for (let i = 0; i < 6; i++) {
-              const d = new Date(); d.setMonth(d.getMonth()-i);
-              const m = monthStr(d);
-              meses.push(`<option value="${m}" ${m===mes?'selected':''}>${d.toLocaleDateString('es-CL',{month:'long',year:'numeric'})}</option>`);
-            }
-            return meses.join('');
-          })()}
-        </select>
+        <p class="text-sm text-lo mt-sm">Registra lo que hiciste hoy para que quede en tu historial y sumes XP.</p>
       </div>
 
-      ${gmCritical ? `<div class="margin-banner">
-        <strong>Gross margin crítico: ${gm}%</strong><br>
-        Benchmark SaaS saludable: 75-81%. 110M facturación × 0,27% margen no es un negocio, es una máquina de cobrar para terceros.
-        Antes de vender más, arregla la unidad económica. ¿Hay revenue share oculto? ¿Infraestructura sobredimensionada?
-      </div>` : ''}
-
-      <div class="grid-2 mb-lg">
-        <div class="sinergy-metric ${gmCritical ? 'critical' : parseFloat(gm)>30 ? 'good' : ''}">
-          <div class="sinergy-metric-val num">${gm}%</div>
-          <div class="sinergy-metric-label">Gross Margin</div>
-          <div class="text-xs text-lo mt-sm">Benchmark: 75-81%</div>
-        </div>
-        <div class="sinergy-metric">
-          <div class="sinergy-metric-val num">${(ganancia/1000000).toFixed(1)}M</div>
-          <div class="sinergy-metric-label">Ganancia neta CLP</div>
-        </div>
-        <div class="sinergy-metric">
-          <div class="sinergy-metric-val num">${(mesData.facturacion_clp/1000000).toFixed(0)}M</div>
-          <div class="sinergy-metric-label">Facturación CLP</div>
-        </div>
-        <div class="sinergy-metric">
-          <div class="sinergy-metric-val num">${(totalCostos/1000000).toFixed(1)}M</div>
-          <div class="sinergy-metric-label">Costos totales CLP</div>
-        </div>
-      </div>
-
-      <!-- Breakdown editable -->
+      <!-- Ganancia neta del mes (manual, simple) -->
       <div class="section">
-        <div class="section-title">Breakdown del mes</div>
+        <div class="section-title">¿Cuánto ganaste este mes?</div>
         <div class="card">
-          ${[
-            ['facturacion_clp','Facturación','💰'],
-            ['costo_infra','Infraestructura','🖥️'],
-            ['costo_licencias','Licencias','📄'],
-            ['costo_personal','Personal','👥'],
-            ['costo_servicios','Servicios externos','🔧'],
-            ['costo_otros','Otros costos','📦'],
-          ].map(([key,label,ico]) => `
-            <div class="row-between settings-row">
-              <div class="settings-row-info">
-                <div class="settings-row-label">${ico} ${label}</div>
-              </div>
-              <div class="input-group" style="width:140px">
-                <span class="input-prefix" style="font-size:10px">CLP</span>
-                <input class="input input-prefixed num" id="sin-${key}" type="number" step="1000000"
-                  style="width:140px;min-height:36px;padding:6px 10px 6px 36px;font-size:var(--fs-sm)"
-                  value="${mesData[key]||0}" onchange="updateSinergyField('${key}',this.value)">
-              </div>
-            </div>`).join('')}
-          <div class="settings-row row-between" style="border-top:2px solid var(--border-strong)">
-            <strong>Ganancia neta</strong>
-            <strong class="num ${ganancia < 0 ? 'text-warn' : 'text-success'}">${ganancia >= 0 ? '' : '-'}${Math.abs(ganancia/1000000).toFixed(2)}M CLP</strong>
-          </div>
-        </div>
-      </div>
-
-      <!-- Outputs del mes -->
-      <div class="section">
-        <div class="section-title">Outputs del mes</div>
-        <div class="grid-3 mb-md">
-          <div class="stat-card"><div class="stat-val num">${llamadas}</div><div class="stat-label">Llamadas</div></div>
-          <div class="stat-card"><div class="stat-val num">${clientes}</div><div class="stat-label">Clientes</div></div>
-          <div class="stat-card"><div class="stat-val num">${features}</div><div class="stat-label">Features</div></div>
-        </div>
-        ${mesOutputs.length ? `<div class="card">
-          ${mesOutputs.slice(0,8).map(o => `<div class="row-between mb-sm">
-            <div class="row row-gap-sm flex-1">
-              <span class="chip chip-primary text-xs">${esc(o.tipo)}</span>
-              <span class="text-sm text-md truncate">${esc(o.detalle||'')}</span>
+          <p class="text-xs text-lo mb-md" style="line-height:var(--lh-relaxed)">
+            Ingresa la ganancia neta mensual de Sinergy (lo que queda después de todos los gastos).
+            Puedes sacarlo de tu app de finanzas.
+          </p>
+          <div class="field">
+            <label>Ganancia neta del mes (CLP)</label>
+            <div class="input-group">
+              <span class="input-prefix" style="font-size:11px">$</span>
+              <input id="sin-ganancia" class="input input-prefixed num" type="number" step="100000"
+                placeholder="ej. 103682"
+                value="${mesData.ganancia_neta_clp || ''}"
+                onchange="saveSinergyGanancia(this.value)">
             </div>
-            <span class="text-xs text-primary font-bold num">+${o.xp_ganado}</span>
-          </div>`).join('')}
-        </div>` : `<p class="text-sm text-lo">Sin outputs este mes. Los outputs (no el tiempo) son lo que importa.</p>`}
-        <button class="btn btn-secondary btn-block btn-sm mt-md" onclick="openOutputModal()">+ Registrar output</button>
-      </div>
-
-      <!-- Metas trimestre -->
-      <div class="section">
-        <div class="section-title">Metas trimestre · Learning goals</div>
-        <div class="card">
-          ${fase < 2 ? `<p class="text-sm text-lo">Los learning goals se desbloquean en Fase 2. Por ahora enfócate en los 3 hábitos núcleo.</p>` :
-          `<div id="lg-list">
-            ${(s.sinergy.metas_trimestre.learning_goals||[]).map((g,i) => `
-              <div class="row-between mb-sm">
-                <span class="text-sm flex-1">${esc(g)}</span>
-                <button class="btn btn-icon btn-ghost btn-sm" onclick="removeLG(${i})" aria-label="Eliminar">✕</button>
-              </div>`).join('')}
+            ${mesData.ganancia_neta_clp > 0
+              ? `<div class="hint" style="color:var(--success)">✓ Guardado: $${mesData.ganancia_neta_clp.toLocaleString('es-CL')} CLP</div>`
+              : `<div class="hint">Solo 1 número. Sin cálculos acá.</div>`}
           </div>
-          <div class="row row-gap-sm mt-md">
-            <input id="lg-input" class="input flex-1" placeholder="¿Qué quieres aprender/probar este trimestre?">
-            <button class="btn btn-sm btn-primary" onclick="addLG()">+</button>
-          </div>`}
         </div>
       </div>
 
-      <button class="btn btn-secondary btn-block mt-md" onclick="cerrarMes()">Cerrar mes</button>
+      <!-- Acciones del mes -->
+      <div class="section">
+        <div class="section-title">Lo que hiciste este mes</div>
+        <div class="card mb-md">
+          <p class="text-xs text-lo mb-md" style="line-height:var(--lh-relaxed)">
+            Cada acción real cuenta. No el tiempo frente al computador, sino lo que pasó de verdad.
+          </p>
+          <div class="grid-3 mb-lg">
+            <div class="stat-card">
+              <div class="stat-val num">${llamadas}</div>
+              <div class="stat-label">📞 Llamadas</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val num">${clientes}</div>
+              <div class="stat-label">🎉 Clientes</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-val num">${features}</div>
+              <div class="stat-label">🚀 Mejoras</div>
+            </div>
+          </div>
+          ${xpMes > 0 ? `<div class="text-xs text-primary font-semibold mb-md">+${xpMes} XP ganados en Sinergy este mes</div>` : ''}
+          <button class="btn btn-primary btn-block" onclick="openSinergyAccionModal()">
+            + Registrar una acción de hoy
+          </button>
+        </div>
+
+        <!-- Historial reciente -->
+        ${mesOutputs.length > 0 ? `
+          <div class="section-title">Historial de este mes</div>
+          <div class="stack stack-sm">
+            ${mesOutputs.slice(0, 10).map(o => {
+              const t = TIPO_LABEL[o.tipo] || { emoji:'✅', label: o.tipo };
+              return `<div class="card" style="padding:12px 14px">
+                <div class="row-between">
+                  <div class="row row-gap-sm">
+                    <span style="font-size:20px">${t.emoji}</span>
+                    <div>
+                      <div class="text-sm font-semibold">${t.label}</div>
+                      ${o.detalle ? `<div class="text-xs text-lo">${esc(o.detalle)}</div>` : ''}
+                    </div>
+                  </div>
+                  <div class="text-right">
+                    <div class="text-xs text-primary font-bold">+${o.xp_ganado} XP</div>
+                    <div class="text-xs text-lo">${formatDate(o.fecha)}</div>
+                  </div>
+                </div>
+              </div>`;
+            }).join('')}
+          </div>` : `
+          <div class="empty-state" style="padding:24px">
+            <div class="empty-icon"><span style="font-size:28px">📋</span></div>
+            <div class="empty-title">Sin acciones este mes</div>
+            <div class="empty-sub">Cuando hagas algo concreto para Sinergy, regístralo aquí. No importa qué tan pequeño sea.</div>
+          </div>`}
+      </div>
+
+      <!-- Foco del trimestre -->
+      <div class="section">
+        <div class="section-title">¿En qué te enfocas este trimestre?</div>
+        <div class="card">
+          <p class="text-xs text-lo mb-md" style="line-height:var(--lh-relaxed)">
+            Una o dos cosas concretas que quieres probar o mejorar en Sinergy. Sin presión — es para recordarte qué importa.
+          </p>
+          ${fase < 2 ? `
+            <div style="padding:10px 12px;background:var(--bg-2);border-radius:var(--r-md)">
+              <p class="text-sm text-lo">Por ahora enfócate en los 3 hábitos núcleo. Las metas de Sinergy se activan en Fase 2 (mes 4).</p>
+            </div>` : `
+            <div id="lg-list" class="stack stack-sm mb-md">
+              ${metas.length === 0
+                ? `<p class="text-sm text-lo">Aún sin foco definido para este trimestre.</p>`
+                : metas.map((g, i) => `
+                  <div class="row row-gap-sm" style="background:var(--bg-2);padding:10px 12px;border-radius:var(--r-md)">
+                    <span class="text-sm flex-1">→ ${esc(g)}</span>
+                    <button class="btn btn-icon btn-ghost btn-sm" onclick="removeLG(${i})" aria-label="Eliminar" style="color:var(--text-lo)">✕</button>
+                  </div>`).join('')}
+            </div>
+            <div class="row row-gap-sm">
+              <input id="lg-input" class="input flex-1" placeholder="Ej: Hablar con 10 clientes este trimestre">
+              <button class="btn btn-sm btn-primary" onclick="addLG()">+</button>
+            </div>`}
+        </div>
+      </div>
+
     </div>`;
 
-  window.updateSinergyField = (key, val) => {
-    const num = parseInt(val)||0;
-    const mes2 = document.getElementById('mes-select')?.value || monthStr();
+  // Handlers
+  window.saveSinergyGanancia = (val) => {
+    const num = parseInt(val) || 0;
     State.update(s => {
-      let md = s.sinergy.mensual.find(m => m.mes === mes2);
-      if (!md) { md = { mes:mes2, facturacion_clp:0, costo_infra:0, costo_licencias:0, costo_personal:0, costo_servicios:0, costo_otros:0, mrr:0, nuevos_clientes:0, churn_pct:0, notas:'' }; s.sinergy.mensual.push(md); }
-      md[key] = num;
-      // Auto-mark P&L done in Fase0
-      if (!s.fase0_checklist.pnl_sinergy_completo && md.facturacion_clp > 0) s.fase0_checklist.pnl_sinergy_completo = true;
+      let md = s.sinergy.mensual.find(m => m.mes === mes);
+      if (!md) { md = { mes, ganancia_neta_clp: 0, notas: '' }; s.sinergy.mensual.push(md); }
+      md.ganancia_neta_clp = num;
+      // Si ganancia > 0, marcar P&L de Fase 0 como completado
+      if (!s.fase0_checklist.pnl_sinergy_completo && num > 0) s.fase0_checklist.pnl_sinergy_completo = true;
+      // XP por cada millón de ganancia
+      const millones = Math.floor(num / 1000000);
+      if (millones > 0 && !md._xp_ganancia_aplicado) {
+        md._xp_ganancia_aplicado = true;
+        XP.add(millones * 1000, `Ganancia neta: ${millones}M CLP`);
+      }
     });
+    UI.toast('Guardado.', 'success');
     renderSinergy();
   };
-  window.loadMesSinergy = () => renderSinergy();
-  window.cerrarMes = () => { UI.toast('Mes cerrado. Datos guardados.','success'); };
+
+  window.openSinergyAccionModal = () => {
+    const OPCIONES = [
+      { tipo:'llamada',       emoji:'📞', label:'Llamada de venta',       sub:'Llamaste a alguien para venderle Sinergy',       xp:50  },
+      { tipo:'cliente_nuevo', emoji:'🎉', label:'Cliente nuevo',          sub:'Cerraste un cliente nuevo',                      xp:200 },
+      { tipo:'feature',       emoji:'🚀', label:'Mejora al producto',     sub:'Lanzaste algo nuevo que los clientes pueden usar', xp:500 },
+      { tipo:'margen_millon', emoji:'💰', label:'Millón extra de ganancia', sub:'La ganancia neta subió +1M CLP este mes',       xp:1000 },
+    ];
+    UI.modal({
+      title: '¿Qué hiciste hoy?',
+      body: `
+        <p class="text-sm text-lo mb-md">Elige el tipo de acción y agrega un detalle opcional.</p>
+        <div class="stack stack-sm mb-md" id="accion-opts">
+          ${OPCIONES.map(o => `
+            <label style="cursor:pointer">
+              <input type="radio" name="accion-tipo" value="${o.tipo}" style="display:none" class="accion-radio">
+              <div class="card" style="padding:12px 14px;cursor:pointer;transition:border-color .2s" id="acard-${o.tipo}"
+                onclick="selectAccion('${o.tipo}')">
+                <div class="row row-gap-sm">
+                  <span style="font-size:22px">${o.emoji}</span>
+                  <div class="flex-1">
+                    <div class="font-semibold text-sm">${o.label}</div>
+                    <div class="text-xs text-lo">${o.sub}</div>
+                  </div>
+                  <span class="text-xs text-primary font-bold">+${o.xp} XP</span>
+                </div>
+              </div>
+            </label>`).join('')}
+        </div>
+        <div class="field">
+          <label>Detalle (opcional)</label>
+          <input id="accion-detalle" class="input" placeholder="ej. Llamé a Empresa ABC, interesados">
+        </div>`,
+      actions: [{
+        label: 'Registrar acción',
+        action: () => {
+          const tipo = document.querySelector('.accion-radio:checked')?.value;
+          if (!tipo) { UI.toast('Elige una acción primero.', 'warn'); return false; }
+          const detalle = document.getElementById('accion-detalle')?.value.trim() || '';
+          const xp = { llamada:50, cliente_nuevo:200, feature:500, margen_millon:1000 }[tipo] || 50;
+          State.update(s => { s.sinergy.outputs_log.unshift({ fecha: todayISO(), tipo, detalle, xp_ganado: xp }); });
+          XP.add(xp, `Sinergy: ${TIPO_LABEL[tipo]?.label || tipo}`);
+          if (tipo === 'cliente_nuevo') { UI.confetti(50); UI.toast(`¡Cliente nuevo! +${xp} XP`, 'success', 4000); }
+          else UI.toast(`+${xp} XP — ¡Registrado!`, 'success');
+          renderSinergy();
+        }
+      }],
+    });
+  };
+
+  window.selectAccion = (tipo) => {
+    document.querySelectorAll('[id^="acard-"]').forEach(el => {
+      el.style.borderColor = '';
+      el.style.background = '';
+    });
+    const card = document.getElementById(`acard-${tipo}`);
+    if (card) { card.style.borderColor = 'var(--primary)'; card.style.background = 'var(--primary-glow)'; }
+    const radio = document.querySelector(`input[value="${tipo}"]`);
+    if (radio) radio.checked = true;
+  };
+
   window.addLG = () => {
     const v = document.getElementById('lg-input')?.value.trim();
     if (!v) return;
@@ -2708,10 +2790,10 @@ function renderSinergy() {
     renderSinergy();
   };
   window.removeLG = (i) => {
-    State.update(s => { s.sinergy.metas_trimestre.learning_goals.splice(i,1); });
+    State.update(s => { s.sinergy.metas_trimestre.learning_goals.splice(i, 1); });
     renderSinergy();
   };
-  window.openOutputModal = window.openOutputModal || (() => {});
+  window.openOutputModal = window.openSinergyAccionModal;
 }
 
 /* ═══════════════════════════════════════════════════════════
