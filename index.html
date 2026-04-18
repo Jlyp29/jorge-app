@@ -1088,7 +1088,17 @@ select.input{
 <div id="toast-container" aria-live="polite" aria-atomic="false"></div>
 <div id="overlay-root"></div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// Error visual de emergencia — muestra cualquier crash en pantalla
+window.onerror = (msg, src, line, col, err) => {
+  document.getElementById('app').innerHTML =
+    `<div style="padding:24px;color:#E57373;font-family:monospace;font-size:13px;background:#0F1419;min-height:100dvh">
+      <strong>Error JS (línea ${line}):</strong><br>${msg}<br><br>
+      <em>${src}</em>
+    </div>`;
+};
+</script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js" async></script>
 <script>
 'use strict';
 /* ═══════════════════════════════════════════════════════════
@@ -4141,7 +4151,18 @@ const App = (() => {
   return { init };
 })();
 
-App.init();
+// Esperar a que Chart.js cargue (async), luego arrancar
+if (typeof Chart !== 'undefined') {
+  App.init();
+} else {
+  const chartScript = document.querySelector('script[src*="chart.js"]');
+  if (chartScript) {
+    chartScript.addEventListener('load', () => App.init());
+    chartScript.addEventListener('error', () => App.init()); // arrancar igual si falla CDN
+  } else {
+    App.init();
+  }
+}
 </script>
 </body>
 </html>
