@@ -1259,7 +1259,7 @@ const State = (() => {
     if (!data.fisico.agua) data.fisico.agua = {};
     if (!data.fisico.nutricion) data.fisico.nutricion = [];
     // ensure each habit has all fields
-    data.habits = data.habits.map(h => ({ ...defaultHabits()[0], ...h }));
+    data.habits = data.habits.map(h => ({ ...defaultHabits()[0], ...h, xp_awarded_dates: h.xp_awarded_dates || [] }));
     if (!data.profile.identidad) data.profile.identidad = '';
     if (!data.profile.mision_personal) data.profile.mision_personal = '';
     if (!data.settings.fase) data.settings.fase = 0;
@@ -2295,19 +2295,29 @@ function wireHabitChecks() {
     if (!h) return;
     const t = today();
     const wasDone = h.completions.includes(t);
+    const xpVal = h.escala_actual === 'tiny' ? (id === 'h1' ? 20 : 10) : h.xp_por_check;
+    // XP ya otorgado hoy para este hábito (evita farm con check/uncheck)
+    const xpYaOtorgado = (h.xp_awarded_dates || []).includes(t);
 
     State.update(st => {
       const habit = st.habits.find(x => x.id === id);
+      if (!habit.xp_awarded_dates) habit.xp_awarded_dates = [];
       if (wasDone) {
+        // Desmarcar: quitar completion y restar XP solo si fue otorgado hoy
         habit.completions = habit.completions.filter(d => d !== t);
-        // undo XP approximate
-        XP.add(-10, `Desmarcar: ${habit.nombre}`, { animate: false });
+        if (xpYaOtorgado) {
+          XP.add(-xpVal, `Desmarcar: ${habit.nombre}`, { animate: false });
+          habit.xp_awarded_dates = habit.xp_awarded_dates.filter(d => d !== t);
+        }
       } else {
+        // Marcar: agregar completion
         habit.completions.push(t);
         XP.checkStreak(id, t);
-        const xpVal = habit.escala_actual === 'tiny' ? (id === 'h1' ? 20 : 10) : habit.xp_por_check;
-        const isFirst = !habit.completions.slice(0,-1).some(d => d === t);
-        XP.add(xpVal, `Hábito: ${habit.nombre}`);
+        // Otorgar XP solo si no fue otorgado hoy aún
+        if (!xpYaOtorgado) {
+          XP.add(xpVal, `Hábito: ${habit.nombre}`);
+          habit.xp_awarded_dates.push(t);
+        }
         // Streak badge check
         if (habit.currentStreak === 21) {
           UI.toast(`¡21 días de ${habit.nombre}! Badge "${habit.identity_tag.replace('Soy alguien que ','').replace('Soy alguien con ','')}" desbloqueado.`,'success', 4000);
