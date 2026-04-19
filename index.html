@@ -552,6 +552,15 @@ select.input{
   padding:2px 7px;margin-left:6px;vertical-align:middle;
 }
 
+/* Progreso 5 años */
+.area-progress{ padding:12px 0; border-bottom:1px solid var(--border); }
+.area-progress:last-child{ border-bottom:none; }
+.area-progress-bar{ height:6px; background:var(--bg-3); border-radius:var(--r-full); overflow:hidden; margin:6px 0 4px; }
+.area-progress-fill{ height:100%; border-radius:var(--r-full); transition:width .6s var(--ease-decelerate); }
+.area-label{ font-size:var(--fs-xs); font-weight:600; color:var(--text-md); }
+.area-vals{ font-size:var(--fs-xs); color:var(--text-lo); }
+.area-pct{ font-size:var(--fs-xs); font-weight:700; }
+
 /* Scale-up CTA */
 .scale-cta{
   display:flex;align-items:center;gap:6px;
@@ -1345,9 +1354,18 @@ const State = (() => {
     emociones_pre_procrastinacion:[],
     insights:[],
     metas_5y:{
+      // Visión
       ingreso_usd_mes:10000, grasa_pct:12,
-      auto:'Golf GTI/R o Scirocco', familia:'estable + paternidad',
-      sinergy_rol:'CEO consolidado', influencia:'presencia local',
+      auto:'Golf GTI/R', sinergy_rol:'CEO consolidado',
+      // Punto de partida (para calcular progreso real)
+      inicio_grasa_pct:21, inicio_peso_kg:70, inicio_fecha:'2026-04-19',
+      // Targets por año (ingreso total mensual en USD)
+      ingreso_anio_1:3500, ingreso_anio_2:5000,
+      ingreso_anio_3:6500, ingreso_anio_4:8000, ingreso_anio_5:10000,
+      // Target físico por trimestre (% grasa)
+      grasa_q1:18, grasa_q2:16, grasa_q3:14, grasa_q4:13,
+      // Targets de hábitos y negocio
+      adherencia_meta_pct:85, clientes_sinergy_anio_1:5,
     },
     metas_trimestre_actual:{
       trimestre:'', performance:[], learning:[],
@@ -1355,6 +1373,7 @@ const State = (() => {
     },
     fresh_start_triggers:[],
     revisiones_semanales:[],
+    revisiones_mensuales:[],
     finanzas: {
       meta_ahorro_pct: 20,
       gastos_fijos: [],
@@ -1403,6 +1422,11 @@ const State = (() => {
     if (!data.settings.fase) data.settings.fase = 0;
     if (data.onboarding_done === undefined) data.onboarding_done = false;
     if (!data.revisiones_semanales) data.revisiones_semanales = [];
+    if (!data.revisiones_mensuales) data.revisiones_mensuales = [];
+    if (!data.metas_5y) data.metas_5y = defaults().metas_5y;
+    // Agregar campos nuevos de metas_5y sin pisar los que ya existen
+    const dm = defaults().metas_5y;
+    Object.keys(dm).forEach(k => { if (data.metas_5y[k] === undefined) data.metas_5y[k] = dm[k]; });
     if (!data.finanzas) data.finanzas = defaults().finanzas;
     if (!data.finanzas.gastos_fijos) data.finanzas.gastos_fijos = [];
     if (!data.finanzas.mensual) data.finanzas.mensual = [];
@@ -2283,6 +2307,9 @@ function renderHoy() {
   const revisionHecha = (s.revisiones_semanales || []).some(r => r.semana_iso === semanaActual);
   const mostrarRevision = (esDomingo || esLunes) && !revisionHecha && diasSistema >= 7;
 
+  // Revisión mensual pendiente
+  const mostrarRevisionMes = debeRevisarMes(s);
+
   // Today completions
   const todayCompletions = s.habits.map(h => h.completions.includes(today()));
   const allDoneToday = todayCompletions.every(Boolean);
@@ -2345,6 +2372,16 @@ function renderHoy() {
               <div class="text-xs text-lo mt-sm">5 minutos · Cierra la semana · +50 XP</div>
             </div>
             <button class="btn btn-primary btn-sm" onclick="openRevisionSemanal()">Revisar →</button>
+          </div>
+        </div>` : ''}
+      ${mostrarRevisionMes ? `
+        <div class="card mb-md" style="border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);padding:14px 16px">
+          <div class="row-between">
+            <div>
+              <div class="font-semibold text-sm">📊 Revisión mensual · 5 años</div>
+              <div class="text-xs text-lo mt-sm">Actualiza tu progreso · Grasa, ingresos, Sinergy · +75 XP</div>
+            </div>
+            <button class="btn btn-sm" style="background:var(--accent);color:#fff" onclick="openRevisionMensual()">Registrar →</button>
           </div>
         </div>` : ''}
 
@@ -3803,6 +3840,170 @@ function renderCuerpoComidas(body, s) {
 }
 
 /* ═══════════════════════════════════════════════════════════
+   PROGRESO 5 AÑOS
+═══════════════════════════════════════════════════════════ */
+function calcProgresoPct(inicio, actual, meta) {
+  if (inicio === meta) return actual <= meta ? 100 : 0;
+  // Para grasa: menor es mejor. Para ingreso: mayor es mejor.
+  const dir = meta < inicio ? -1 : 1;
+  const total = Math.abs(meta - inicio);
+  const avance = dir * (actual - inicio);
+  return Math.min(100, Math.max(0, Math.round(avance / total * 100)));
+}
+
+function areaProgressHTML(label, inicio, actual, meta, unidad, color) {
+  const pct = actual !== null ? calcProgresoPct(inicio, actual, meta) : 0;
+  const sinDato = actual === null;
+  return `<div class="area-progress">
+    <div class="row-between">
+      <span class="area-label">${label}</span>
+      <span class="area-pct" style="color:${color}">${sinDato ? '—' : pct + '%'}</span>
+    </div>
+    <div class="area-progress-bar">
+      <div class="area-progress-fill" style="width:${pct}%;background:${color}"></div>
+    </div>
+    <div class="area-vals">${sinDato ? 'Sin datos aún' : `${unidad === 'pct-inv' ? actual+'%' : (unidad === 'usd' ? '$'+actual.toLocaleString('es-CL') : actual+' '+unidad)} · meta ${unidad === 'pct-inv' ? meta+'%' : (unidad === 'usd' ? '$'+meta.toLocaleString('es-CL') : meta+' '+unidad)}`}</div>
+  </div>`;
+}
+
+function renderProgreso5Anios(s) {
+  const m = s.metas_5y || {};
+  const rev = (s.revisiones_mensuales || []).slice(-1)[0];
+  const medicion = (s.fisico?.mediciones || []).slice(-1)[0];
+
+  // Grasa actual: de la última medición
+  const grasaActual = medicion?.grasa_pct ?? null;
+  const grasaInicio = m.inicio_grasa_pct || 21;
+  const grasaMeta   = m.grasa_pct || 12;
+
+  // Ingreso actual: de la última revisión mensual (USD)
+  const ingresoActual = rev?.ingreso_usd ?? null;
+  const ingresoInicio = 2200;
+  const ingresoAnio1  = m.ingreso_anio_1 || 3500;
+
+  // Adherencia: promedio 30d calculado
+  const adh30 = (() => {
+    const total = s.habits.length * 30;
+    if (!total) return null;
+    const done = s.habits.reduce((acc,h) => {
+      for (let i=0;i<30;i++) { const d=new Date();d.setDate(d.getDate()-i);if(h.completions.includes(dateStr(d)))acc++; }
+      return acc;
+    },0);
+    return Math.round(done/total*100);
+  })();
+  const adhMeta = m.adherencia_meta_pct || 85;
+
+  // Clientes Sinergy: outputs_log tipo crm_cliente
+  const clientesMes = (s.sinergy?.outputs_log || []).filter(o => o.tipo === 'crm_cliente').length;
+  const clientesMeta = m.clientes_sinergy_anio_1 || 5;
+
+  const mesConRevision = rev ? `Último dato: ${rev.mes}` : 'Haz tu primera revisión mensual';
+
+  return `<div class="section">
+    <div class="section-title row-between">
+      <span>Ruta 5 años</span>
+      <button class="btn btn-ghost btn-sm" onclick="openRevisionMensual()">+ Revisión mensual</button>
+    </div>
+    <div class="card" style="padding:12px 16px">
+      ${areaProgressHTML('Físico · % grasa', grasaInicio, grasaActual, grasaMeta, 'pct-inv', 'var(--success)')}
+      ${areaProgressHTML('Ingresos · USD/mes', ingresoInicio, ingresoActual, ingresoAnio1, 'usd', 'var(--primary)')}
+      ${areaProgressHTML('Hábitos · adherencia', 0, adh30, adhMeta, '%', 'var(--accent)')}
+      ${areaProgressHTML('Sinergy · clientes', 0, clientesMes, clientesMeta, 'clientes', '#f59e0b')}
+      <div class="text-xs text-lo mt-sm" style="text-align:center">${mesConRevision}</div>
+    </div>
+  </div>`;
+}
+
+window.openRevisionMensual = () => {
+  const s = State.get();
+  const mes = monthStr();
+  const yaHecha = (s.revisiones_mensuales || []).find(r => r.mes === mes);
+  const medicion = (s.fisico?.mediciones || []).slice(-1)[0];
+
+  UI.modal({
+    title: `Revisión mensual · ${new Date().toLocaleDateString('es-CL',{month:'long',year:'numeric'})}`,
+    body: `<div class="stack stack-md">
+      <p class="text-sm text-lo">Una vez al mes. Datos reales, sin maquillar.</p>
+
+      <div class="section-title" style="margin-top:4px">Físico</div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label>% Grasa corporal</label>
+          <input id="rm-grasa" class="input num" type="number" step="0.1" placeholder="ej. 20.5" value="${yaHecha?.grasa_pct || medicion?.grasa_pct || ''}"></div>
+        <div class="field"><label>Peso (kg)</label>
+          <input id="rm-peso" class="input num" type="number" step="0.1" placeholder="ej. 69.5" value="${yaHecha?.peso_kg || medicion?.peso_kg || ''}"></div>
+      </div>
+
+      <div class="section-title">Dinero</div>
+      <div class="field"><label>Ingreso total del mes (USD)</label>
+        <div class="input-group"><span class="input-prefix">$</span>
+        <input id="rm-ingreso" class="input input-prefixed num" type="number" placeholder="Carvuk + Sinergy + otros" value="${yaHecha?.ingreso_usd || ''}"></div>
+        <div class="hint">Suma todo. Sin estimar.</div>
+      </div>
+      <div class="field"><label>Ahorro del mes (USD)</label>
+        <div class="input-group"><span class="input-prefix">$</span>
+        <input id="rm-ahorro" class="input input-prefixed num" type="number" placeholder="ej. 300" value="${yaHecha?.ahorro_usd || ''}"></div>
+      </div>
+
+      <div class="section-title">Sinergy</div>
+      <div class="grid-2" style="gap:10px">
+        <div class="field"><label>Clientes activos</label>
+          <input id="rm-clientes" class="input num" type="number" placeholder="0" value="${yaHecha?.clientes_sinergy || ''}"></div>
+        <div class="field"><label>Horas enfocadas</label>
+          <input id="rm-horas" class="input num" type="number" placeholder="ej. 24" value="${yaHecha?.horas_sinergy || ''}"></div>
+      </div>
+
+      <div class="section-title">Reflexión (1 línea cada una)</div>
+      <div class="field"><label>¿Qué funcionó este mes?</label>
+        <input id="rm-funciono" class="input" placeholder="Lo más importante..." value="${esc(yaHecha?.que_funciono || '')}"></div>
+      <div class="field"><label>¿Qué ajusto el próximo mes?</label>
+        <input id="rm-ajusta" class="input" placeholder="Una cosa concreta..." value="${esc(yaHecha?.que_ajusta || '')}"></div>
+    </div>`,
+    actions: [
+      { label: 'Guardar revisión', action: () => {
+        const grasa    = parseFloat(document.getElementById('rm-grasa')?.value) || null;
+        const peso     = parseFloat(document.getElementById('rm-peso')?.value) || null;
+        const ingreso  = parseFloat(document.getElementById('rm-ingreso')?.value) || null;
+        const ahorro   = parseFloat(document.getElementById('rm-ahorro')?.value) || null;
+        const clientes = parseInt(document.getElementById('rm-clientes')?.value) || 0;
+        const horas    = parseInt(document.getElementById('rm-horas')?.value) || 0;
+        const funciono = document.getElementById('rm-funciono')?.value.trim() || '';
+        const ajusta   = document.getElementById('rm-ajusta')?.value.trim() || '';
+
+        if (!grasa && !ingreso) { UI.toast('Completa al menos grasa o ingresos.','warn'); return false; }
+
+        State.update(st => {
+          if (!st.revisiones_mensuales) st.revisiones_mensuales = [];
+          const idx = st.revisiones_mensuales.findIndex(r => r.mes === mes);
+          const entry = { mes, fecha: today(), grasa_pct: grasa, peso_kg: peso,
+            ingreso_usd: ingreso, ahorro_usd: ahorro, clientes_sinergy: clientes,
+            horas_sinergy: horas, que_funciono: funciono, que_ajusta: ajusta };
+          if (idx >= 0) st.revisiones_mensuales[idx] = entry;
+          else st.revisiones_mensuales.unshift(entry);
+
+          // Registrar medición física si hay datos
+          if (grasa || peso) {
+            if (!st.fisico.mediciones) st.fisico.mediciones = [];
+            st.fisico.mediciones.push({ fecha: today(), peso_kg: peso || st.fisico.mediciones.slice(-1)[0]?.peso_kg,
+              grasa_pct: grasa || st.fisico.mediciones.slice(-1)[0]?.grasa_pct });
+          }
+        });
+
+        XP.add(75, 'Revisión mensual completada');
+        UI.toast('Revisión guardada. +75 XP 📊', 'success', 4000);
+        renderYo();
+      }},
+      { label: 'Ahora no', action: () => {} },
+    ],
+  });
+};
+
+function debeRevisarMes(s) {
+  const mes = monthStr();
+  if ((s.revisiones_mensuales || []).find(r => r.mes === mes)) return false;
+  return new Date().getDate() >= 25; // Mostrar los últimos 6 días del mes
+}
+
+/* ═══════════════════════════════════════════════════════════
    VISTA: YO
 ═══════════════════════════════════════════════════════════ */
 function renderYo() {
@@ -3886,6 +4087,9 @@ function renderYo() {
           <p class="text-xs text-lo mt-sm" id="xp-chart-summary" aria-live="polite"></p>
         </div>
       </div>` : ''}
+
+      <!-- Progreso 5 años -->
+      ${renderProgreso5Anios(s)}
 
       <!-- Proyecciones -->
       <div class="section">
