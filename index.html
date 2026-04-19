@@ -543,6 +543,21 @@ select.input{
 .streak-val{font-size:var(--fs-xs);font-weight:700;color:var(--accent);}
 .streak-label{font-size:var(--fs-xs);color:var(--text-lo);}
 
+/* Scale-up CTA */
+.scale-cta{
+  display:flex;align-items:center;gap:6px;
+  margin-top:10px;width:100%;
+  background:linear-gradient(135deg,rgba(124,58,237,.15),rgba(16,185,129,.1));
+  border:1px solid rgba(124,58,237,.35);
+  border-radius:var(--r-md);
+  padding:8px 12px;
+  font-size:var(--fs-xs);font-weight:600;
+  color:var(--primary);cursor:pointer;
+  text-align:left;
+  animation:fadeIn var(--dur-2) var(--ease-standard) both;
+}
+.scale-cta:active{opacity:.75;}
+
 /* Heatmap */
 .heatmap{
   display:grid;
@@ -1178,6 +1193,16 @@ function calcLiveStreak(completions, freezes = []) {
   return streak;
 }
 
+function shouldShowScaleCTA(h) {
+  if (h.escala_actual !== 'tiny') return false;
+  if (calcLiveStreak(h.completions || [], h.freeze_completions || []) < 14) return false;
+  if (h.scale_cta_dismissed_at) {
+    const days = (Date.now() - new Date(h.scale_cta_dismissed_at + 'T00:00:00').getTime()) / 86400000;
+    if (days < 7) return false;
+  }
+  return true;
+}
+
 /* ═══════════════════════════════════════════════════════════
    STATE MODULE
 ═══════════════════════════════════════════════════════════ */
@@ -1325,6 +1350,7 @@ const State = (() => {
       ...defaultHabits()[0], ...h,
       xp_awarded_dates: h.xp_awarded_dates || [],
       freeze_completions: h.freeze_completions || [],
+      scale_history: h.scale_history || [],
     }));
     if (!data.profile.identidad) data.profile.identidad = '';
     if (!data.profile.mision_personal) data.profile.mision_personal = '';
@@ -2432,6 +2458,7 @@ function renderHabitCard(h, done, idx) {
           <span class="streak-val num">${liveStreak}</span>
           <span class="streak-label">días</span>
         </div>
+        ${shouldShowScaleCTA(h) ? `<button class="scale-cta" onclick="offerScaleUp('${h.id}')">🚀 ${liveStreak} días seguidos — ¿Listo para el nivel real?</button>` : ''}
       </div>
       <div class="habit-xp num">+${xpVal}</div>
     </div>`;
@@ -2618,6 +2645,49 @@ function wireHabitChecks() {
   window.toggleCrisisMode = (on) => {
     State.set('settings.modo_crisis', on);
     renderHoy();
+  };
+
+  window.offerScaleUp = (id) => {
+    const h = State.get().habits.find(x => x.id === id);
+    if (!h) return;
+    const streak = calcLiveStreak(h.completions || [], h.freeze_completions || []);
+    UI.modal({
+      title: '¿Listo para el nivel real?',
+      body: `<div class="stack stack-md">
+        <div class="card" style="padding:12px 14px">
+          <div class="text-xs text-lo mb-xs">Versión actual (tiny)</div>
+          <div class="text-sm">${esc(h.version_tiny)}</div>
+        </div>
+        <div style="text-align:center;font-size:1.2rem">↓</div>
+        <div class="card" style="padding:12px 14px;border-color:var(--primary)">
+          <div class="text-xs mb-xs" style="color:var(--primary)">Siguiente nivel</div>
+          <div class="text-sm font-semibold">${esc(h.version_target)}</div>
+        </div>
+        <p class="text-sm text-lo">Llevas <strong>${streak} días seguidos</strong>. El hábito ya está instalado. Ahora toca hacerlo en serio.</p>
+      </div>`,
+      actions: [
+        { label: '🚀 Sí, subo al nivel real', action: () => {
+          State.update(s => {
+            const habit = s.habits.find(x => x.id === id);
+            if (!habit) return;
+            habit.escala_actual = 'target';
+            if (!habit.scale_history) habit.scale_history = [];
+            habit.scale_history.push({ fecha: today(), de: 'tiny', a: 'target', streak_al_escalar: streak });
+            delete habit.scale_cta_dismissed_at;
+          });
+          XP.add(100, `Escalada de hábito: ${h.nombre}`);
+          UI.confetti(60);
+          UI.toast(`🚀 ¡Nivel subido! Ahora: ${h.version_target}`, 'success', 6000);
+          renderHoy();
+        }},
+        { label: 'Todavía no', action: () => {
+          State.update(s => {
+            const habit = s.habits.find(x => x.id === id);
+            if (habit) habit.scale_cta_dismissed_at = today();
+          });
+        }},
+      ],
+    });
   };
 }
 

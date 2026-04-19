@@ -137,11 +137,22 @@ function migrateTest(data) {
         h.completions = h.completions.filter(isValidDateStr);
       if (Array.isArray(h.freeze_completions))
         h.freeze_completions = h.freeze_completions.filter(isValidDateStr);
+      if (!Array.isArray(h.scale_history)) h.scale_history = [];
     });
   }
   // sanitizar xp.total
   if (data.xp) data.xp.total = Math.max(0, parseInt(data.xp.total) || 0);
   return data;
+}
+
+function shouldShowScaleCTA(h) {
+  if (h.escala_actual !== 'tiny') return false;
+  if (calcLiveStreak(h.completions || [], h.freeze_completions || []) < 14) return false;
+  if (h.scale_cta_dismissed_at) {
+    const days = (Date.now() - new Date(h.scale_cta_dismissed_at + 'T00:00:00').getTime()) / 86400000;
+    if (days < 7) return false;
+  }
+  return true;
 }
 
 /* helper: construir array de fechas hacia atrás desde hoy */
@@ -419,6 +430,36 @@ function runAll() {
     assertEqual(normalise('finanzas'), 'resultados');
     assertEqual(normalise('hoy'), 'hoy');
     assertEqual(normalise('resultados'), 'resultados');
+  });
+
+  /* ── Progresión tiny → target ────────────────────────────── */
+  suite('Progresión tiny→target — shouldShowScaleCTA');
+  it('no muestra con 13 días (< 14)', () => {
+    const h = { escala_actual:'tiny', completions: lastNDays(13), freeze_completions:[] };
+    assert(!shouldShowScaleCTA(h), 'no debe mostrarse con 13 días');
+  });
+  it('muestra con exactamente 14 días seguidos', () => {
+    const h = { escala_actual:'tiny', completions: lastNDays(14), freeze_completions:[] };
+    assert(shouldShowScaleCTA(h), 'debe mostrarse con 14 días');
+  });
+  it('no muestra si ya está en target', () => {
+    const h = { escala_actual:'target', completions: lastNDays(20), freeze_completions:[] };
+    assert(!shouldShowScaleCTA(h), 'target no muestra CTA');
+  });
+  it('no muestra si fue descartado hace menos de 7 días', () => {
+    const h = { escala_actual:'tiny', completions: lastNDays(20), freeze_completions:[], scale_cta_dismissed_at: daysAgo(3) };
+    assert(!shouldShowScaleCTA(h), 'descartado hace 3 días no debe mostrarse');
+  });
+  it('muestra de nuevo si fue descartado hace 7+ días', () => {
+    const h = { escala_actual:'tiny', completions: lastNDays(21), freeze_completions:[], scale_cta_dismissed_at: daysAgo(7) };
+    assert(shouldShowScaleCTA(h), 'descartado hace 7 días debe re-mostrarse');
+  });
+  it('migrate agrega scale_history a hábitos existentes', () => {
+    const d = migrateTest({
+      xp:{total:0}, profile:{}, settings:{},
+      habits:[{ id:'h1', completions:[], freeze_completions:[] }]
+    });
+    assertArray(d.habits[0].scale_history);
   });
 
   /* ── Freeze separado de completions ──────────────────────── */
