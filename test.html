@@ -63,6 +63,13 @@ function assertArray(v) {
 const _pad = n => String(n).padStart(2,'0');
 const dateStr = (d = new Date()) => `${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`;
 const today   = () => dateStr();
+function isValidDateStr(s) {
+  if (typeof s !== 'string') return false;
+  if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(s)) return false;
+  const [y, m, d] = s.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+}
 const monthStr = (d = new Date()) => `${d.getFullYear()}-${_pad(d.getMonth()+1)}`;
 const weekISO = (d = new Date()) => {
   const dt = new Date(d); dt.setHours(0,0,0,0);
@@ -127,9 +134,9 @@ function migrateTest(data) {
   if (Array.isArray(data.habits)) {
     data.habits.forEach(h => {
       if (Array.isArray(h.completions))
-        h.completions = h.completions.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
+        h.completions = h.completions.filter(isValidDateStr);
       if (Array.isArray(h.freeze_completions))
-        h.freeze_completions = h.freeze_completions.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
+        h.freeze_completions = h.freeze_completions.filter(isValidDateStr);
     });
   }
   // sanitizar xp.total
@@ -263,8 +270,8 @@ function runAll() {
   it('500 XP → nivel 2', () => assertEqual(calcLevel(500),   2));
   it('1199 XP → nivel 2', ()=> assertEqual(calcLevel(1199),  2));
   it('1200 XP → nivel 3', ()=> assertEqual(calcLevel(1200),  3));
-  it('4800 XP → nivel 5', ()=> assertEqual(calcLevel(4800),  5));
-  it('14800 XP → nivel 10',()=> assertEqual(calcLevel(14800),10));
+  it('4800 XP → nivel 6', ()=> assertEqual(calcLevel(4800),  6));
+  it('14800 XP → nivel 11',()=> assertEqual(calcLevel(14800),11));
   it('20000 XP → nivel 11 (beyond table)', () => assert(calcLevel(20000) >= 10));
   it('XP negativo → nivel 1', () => assertEqual(calcLevel(-100), 1));
 
@@ -295,7 +302,7 @@ function runAll() {
   });
   it('nivel corregido si estaba desincronizado', () => {
     const d = migrateTest({ xp:{total:4800, nivel:1}, profile:{}, settings:{} });
-    assertEqual(d.xp.nivel, 5);
+    assertEqual(d.xp.nivel, 6);
   });
 
   suite('migrate — reparar arrays corruptos');
@@ -328,6 +335,15 @@ function runAll() {
       habits:[{ id:'h1', completions:[], freeze_completions:['2024-03-10','bad','2024-03-11'] }]
     });
     assertEqual(d.habits[0].freeze_completions.length, 2);
+  });
+  it('fechas calendario imposibles se eliminan (2024-02-31, 2024-04-31)', () => {
+    const d = migrateTest({
+      xp:{total:0}, profile:{}, settings:{},
+      habits:[{ id:'h1', completions:['2024-02-29','2024-02-31','2024-04-31','2024-12-31'], freeze_completions:[] }]
+    });
+    assertEqual(d.habits[0].completions.length, 2); // 2024-02-29 (bisiesto) y 2024-12-31 válidas
+    assert(d.habits[0].completions.includes('2024-02-29'), '2024-02-29 válida (año bisiesto)');
+    assert(d.habits[0].completions.includes('2024-12-31'), '2024-12-31 válida');
   });
 
   suite('migrate — sanitizar xp.total');

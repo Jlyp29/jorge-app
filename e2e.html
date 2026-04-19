@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>E2E Tests — Mi Sistema</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #0f0f13; color: #e2e8f0;
+         display: flex; gap: 0; height: 100vh; overflow: hidden; }
+  #left  { flex: 1; padding: 20px; overflow-y: auto; }
+  #right { width: 393px; flex-shrink: 0; border-left: 2px solid #4f46e5; }
+  #app-frame { width: 100%; height: 100%; border: none; display: block; }
+  h1 { font-size: 1rem; margin-bottom: 12px; color: #a78bfa; }
+  #summary { font-size: .82rem; margin-bottom: 16px; padding: 8px 12px; border-radius: 6px;
+             background: #1e1e2e; border: 1px solid #2d2d3d; min-height: 36px; }
+  .suite-title { font-size: .72rem; font-weight: 600; color: #64748b; text-transform: uppercase;
+                 letter-spacing: .1em; margin: 14px 0 4px; }
+  .test { display: flex; align-items: flex-start; gap: 8px; font-size: .8rem;
+          padding: 5px 0; border-bottom: 1px solid #1a1a2e; }
+  .badge { flex-shrink: 0; width: 40px; text-align: center; padding: 1px 4px;
+           border-radius: 4px; font-size: .68rem; font-weight: 700; }
+  .pass .badge { background:#14532d; color:#86efac; }
+  .fail .badge { background:#7f1d1d; color:#fca5a5; }
+  .skip .badge { background:#1e293b; color:#64748b; }
+  .test-err { font-size:.72rem; color:#f87171; margin-top:2px; font-family:monospace; word-break:break-all; }
+  #run-btn { padding: 7px 18px; background: #4f46e5; color: #fff; border: none;
+             border-radius: 6px; cursor: pointer; font-size: .82rem; margin-bottom: 12px; }
+  #run-btn:disabled { opacity:.5; cursor:default; }
+  #status { font-size:.75rem; color:#64748b; margin-left:10px; }
+</style>
+</head>
+<body>
+<div id="left">
+  <h1>E2E Tests — Mi Sistema</h1>
+  <button id="run-btn" onclick="runAll()">▶ Ejecutar tests</button>
+  <span id="status"></span>
+  <div id="summary">Listo — presiona Ejecutar tests</div>
+  <div id="results"></div>
+</div>
+<div id="right">
+  <iframe id="app-frame" src="./index.html"></iframe>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════
+   RUNNER
+══════════════════════════════════════════════════ */
+const LS_KEY  = 'misistema';
+const frame   = document.getElementById('app-frame');
+const resultsEl = document.getElementById('results');
+const statusEl  = document.getElementById('status');
+
+let passed = 0, failed = 0;
+
+function suite(name) {
+  const el = document.createElement('div');
+  el.className = 'suite-title';
+  el.textContent = name;
+  resultsEl.appendChild(el);
+}
+
+function record(name, status, err) {
+  if (status === 'pass') passed++;
+  else if (status === 'fail') failed++;
+  const row = document.createElement('div');
+  row.className = `test ${status}`;
+  row.innerHTML = `
+    <span class="badge">${status === 'pass' ? 'PASS' : status === 'fail' ? 'FAIL' : 'SKIP'}</span>
+    <div>
+      <div>${name}</div>
+      ${err ? `<div class="test-err">${err}</div>` : ''}
+    </div>`;
+  resultsEl.appendChild(row);
+  updateSummary();
+}
+
+function updateSummary() {
+  document.getElementById('summary').innerHTML =
+    `<span style="color:#86efac">${passed} pasaron</span> &nbsp;·&nbsp; ` +
+    `<span style="color:#fca5a5">${failed} fallaron</span>`;
+}
+
+async function it(name, fn) {
+  statusEl.textContent = `→ ${name}`;
+  try { await fn(); record(name, 'pass'); }
+  catch(e) { record(name, 'fail', e.message ?? String(e)); }
+}
+function skip(name, reason) { record(name, 'skip', reason); }
+
+/* ══════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════ */
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+function waitFor(fn, timeout = 8000) {
+  return new Promise((res, rej) => {
+    const t0 = Date.now();
+    const tick = () => {
+      try { if (fn()) return res(); } catch(e) {}
+      if (Date.now() - t0 > timeout) return rej(new Error('timeout: ' + fn.toString().slice(0,60)));
+      setTimeout(tick, 80);
+    };
+    tick();
+  });
+}
+
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Esperar que el iframe tenga la app cargada
+async function waitForApp() {
+  await waitFor(() => {
+    try {
+      const w = frame.contentWindow;
+      return w && w.State && w.Router && w.UI && w.State.get('__v') !== undefined;
+    } catch(e) { return false; }
+  });
+  await wait(100);
+}
+
+function w()    { return frame.contentWindow; }
+function d()    { return frame.contentDocument; }
+function q(sel) { return d().querySelector(sel); }
+function qa(sel){ return [...d().querySelectorAll(sel)]; }
+
+// Seedear state directo en la app sin recargar
+async function seedState(state) {
+  await waitForApp();
+  // Escribir en localStorage del frame
+  w().localStorage.setItem(LS_KEY, JSON.stringify(state));
+  // Recargar state en memoria
+  w().State.load();
+  // Re-renderizar vista actual
+  const h = w().location.hash.replace('#', '') || 'hoy';
+  w().Router.navigate(h, false);
+  await wait(250);
+}
+
+// Reset a defaults
+async function resetToDefaults() {
+  await waitForApp();
+  w().State.reset();
+  w().Router.navigate('hoy', false);
+  await wait(250);
+}
+
+function baseState(overrides = {}) {
+  return Object.assign({
+    __v: 4,
+    onboarding_done: true,
+    profile: { nombre: 'Test E2E', edad: 28, identidad: '', mision_personal: '' },
+    settings: { notificaciones_activas: false, fase: 1 },
+    xp: { total: 500, nivel: 2, history: [], freezes_disponibles: 4,
+          freezes_usados_mes: 0, mes_actual: '', comeback_pendiente: false },
+    habits: [{
+      id: 'h-e2e',
+      nombre: 'Hábito E2E',
+      emoji: '🧪',
+      frecuencia: 'diario',
+      xp_valor: 10,
+      completions: [],
+      freeze_completions: [],
+      xp_awarded_dates: [],
+      creado: '2025-01-01'
+    }],
+    diario: [],
+    sinergy: { mensual: [], outputs_log: [],
+               metas_trimestre: { learning_goals: [], performance_goals: [] } },
+    finanzas: { meta_ahorro_pct: 20, gastos_fijos: [], mensual: [] },
+    revisiones_semanales: []
+  }, overrides);
+}
+
+/* ══════════════════════════════════════════════════
+   TESTS
+══════════════════════════════════════════════════ */
+async function runAll() {
+  passed = 0; failed = 0;
+  resultsEl.innerHTML = '';
+  document.getElementById('run-btn').disabled = true;
+  statusEl.textContent = 'Esperando app...';
+
+  await waitForApp();
+  await seedState(baseState());
+
+  /* ── Suite 1: Módulos y estado base ── */
+  suite('1 · Módulos y estado base');
+
+  await it('State, Router, UI definidos', () => {
+    if (!w().State)  throw new Error('State no definido');
+    if (!w().Router) throw new Error('Router no definido');
+    if (!w().UI)     throw new Error('UI no definido');
+  });
+
+  await it('State.__v === 4', () => {
+    const v = w().State.get('__v');
+    if (v !== 4) throw new Error(`__v=${v}`);
+  });
+
+  await it('xp.nivel derivado correctamente (500 XP → nivel 2)', () => {
+    const lvl = w().State.get('xp.nivel');
+    if (lvl !== 2) throw new Error(`nivel=${lvl}, esperado 2`);
+  });
+
+  await it('finanzas y revisiones_semanales existen', () => {
+    const s = w().State.get();
+    if (!s.finanzas || !Array.isArray(s.finanzas.mensual)) throw new Error('finanzas.mensual no es array');
+    if (!Array.isArray(s.revisiones_semanales)) throw new Error('revisiones_semanales no es array');
+  });
+
+  /* ── Suite 2: Navegación ── */
+  suite('2 · Navegación');
+
+  await it('Nav tiene exactamente 5 tabs', () => {
+    const tabs = qa('.nav-tab');
+    if (tabs.length !== 5) throw new Error(`${tabs.length} tabs, esperado 5`);
+  });
+
+  await it('Tab Hoy activo al cargar', () => {
+    const active = q('.nav-tab.active');
+    if (!active) throw new Error('Ningún tab activo');
+    if (active.dataset.route !== 'hoy') throw new Error(`activo: ${active.dataset.route}`);
+  });
+
+  await it('Click tab Cuerpo → activo', async () => {
+    qa('.nav-tab').find(t => t.dataset.route === 'cuerpo')?.click();
+    await wait(200);
+    const active = q('.nav-tab.active');
+    if (active?.dataset.route !== 'cuerpo') throw new Error(`activo: ${active?.dataset.route}`);
+  });
+
+  await it('Click tab Diario → activo', async () => {
+    qa('.nav-tab').find(t => t.dataset.route === 'diario')?.click();
+    await wait(200);
+    const active = q('.nav-tab.active');
+    if (active?.dataset.route !== 'diario') throw new Error(`activo: ${active?.dataset.route}`);
+  });
+
+  await it('#sinergy → tab Resultados activo', async () => {
+    w().location.hash = '#sinergy';
+    w().dispatchEvent(new HashChangeEvent('hashchange'));
+    await wait(250);
+    const active = q('.nav-tab.active');
+    if (active?.dataset.route !== 'resultados')
+      throw new Error(`activo: ${active?.dataset.route}`);
+  });
+
+  await it('#finanzas → tab Resultados activo', async () => {
+    w().location.hash = '#finanzas';
+    w().dispatchEvent(new HashChangeEvent('hashchange'));
+    await wait(250);
+    const active = q('.nav-tab.active');
+    if (active?.dataset.route !== 'resultados')
+      throw new Error(`activo: ${active?.dataset.route}`);
+  });
+
+  /* ── Suite 3: Hábitos ── */
+  suite('3 · Hábitos');
+
+  // Volver a Hoy
+  w().Router.navigate('hoy', false);
+  await wait(250);
+
+  await it('Tarjeta del hábito E2E visible en DOM', () => {
+    const card = d().getElementById('hcard-h-e2e');
+    if (!card) throw new Error('Tarjeta #hcard-h-e2e no encontrada');
+  });
+
+  await it('Marcar hábito → completion guardada en State', async () => {
+    const btn = d().getElementById('hcheck-h-e2e');
+    if (!btn) throw new Error('Botón #hcheck-h-e2e no encontrado');
+    btn.click();
+    await wait(250);
+    const h = w().State.get('habits').find(x => x.id === 'h-e2e');
+    if (!h.completions.includes(todayStr()))
+      throw new Error(`completions: [${h.completions}]`);
+  });
+
+  await it('Desmarcar hábito → completion eliminada del State', async () => {
+    const btn = d().getElementById('hcheck-h-e2e');
+    if (!btn) throw new Error('Botón no encontrado');
+    btn.click();
+    await wait(250);
+    const h = w().State.get('habits').find(x => x.id === 'h-e2e');
+    if (h.completions.includes(todayStr()))
+      throw new Error('Completion aún presente');
+  });
+
+  /* ── Suite 4: Integridad de datos ── */
+  suite('4 · Integridad de datos');
+
+  await it('State.update rollback: error en mutación no corrompe state', () => {
+    const before = JSON.stringify(w().State.get());
+    try {
+      w().State.update(s => {
+        s.xp.total = 99999;
+        throw new Error('rollback test');
+      });
+    } catch(e) { /* esperado */ }
+    const after = JSON.stringify(w().State.get());
+    if (before !== after) throw new Error('State cambió — rollback falló');
+  });
+
+  await it('Export produce JSON válido con __v=4 y habits', async () => {
+    const appWin = w();
+    // Interceptar createObjectURL para capturar el blob sin disparar descarga
+    const origCOU = appWin.URL.createObjectURL.bind(appWin.URL);
+    let capturedBlob = null;
+    appWin.URL.createObjectURL = blob => { capturedBlob = blob; return 'blob:mock'; };
+    const origCreate = appWin.document.createElement.bind(appWin.document);
+    appWin.document.createElement = tag => {
+      const el = origCreate(tag);
+      if (tag === 'a') el.click = () => {}; // suprimir descarga real
+      return el;
+    };
+
+    appWin.State.exportJSON();
+    appWin.URL.createObjectURL = origCOU;
+    appWin.document.createElement = origCreate;
+
+    if (!capturedBlob) throw new Error('No se generó blob');
+
+    await new Promise((res, rej) => {
+      const reader = new FileReader();
+      reader.onload = e => {
+        try {
+          const data = JSON.parse(e.target.result);
+          if (data.__v !== 4) throw new Error(`__v=${data.__v}`);
+          if (!Array.isArray(data.habits)) throw new Error('habits no es array');
+          res();
+        } catch(err) { rej(err); }
+      };
+      reader.onerror = () => rej(new Error('Error leyendo blob'));
+      reader.readAsText(capturedBlob);
+    });
+  });
+
+  await it('Import restaura state correctamente', async () => {
+    const appWin = w();
+    const snapshot = JSON.parse(JSON.stringify(appWin.State.get()));
+
+    // Modificar algo
+    appWin.State.update(s => { s.xp.total = 1; });
+
+    // Importar snapshot original
+    const blob = new Blob([JSON.stringify(snapshot)], { type: 'application/json' });
+    const file = new File([blob], 'backup.json', { type: 'application/json' });
+    await appWin.State.importJSON(file);
+
+    const restored = appWin.State.get();
+    if (restored.xp.total !== snapshot.xp.total)
+      throw new Error(`xp.total: ${restored.xp.total} vs ${snapshot.xp.total}`);
+    if (restored.__v !== 4)
+      throw new Error(`__v=${restored.__v}`);
+  });
+
+  await it('QuotaExceededError → toast visible, app no muere', async () => {
+    const appWin = w();
+    const origSet = appWin.localStorage.setItem.bind(appWin.localStorage);
+    let toastFired = false;
+    const origToast = appWin.UI.toast;
+    appWin.UI.toast = (msg, ...rest) => {
+      if (String(msg).includes('Almacenamiento')) toastFired = true;
+      origToast.call(appWin.UI, msg, ...rest);
+    };
+    appWin.localStorage.setItem = (k, v) => {
+      if (k === LS_KEY) { const e = new Error(); e.name = 'QuotaExceededError'; throw e; }
+      return origSet(k, v);
+    };
+    try { appWin.State.update(s => { s.xp.total = 2; }); } catch(e) {}
+    await wait(80);
+    appWin.localStorage.setItem = origSet;
+    appWin.UI.toast = origToast;
+    if (!toastFired) throw new Error('Toast de quota no disparado');
+  });
+
+  /* ── Suite 5: Sync entre tabs (simulado) ── */
+  suite('5 · Sync entre tabs');
+
+  await it('StorageEvent de otra tab → State actualizado', async () => {
+    const appWin = w();
+    const modified = JSON.parse(JSON.stringify(appWin.State.get()));
+    modified.xp.total = 77777;
+
+    Object.defineProperty(appWin.document, 'visibilityState',
+      { value: 'visible', configurable: true });
+
+    appWin.dispatchEvent(new StorageEvent('storage', {
+      key: LS_KEY,
+      newValue: JSON.stringify(modified),
+      storageArea: appWin.localStorage
+    }));
+    await wait(200);
+
+    const updated = appWin.State.get('xp.total');
+    if (updated !== 77777) throw new Error(`xp.total=${updated}, esperado 77777`);
+  });
+
+  /* ── Suite 6: Reset / Onboarding ── */
+  suite('6 · Reset y onboarding');
+
+  await it('State.reset() limpia datos y queda en defaults', async () => {
+    const appWin = w();
+    appWin.State.reset();
+    await wait(100);
+    const s = appWin.State.get();
+    if (s.onboarding_done !== false) throw new Error(`onboarding_done=${s.onboarding_done}`);
+    if (!Array.isArray(s.habits)) throw new Error('habits no es array tras reset');
+    if (s.habits.length !== 0) throw new Error(`habits.length=${s.habits.length}`);
+  });
+
+  /* ── Final ── */
+  statusEl.textContent = '';
+  document.getElementById('run-btn').disabled = false;
+  updateSummary();
+}
+</script>
+</body>
+</html>

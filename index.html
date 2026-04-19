@@ -441,18 +441,30 @@ select.input{
   margin:12px auto 0;
 }
 .modal-header{
-  padding:16px 20px 12px;
+  padding:14px 20px 12px;
   position:sticky;top:0;
   background:var(--bg-1);
   z-index:1;
   border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
 }
-.modal-header h3{font-size:var(--fs-md);}
+.modal-header h3{font-size:var(--fs-md);flex:1;}
+.modal-close-btn{
+  flex-shrink:0;width:32px;height:32px;
+  display:flex;align-items:center;justify-content:center;
+  background:var(--bg-3);border:none;border-radius:var(--r-full);
+  color:var(--text-lo);cursor:pointer;font-size:18px;line-height:1;
+  -webkit-tap-highlight-color:transparent;
+}
+.modal-close-btn:active{background:var(--bg-4);}
 .modal-body{padding:16px 20px;}
 .modal-actions{
   padding:12px 20px 0;
   display:flex;gap:10px;
   flex-direction:column;
+  position:sticky;bottom:0;
+  background:var(--bg-1);
+  padding-bottom:calc(12px + var(--safe-b));
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -1116,6 +1128,13 @@ const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 const _pad = n => String(n).padStart(2,'0');
 // Usa fecha LOCAL — evita que toISOString() devuelva "ayer" en UTC-3/UTC-4 después de medianoche
 const dateStr = (d = new Date()) => `${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`;
+function isValidDateStr(s) {
+  if (typeof s !== 'string') return false;
+  if (!/^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/.test(s)) return false;
+  const [y, m, d] = s.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d;
+}
 const today = () => dateStr();
 const todayISO = () => dateStr();
 const formatDate = d => {
@@ -1343,9 +1362,9 @@ const State = (() => {
     if (Array.isArray(data.habits)) {
       data.habits.forEach(h => {
         if (Array.isArray(h.completions))
-          h.completions = h.completions.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
+          h.completions = h.completions.filter(isValidDateStr);
         if (Array.isArray(h.freeze_completions))
-          h.freeze_completions = h.freeze_completions.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
+          h.freeze_completions = h.freeze_completions.filter(isValidDateStr);
       });
     }
     // Sanitizar XP total
@@ -1576,7 +1595,7 @@ const UI = (() => {
     backdrop.innerHTML = `
       <div class="modal-box${center ? ' center-modal' : ''}" role="dialog" aria-modal="true">
         ${!center ? '<div class="modal-handle"></div>' : ''}
-        ${title ? `<div class="modal-header"><h3>${esc(title)}</h3></div>` : ''}
+        ${title ? `<div class="modal-header"><h3>${esc(title)}</h3><button class="modal-close-btn" data-close aria-label="Cerrar">✕</button></div>` : ''}
         <div class="modal-body">${body || ''}</div>
         ${actions.length ? `<div class="modal-actions">${actions.map((a,i) =>
           `<button class="btn btn-block ${a.cls || (i===0?'btn-primary':'btn-secondary')}" data-action="${i}">${esc(a.label)}</button>`
@@ -1585,6 +1604,7 @@ const UI = (() => {
 
     backdrop.addEventListener('click', e => {
       if (e.target === backdrop) { close(); onClose?.(); }
+      if (e.target.closest('[data-close]')) { close(); onClose?.(); }
     });
     actions.forEach((a, i) => {
       backdrop.querySelector(`[data-action="${i}"]`)?.addEventListener('click', () => {
@@ -5446,7 +5466,7 @@ const App = (() => {
   function registerRoutes() {
     Router.register('onboarding', () => renderOnboarding());
     Router.register('fase0', () => renderFase0());
-    Router.register('hoy', () => { renderNav(); renderHoy(); });
+    Router.register('hoy', () => { if (State.get('settings.fase') === 0) { Router.navigate('fase0', false); return; } renderNav(); renderHoy(); });
     Router.register('habitos', () => { renderNav(); renderHabitos(); });
     Router.register('cuerpo', () => { renderNav(); renderCuerpo(); });
     Router.register('resultados', () => { renderNav(); renderResultados(); });
