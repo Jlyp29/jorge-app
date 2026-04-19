@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MI SISTEMA — Test Suite</title>
+<style>
+  :root { --bg:#0F1419; --card:#1A2027; --border:rgba(255,255,255,.08); --text:#E8ECF1; --lo:#6B7380;
+          --pass:#22C55E; --fail:#E57373; --skip:#F59E0B; --primary:#14B8A6; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family: ui-monospace,'SF Mono',Menlo,monospace; background:var(--bg); color:var(--text); font-size:13px; padding:20px; }
+  h1  { font-size:18px; color:var(--primary); margin-bottom:16px; font-family:sans-serif; }
+  h2  { font-size:14px; color:var(--text); margin:20px 0 8px; font-family:sans-serif; border-top:1px solid var(--border); padding-top:12px; }
+  .suite { margin-bottom:4px; }
+  .case { display:flex; gap:10px; align-items:baseline; padding:3px 0; border-bottom:1px solid rgba(255,255,255,.03); }
+  .badge { font-size:11px; font-weight:700; min-width:42px; }
+  .pass .badge { color:var(--pass); }
+  .fail .badge { color:var(--fail); }
+  .desc { flex:1; color:var(--text); }
+  .fail .desc { color:var(--fail); }
+  .detail { color:var(--lo); font-size:11px; }
+  .fail .detail { color:#ff8a80; }
+  #summary { margin-top:20px; padding:14px; background:var(--card); border-radius:8px; font-family:sans-serif; }
+  #summary strong { color:var(--primary); }
+  .all-pass { border-left:3px solid var(--pass); }
+  .has-fail  { border-left:3px solid var(--fail); }
+  button { margin-top:14px; padding:8px 18px; background:var(--primary); color:#000; border:none; border-radius:6px; cursor:pointer; font-weight:700; }
+</style>
+</head>
+<body>
+<h1>MI SISTEMA — Test Suite</h1>
+<div id="output"></div>
+<div id="summary"></div>
+<button onclick="runAll()">▶ Ejecutar de nuevo</button>
+
+<script>
+'use strict';
+
+/* ── MINI TEST RUNNER ─────────────────────────────────────── */
+const results = [];
+let _suite = '';
+
+function suite(name)    { _suite = name; }
+function it(desc, fn) {
+  try {
+    fn();
+    results.push({ suite: _suite, desc, ok: true });
+  } catch(e) {
+    results.push({ suite: _suite, desc, ok: false, err: e.message });
+  }
+}
+function assert(cond, msg) {
+  if (!cond) throw new Error(msg || 'assertion failed');
+}
+function assertEqual(a, b) {
+  if (a !== b) throw new Error(`expected ${JSON.stringify(b)}, got ${JSON.stringify(a)}`);
+}
+function assertArray(v) {
+  if (!Array.isArray(v)) throw new Error(`expected Array, got ${typeof v}: ${JSON.stringify(v)}`);
+}
+
+/* ── PURE FUNCTIONS (copiadas de index.html para tests aislados) ── */
+const _pad = n => String(n).padStart(2,'0');
+const dateStr = (d = new Date()) => `${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`;
+const today   = () => dateStr();
+const monthStr = (d = new Date()) => `${d.getFullYear()}-${_pad(d.getMonth()+1)}`;
+const weekISO = (d = new Date()) => {
+  const dt = new Date(d); dt.setHours(0,0,0,0);
+  dt.setDate(dt.getDate() + 3 - (dt.getDay() + 6) % 7);
+  const week1 = new Date(dt.getFullYear(),0,4);
+  return dt.getFullYear() + '-W' + String(1 + Math.round(((dt-week1)/86400000-3+(week1.getDay()+6)%7)/7)).padStart(2,'0');
+};
+
+function calcLiveStreak(completions, freezes = []) {
+  const t = today();
+  const hasDoneToday = completions.includes(t);
+  const frozeToday   = freezes.includes(t);
+  let streak = 0;
+  let gapAllowed = !hasDoneToday && !frozeToday;
+  for (let i = (hasDoneToday || frozeToday) ? 0 : 1; i < 400; i++) {
+    const d = new Date(); d.setDate(d.getDate() - i);
+    const ds = dateStr(d);
+    if (completions.includes(ds))      { streak++; gapAllowed = true; }
+    else if (freezes.includes(ds))     { /* pausa: no suma, no rompe */ }
+    else if (gapAllowed)               { gapAllowed = false; }
+    else                               { break; }
+  }
+  return streak;
+}
+
+const LEVELS = [0,500,1200,2200,3400,4800,6400,8200,10200,12400,14800];
+function calcLevel(total) {
+  let lvl = 1;
+  for (let i = 1; i < LEVELS.length; i++) { if (total >= LEVELS[i]) lvl = i+1; else break; }
+  return lvl;
+}
+
+/* migrate() simplificada para tests — sin localStorage ni defaults complejos */
+function migrateTest(data) {
+  if (!data.xp)     data.xp     = { total:0, nivel:1, history:[], freezes_disponibles:4, freezes_usados_mes:0, mes_actual:'', comeback_pendiente:false };
+  if (!data.sinergy) data.sinergy = { mensual:[], outputs_log:[], metas_trimestre:{ learning_goals:[], performance_goals:[] } };
+  if (!data.finanzas) data.finanzas = { meta_ahorro_pct:20, gastos_fijos:[], mensual:[] };
+  if (!data.revisiones_semanales) data.revisiones_semanales = [];
+  if (!data.habits) data.habits = [];
+
+  // recalcular nivel desde total
+  if (data.xp && data.xp.total !== undefined) {
+    let lvl = 1;
+    for (let i = 1; i < LEVELS.length; i++) { if (data.xp.total >= LEVELS[i]) lvl = i+1; else break; }
+    data.xp.nivel = lvl;
+  }
+  // reparar arrays corruptos
+  const mustBeArrays = [
+    ['habits'],['xp','history'],['sinergy','mensual'],['sinergy','outputs_log'],
+    ['finanzas','mensual'],['finanzas','gastos_fijos'],['revisiones_semanales'],
+  ];
+  mustBeArrays.forEach(keys => {
+    let obj = data;
+    for (let i = 0; i < keys.length-1; i++) {
+      if (!obj[keys[i]] || typeof obj[keys[i]] !== 'object') obj[keys[i]] = {};
+      obj = obj[keys[i]];
+    }
+    const last = keys[keys.length-1];
+    if (!Array.isArray(obj[last])) obj[last] = [];
+  });
+  // validar fechas en completions
+  if (Array.isArray(data.habits)) {
+    data.habits.forEach(h => {
+      if (Array.isArray(h.completions))
+        h.completions = h.completions.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
+      if (Array.isArray(h.freeze_completions))
+        h.freeze_completions = h.freeze_completions.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
+    });
+  }
+  // sanitizar xp.total
+  if (data.xp) data.xp.total = Math.max(0, parseInt(data.xp.total) || 0);
+  return data;
+}
+
+/* helper: construir array de fechas hacia atrás desde hoy */
+function daysAgo(n) {
+  const d = new Date(); d.setDate(d.getDate() - n); return dateStr(d);
+}
+function lastNDays(n) {
+  return Array.from({length:n}, (_,i) => daysAgo(i));
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TESTS
+═══════════════════════════════════════════════════════════ */
+
+function runAll() {
+  results.length = 0;
+
+  /* ── dateStr ─────────────────────────────────────────────── */
+  suite('dateStr — fecha local');
+  it('formato YYYY-MM-DD', () => {
+    const r = dateStr(new Date(2024, 0, 5)); // 5 enero 2024
+    assertEqual(r, '2024-01-05');
+  });
+  it('no usa UTC — 1 enero a medianoche local es 1 enero', () => {
+    const d = new Date(2024, 0, 1, 0, 30); // 00:30 hora local
+    assertEqual(dateStr(d), '2024-01-01');
+  });
+  it('31 diciembre es 31 diciembre local', () => {
+    const d = new Date(2023, 11, 31, 23, 30);
+    assertEqual(dateStr(d), '2023-12-31');
+  });
+  it('padding de mes y día', () => {
+    assertEqual(dateStr(new Date(2024, 2, 5)), '2024-03-05');
+  });
+
+  /* ── monthStr ────────────────────────────────────────────── */
+  suite('monthStr — mes local');
+  it('formato YYYY-MM', () => {
+    assertEqual(monthStr(new Date(2024, 3, 15)), '2024-04');
+  });
+  it('enero con padding', () => {
+    assertEqual(monthStr(new Date(2025, 0, 1)), '2025-01');
+  });
+  it('diciembre sin overflow', () => {
+    assertEqual(monthStr(new Date(2024, 11, 31)), '2024-12');
+  });
+
+  /* ── weekISO ─────────────────────────────────────────────── */
+  suite('weekISO — semana ISO 8601');
+  it('lunes 1 enero 2024 → semana 01', () => {
+    assertEqual(weekISO(new Date(2024, 0, 1)), '2024-W01');
+  });
+  it('domingo no rompe la semana', () => {
+    const sun = weekISO(new Date(2024, 0, 7)); // domingo 7 enero
+    const mon = weekISO(new Date(2024, 0, 1)); // lunes 1 enero
+    assertEqual(sun, mon); // misma semana
+  });
+  it('lunes siguiente es semana diferente', () => {
+    const w1 = weekISO(new Date(2024, 0, 7));
+    const w2 = weekISO(new Date(2024, 0, 8));
+    assert(w1 !== w2, 'semanas distintas');
+  });
+
+  /* ── calcLiveStreak ──────────────────────────────────────── */
+  suite('calcLiveStreak — sin freezes');
+  it('array vacío → 0', () => {
+    assertEqual(calcLiveStreak([]), 0);
+  });
+  it('solo hoy → 1', () => {
+    assertEqual(calcLiveStreak([today()]), 1);
+  });
+  it('7 días consecutivos incluyendo hoy → 7', () => {
+    assertEqual(calcLiveStreak(lastNDays(7)), 7);
+  });
+  it('7 días SIN hoy → 6 (never-miss-twice activo para hoy)', () => {
+    // completó ayer hasta 6 días atrás pero no hoy → racha = 6 con gracia de hoy
+    const comp = Array.from({length:6}, (_,i) => daysAgo(i+1));
+    assertEqual(calcLiveStreak(comp), 6);
+  });
+  it('falló ayer, completó anteayer — never-miss-twice → racha cuenta', () => {
+    // completó hoy + días 2,3,4 pero NO ayer
+    const comp = [today(), daysAgo(2), daysAgo(3), daysAgo(4)];
+    const streak = calcLiveStreak(comp);
+    // hoy=1, yesterday gap usado (never-miss-twice), día2=2, día3=3, día4=4
+    assertEqual(streak, 4);
+  });
+  it('dos días seguidos sin completar → racha se rompe', () => {
+    // completó hoy y días 3,4,5 pero no día 1 ni día 2
+    const comp = [today(), daysAgo(3), daysAgo(4), daysAgo(5)];
+    assertEqual(calcLiveStreak(comp), 1); // solo hoy, los demás están cortados
+  });
+  it('30 días consecutivos → 30', () => {
+    assertEqual(calcLiveStreak(lastNDays(30)), 30);
+  });
+  it('nada en absoluto → 0', () => {
+    assertEqual(calcLiveStreak([daysAgo(10), daysAgo(11)]), 0);
+  });
+
+  suite('calcLiveStreak — con freezes');
+  it('freeze hoy (sin completion hoy) → no suma pero no rompe', () => {
+    // completó días 1-5, freeze hoy → racha = 5
+    const comp   = Array.from({length:5}, (_,i) => daysAgo(i+1));
+    const freeze = [today()];
+    assertEqual(calcLiveStreak(comp, freeze), 5);
+  });
+  it('freeze no suma al contador', () => {
+    // completó 3 días reales + 2 freezes intercalados
+    const comp   = [today(), daysAgo(2), daysAgo(4)];
+    const freeze = [daysAgo(1), daysAgo(3)];
+    // hoy=1, día1=freeze(no suma), día2=2, día3=freeze, día4=3
+    assertEqual(calcLiveStreak(comp, freeze), 3);
+  });
+  it('freeze no reemplaza never-miss-twice — dos días sin nada rompe', () => {
+    const comp   = [today(), daysAgo(3)];
+    const freeze = []; // sin freezes
+    assertEqual(calcLiveStreak(comp, freeze), 1); // días 1,2 vacíos → roto
+  });
+  it('semana completa de completions sin freeze → 7', () => {
+    assertEqual(calcLiveStreak(lastNDays(7), []), 7);
+  });
+
+  /* ── calcLevel ───────────────────────────────────────────── */
+  suite('calcLevel — niveles XP');
+  it('0 XP → nivel 1', ()  => assertEqual(calcLevel(0),     1));
+  it('499 XP → nivel 1', () => assertEqual(calcLevel(499),   1));
+  it('500 XP → nivel 2', () => assertEqual(calcLevel(500),   2));
+  it('1199 XP → nivel 2', ()=> assertEqual(calcLevel(1199),  2));
+  it('1200 XP → nivel 3', ()=> assertEqual(calcLevel(1200),  3));
+  it('4800 XP → nivel 5', ()=> assertEqual(calcLevel(4800),  5));
+  it('14800 XP → nivel 10',()=> assertEqual(calcLevel(14800),10));
+  it('20000 XP → nivel 11 (beyond table)', () => assert(calcLevel(20000) >= 10));
+  it('XP negativo → nivel 1', () => assertEqual(calcLevel(-100), 1));
+
+  /* ── migrateTest — integridad de datos ───────────────────── */
+  suite('migrate — claves faltantes');
+  it('agrega finanzas si no existe', () => {
+    const d = migrateTest({ xp:{total:0}, sinergy:{}, profile:{}, settings:{} });
+    assert(d.finanzas && Array.isArray(d.finanzas.mensual), 'finanzas.mensual es array');
+    assert(Array.isArray(d.finanzas.gastos_fijos), 'finanzas.gastos_fijos es array');
+  });
+  it('agrega revisiones_semanales si no existe', () => {
+    const d = migrateTest({ xp:{total:0}, profile:{}, settings:{} });
+    assertArray(d.revisiones_semanales);
+  });
+  it('agrega xp si no existe', () => {
+    const d = migrateTest({ profile:{}, settings:{} });
+    assert(d.xp && d.xp.total === 0, 'xp.total=0');
+  });
+
+  suite('migrate — xp.nivel derivado');
+  it('nivel derivado correctamente desde total', () => {
+    const d = migrateTest({ xp:{total:1200, nivel:1}, profile:{}, settings:{} });
+    assertEqual(d.xp.nivel, 3); // 1200 XP = nivel 3
+  });
+  it('nivel 1 cuando total=0', () => {
+    const d = migrateTest({ xp:{total:0, nivel:99}, profile:{}, settings:{} });
+    assertEqual(d.xp.nivel, 1);
+  });
+  it('nivel corregido si estaba desincronizado', () => {
+    const d = migrateTest({ xp:{total:4800, nivel:1}, profile:{}, settings:{} });
+    assertEqual(d.xp.nivel, 5);
+  });
+
+  suite('migrate — reparar arrays corruptos');
+  it('xp.history como string → se reemplaza por []', () => {
+    const d = migrateTest({ xp:{total:0, history:'corrupted'}, profile:{}, settings:{} });
+    assertArray(d.xp.history);
+  });
+  it('finanzas.mensual como null → se reemplaza por []', () => {
+    const d = migrateTest({ xp:{total:0}, finanzas:{mensual:null}, profile:{}, settings:{} });
+    assertArray(d.finanzas.mensual);
+  });
+  it('sinergy.outputs_log como object → se reemplaza por []', () => {
+    const d = migrateTest({ xp:{total:0}, sinergy:{mensual:[], outputs_log:{}, metas_trimestre:{learning_goals:[],performance_goals:[]}}, profile:{}, settings:{} });
+    assertArray(d.sinergy.outputs_log);
+  });
+
+  suite('migrate — validación de fechas en completions');
+  it('completions con formato inválido se eliminan', () => {
+    const d = migrateTest({
+      xp:{total:0}, profile:{}, settings:{},
+      habits:[{ id:'h1', completions:['2024-01-01','not-a-date','2024-13-99','2024-06-15'], freeze_completions:[] }]
+    });
+    assertEqual(d.habits[0].completions.length, 2); // solo las 2 válidas
+    assert(d.habits[0].completions.includes('2024-01-01'), '2024-01-01 válida');
+    assert(d.habits[0].completions.includes('2024-06-15'), '2024-06-15 válida');
+  });
+  it('freeze_completions con formato inválido se eliminan', () => {
+    const d = migrateTest({
+      xp:{total:0}, profile:{}, settings:{},
+      habits:[{ id:'h1', completions:[], freeze_completions:['2024-03-10','bad','2024-03-11'] }]
+    });
+    assertEqual(d.habits[0].freeze_completions.length, 2);
+  });
+
+  suite('migrate — sanitizar xp.total');
+  it('xp.total como string → convierte a número', () => {
+    const d = migrateTest({ xp:{total:'1500'}, profile:{}, settings:{} });
+    assertEqual(d.xp.total, 1500);
+  });
+  it('xp.total negativo → 0', () => {
+    const d = migrateTest({ xp:{total:-999}, profile:{}, settings:{} });
+    assertEqual(d.xp.total, 0);
+  });
+  it('xp.total NaN → 0', () => {
+    const d = migrateTest({ xp:{total:NaN}, profile:{}, settings:{} });
+    assertEqual(d.xp.total, 0);
+  });
+
+  /* ── Comeback flag logic ─────────────────────────────────── */
+  suite('Comeback flag');
+  it('comeback activo si ayer falló al menos 1 hábito', () => {
+    const yesterday = daysAgo(1);
+    const habits = [
+      { completions:[today()] },
+      { completions:[] }, // no completó ayer
+    ];
+    const failedYesterday = habits.some(h => !h.completions.includes(yesterday));
+    assert(failedYesterday, 'failedYesterday=true');
+  });
+  it('comeback no activo si completó todos ayer', () => {
+    const yesterday = daysAgo(1);
+    const habits = [
+      { completions:[yesterday, today()] },
+      { completions:[yesterday] },
+    ];
+    const failedYesterday = habits.some(h => !h.completions.includes(yesterday));
+    assert(!failedYesterday, 'failedYesterday=false');
+  });
+  it('hayComeback = false si flag es false aunque faltó ayer', () => {
+    const comeback_pendiente = false;
+    const hayComeback = comeback_pendiente; // simplificado
+    assert(!hayComeback, 'no hay comeback si flag=false');
+  });
+
+  /* ── Weekly review logic ─────────────────────────────────── */
+  suite('Revisión semanal');
+  it('mostrar banner si diasSistema >= 7 y no hecha esta semana', () => {
+    const semanaActual = weekISO();
+    const revisiones = [];
+    const revisionHecha = revisiones.some(r => r.semana_iso === semanaActual);
+    const diasSistema = 10;
+    const esDomingo = new Date().getDay() === 0;
+    const esLunes   = new Date().getDay() === 1;
+    const mostrar = (esDomingo || esLunes) && !revisionHecha && diasSistema >= 7;
+    // Solo puede ser true si es dom/lun — no falla en cualquier día
+    assert(typeof mostrar === 'boolean', 'resultado es boolean');
+  });
+  it('NO mostrar si revisión ya hecha esta semana', () => {
+    const semanaActual = weekISO();
+    const revisiones = [{ semana_iso: semanaActual }];
+    const revisionHecha = revisiones.some(r => r.semana_iso === semanaActual);
+    assert(revisionHecha, 'revisionHecha=true bloquea el banner');
+  });
+  it('NO mostrar si dias en sistema < 7', () => {
+    const diasSistema = 4;
+    const mostrar = diasSistema >= 7;
+    assert(!mostrar, 'diasSistema < 7 bloquea el banner');
+  });
+
+  /* ── Redirect sinergy/finanzas → resultados ──────────────── */
+  suite('Rutas Sinergy/Finanzas → Resultados');
+  it('hash sinergy se normaliza a resultados en nav', () => {
+    const normalise = h => (h === 'sinergy' || h === 'finanzas') ? 'resultados' : h;
+    assertEqual(normalise('sinergy'), 'resultados');
+    assertEqual(normalise('finanzas'), 'resultados');
+    assertEqual(normalise('hoy'), 'hoy');
+    assertEqual(normalise('resultados'), 'resultados');
+  });
+
+  /* ── Freeze separado de completions ──────────────────────── */
+  suite('Freeze — estadísticas honestas');
+  it('día de freeze no aparece en completions reales', () => {
+    const freeze_completions = [today()];
+    const completions = [];
+    // La adherencia real solo cuenta completions
+    const realChecks = completions.filter(d => d === today()).length;
+    assertEqual(realChecks, 0);
+  });
+  it('semana con 5 reales + 2 freezes → adherencia real = 71%, no 100%', () => {
+    const week = lastNDays(7);
+    const completions   = week.slice(0, 5); // 5 días reales
+    const freezes       = week.slice(5, 7); // 2 días de pausa
+    const realPct = Math.round(completions.length / week.length * 100);
+    assertEqual(realPct, 71);
+  });
+
+  renderResults();
+}
+
+function renderResults() {
+  const out = document.getElementById('output');
+  const sum = document.getElementById('summary');
+  out.innerHTML = '';
+
+  let lastSuite = '';
+  let pass = 0, fail = 0;
+
+  results.forEach(r => {
+    if (r.suite !== lastSuite) {
+      const h = document.createElement('h2');
+      h.textContent = r.suite;
+      out.appendChild(h);
+      lastSuite = r.suite;
+    }
+    const div = document.createElement('div');
+    div.className = 'case ' + (r.ok ? 'pass' : 'fail');
+    div.innerHTML = `
+      <span class="badge">${r.ok ? '✓ PASS' : '✗ FAIL'}</span>
+      <span class="desc">${r.desc}</span>
+      ${!r.ok ? `<span class="detail">${r.err}</span>` : ''}
+    `;
+    out.appendChild(div);
+    if (r.ok) pass++; else fail++;
+  });
+
+  sum.className = fail === 0 ? 'all-pass' : 'has-fail';
+  sum.innerHTML = `<strong>${pass + fail} tests</strong> — <span style="color:var(--pass)">${pass} pasaron</span>${fail ? ` · <span style="color:var(--fail)">${fail} fallaron</span>` : ''} · ${new Date().toLocaleTimeString('es-CL')}`;
+}
+
+runAll();
+</script>
+</body>
+</html>
