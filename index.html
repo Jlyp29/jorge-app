@@ -543,6 +543,15 @@ select.input{
 .streak-val{font-size:var(--fs-xs);font-weight:700;color:var(--accent);}
 .streak-label{font-size:var(--fs-xs);color:var(--text-lo);}
 
+/* Target badge */
+.habit-target-badge{
+  display:inline-block;
+  font-size:.6rem;font-weight:700;letter-spacing:.06em;
+  background:linear-gradient(135deg,var(--primary),var(--accent));
+  color:#fff;border-radius:var(--r-full);
+  padding:2px 7px;margin-left:6px;vertical-align:middle;
+}
+
 /* Scale-up CTA */
 .scale-cta{
   display:flex;align-items:center;gap:6px;
@@ -1241,7 +1250,40 @@ const State = (() => {
       identity_tag:'Soy alguien con cuerpo fuerte',
       xp_por_check:25, cue_ubicacion:'sala',
       completions:[], tiny_completions:[], freeze_completions:[],
-      currentStreak:0, longestStreak:0,
+      currentStreak:0, longestStreak:0, scale_history:[],
+      createdAt: Date.now(), updatedAt: Date.now(),
+    },
+    {
+      id:'h4', nombre:'Lectura', tipo:'aprendizaje',
+      anchor:'Después de cenar, antes de dormir', escala_actual:'tiny',
+      version_tiny:'5 páginas sin teléfono cerca',
+      version_target:'30 min de lectura enfocada, sin pantallas',
+      identity_tag:'Soy alguien que aprende todos los días',
+      xp_por_check:25, cue_ubicacion:'sillón o cama',
+      completions:[], tiny_completions:[], freeze_completions:[],
+      currentStreak:0, longestStreak:0, scale_history:[],
+      createdAt: Date.now(), updatedAt: Date.now(),
+    },
+    {
+      id:'h5', nombre:'Hacer la cama', tipo:'orden',
+      anchor:'Al levantarme, antes de salir del cuarto', escala_actual:'tiny',
+      version_tiny:'Estirar la sábana y poner las almohadas (30 seg)',
+      version_target:'Cama hecha completa antes de salir del cuarto',
+      identity_tag:'Soy alguien disciplinado',
+      xp_por_check:10, cue_ubicacion:'dormitorio',
+      completions:[], tiny_completions:[], freeze_completions:[],
+      currentStreak:0, longestStreak:0, scale_history:[],
+      createdAt: Date.now(), updatedAt: Date.now(),
+    },
+    {
+      id:'h6', nombre:'Vitaminas', tipo:'salud',
+      anchor:'Después del desayuno', escala_actual:'tiny',
+      version_tiny:'Dejar las vitaminas sobre la mesa antes de dormir',
+      version_target:'Tomar vitaminas todos los días después del desayuno',
+      identity_tag:'Soy alguien que se cuida por dentro',
+      xp_por_check:10, cue_ubicacion:'cocina',
+      completions:[], tiny_completions:[], freeze_completions:[],
+      currentStreak:0, longestStreak:0, scale_history:[],
       createdAt: Date.now(), updatedAt: Date.now(),
     },
   ];
@@ -1337,6 +1379,10 @@ const State = (() => {
     if (!data.experimentos) data.experimentos = [];
     if (!data.fase0_checklist) data.fase0_checklist = defaults().fase0_checklist;
     if (!data.habits || !data.habits.length) data.habits = defaultHabits();
+    // Agregar hábitos nuevos del sistema que no existen aún en el usuario
+    defaultHabits().forEach(def => {
+      if (!data.habits.find(h => h.id === def.id)) data.habits.push({ ...def });
+    });
     if (!data.fisico) data.fisico = defaults().fisico;
     if (!data.fisico.agua) data.fisico.agua = {};
     if (!data.fisico.nutricion) data.fisico.nutricion = [];
@@ -2451,7 +2497,7 @@ function renderHabitCard(h, done, idx) {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
       </button>
       <div class="habit-info">
-        <div class="habit-name">${esc(h.nombre)}</div>
+        <div class="habit-name">${esc(h.nombre)}${h.escala_actual === 'target' ? '<span class="habit-target-badge">NIVEL REAL</span>' : ''}</div>
         <div class="habit-anchor">${esc(h.escala_actual === 'tiny' ? h.version_tiny : h.version_target)}</div>
         <div class="streak-row">
           <span class="streak-flame" style="${liveStreak > 0 ? 'animation:firePop .5s ease both' : ''}">🔥</span>
