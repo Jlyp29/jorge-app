@@ -2433,11 +2433,7 @@ function renderHoy() {
       </div>
     </div>`;
 
-  // Comeback XP
-  if (hayComeback) {
-    XP.add(100, 'Comeback — volviste al otro día', { animate: true });
-    State.set('xp.comeback_pendiente', false);
-  }
+  // Comeback: el banner se muestra, pero el XP se otorga en el primer toggleHabit (ver abajo)
 
   // Small wins toggle
   window.toggleSmallWins = () => {
@@ -2579,6 +2575,11 @@ function wireHabitChecks() {
         if (!xpYaOtorgado) {
           XP.add(xpVal, `Hábito: ${habit.nombre}`);
           habit.xp_awarded_dates.push(t);
+        }
+        // Comeback: primer hábito marcado tras haber fallado ayer → premio aquí
+        if (st.xp.comeback_pendiente) {
+          XP.add(100, 'Comeback — volviste al otro día', { animate: true });
+          st.xp.comeback_pendiente = false;
         }
         // Actualizar longestStreak con racha real (sin checkStreak)
         const liveNow = calcLiveStreak(habit.completions, habit.freeze_completions || []);
@@ -2931,7 +2932,8 @@ window.addHabitoModal = () => {
     title: 'Nuevo hábito',
     body: `<div class="stack stack-md">
       <div class="field"><label>Nombre</label><input id="nh-nombre" class="input" placeholder="Ej: Meditación"></div>
-      <div class="field"><label>Versión tiny (2 min)</label><input id="nh-tiny" class="input" placeholder="Ej: Sentarme y respirar 1 min"></div>
+      <div class="field"><label>Versión tiny (2 min · para arrancar)</label><input id="nh-tiny" class="input" placeholder="Ej: Sentarme y respirar 1 min"></div>
+      <div class="field"><label>Versión target (el nivel real que quieres)</label><input id="nh-target" class="input" placeholder="Ej: 20 min de meditación diaria"></div>
       <div class="field"><label>Disparador (después de...)</label><input id="nh-anchor" class="input" placeholder="Después de lavarme los dientes"></div>
       <div class="field"><label>Identidad</label><input id="nh-identity" class="input" placeholder="Soy alguien que..."></div>
     </div>`,
@@ -2943,7 +2945,8 @@ window.addHabitoModal = () => {
         anchor: document.getElementById('nh-anchor')?.value.trim()||'',
         escala_actual:'tiny',
         version_tiny: document.getElementById('nh-tiny')?.value.trim()||'',
-        version_target:'', identity_tag: document.getElementById('nh-identity')?.value.trim()||'',
+        version_target: document.getElementById('nh-target')?.value.trim()||'',
+        identity_tag: document.getElementById('nh-identity')?.value.trim()||'',
         xp_por_check:25, cue_ubicacion:'', completions:[], tiny_completions:[],
         currentStreak:0, longestStreak:0, createdAt:Date.now(), updatedAt:Date.now(),
       }); });
@@ -3893,8 +3896,8 @@ function renderProgreso5Anios(s) {
   })();
   const adhMeta = m.adherencia_meta_pct || 85;
 
-  // Clientes Sinergy: outputs_log tipo crm_cliente
-  const clientesMes = (s.sinergy?.outputs_log || []).filter(o => o.tipo === 'crm_cliente').length;
+  // Clientes Sinergy: dato de la última revisión mensual (fuente de verdad)
+  const clientesMes = rev?.clientes_sinergy ?? null;
   const clientesMeta = m.clientes_sinergy_anio_1 || 5;
 
   const mesConRevision = rev ? `Último dato: ${rev.mes}` : 'Haz tu primera revisión mensual';
@@ -3906,7 +3909,7 @@ function renderProgreso5Anios(s) {
     </div>
     <div class="card" style="padding:12px 16px">
       ${areaProgressHTML('Físico · % grasa', grasaInicio, grasaActual, grasaMeta, 'pct-inv', 'var(--success)')}
-      ${areaProgressHTML('Ingresos · USD/mes', ingresoInicio, ingresoActual, ingresoAnio1, 'usd', 'var(--primary)')}
+      ${areaProgressHTML('Ingresos · USD/mes (meta año 1)', ingresoInicio, ingresoActual, ingresoAnio1, 'usd', 'var(--primary)')}
       ${areaProgressHTML('Hábitos · adherencia', 0, adh30, adhMeta, '%', 'var(--accent)')}
       ${areaProgressHTML('Sinergy · clientes', 0, clientesMes, clientesMeta, 'clientes', '#f59e0b')}
       <div class="text-xs text-lo mt-sm" style="text-align:center">${mesConRevision}</div>
@@ -3980,11 +3983,16 @@ window.openRevisionMensual = () => {
           if (idx >= 0) st.revisiones_mensuales[idx] = entry;
           else st.revisiones_mensuales.unshift(entry);
 
-          // Registrar medición física si hay datos
+          // Registrar medición física: upsert por fecha (no duplicar si se re-edita la revisión del mes)
           if (grasa || peso) {
             if (!st.fisico.mediciones) st.fisico.mediciones = [];
-            st.fisico.mediciones.push({ fecha: today(), peso_kg: peso || st.fisico.mediciones.slice(-1)[0]?.peso_kg,
-              grasa_pct: grasa || st.fisico.mediciones.slice(-1)[0]?.grasa_pct });
+            const hoy = today();
+            const existIdx = st.fisico.mediciones.findIndex(m => m.fecha === hoy);
+            const medEntry = { fecha: hoy,
+              peso_kg: peso || st.fisico.mediciones.slice(-1)[0]?.peso_kg,
+              grasa_pct: grasa || st.fisico.mediciones.slice(-1)[0]?.grasa_pct };
+            if (existIdx >= 0) st.fisico.mediciones[existIdx] = medEntry;
+            else st.fisico.mediciones.push(medEntry);
           }
         });
 
