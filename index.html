@@ -1316,6 +1316,40 @@ const State = (() => {
     if (!data.finanzas.gastos_fijos) data.finanzas.gastos_fijos = [];
     if (!data.finanzas.mensual) data.finanzas.mensual = [];
     if (data.finanzas.meta_ahorro_pct === undefined) data.finanzas.meta_ahorro_pct = 20;
+    // Recalcular nivel siempre desde total (fuente de verdad)
+    if (data.xp && data.xp.total !== undefined) {
+      let lvl = 1;
+      const LEVELS = [0,500,1200,2200,3400,4800,6400,8200,10200,12400,14800];
+      for (let i = 1; i < LEVELS.length; i++) { if (data.xp.total >= LEVELS[i]) lvl = i+1; else break; }
+      data.xp.nivel = lvl;
+    }
+    // Validar shape básico — reparar arrays corruptos
+    const mustBeArrays = [
+      ['habits'], ['xp','history'], ['sinergy','mensual'], ['sinergy','outputs_log'],
+      ['fisico','sesiones'], ['fisico','mediciones'], ['fisico','nutricion'],
+      ['journal'], ['insights'], ['revisiones_semanales'], ['finanzas','mensual'],
+      ['finanzas','gastos_fijos'], ['protocols_log'], ['accountability_checkins'],
+    ];
+    mustBeArrays.forEach(keys => {
+      let obj = data;
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!obj[keys[i]] || typeof obj[keys[i]] !== 'object') obj[keys[i]] = {};
+        obj = obj[keys[i]];
+      }
+      const last = keys[keys.length-1];
+      if (!Array.isArray(obj[last])) obj[last] = [];
+    });
+    // Validar fechas en completions de hábitos
+    if (Array.isArray(data.habits)) {
+      data.habits.forEach(h => {
+        if (Array.isArray(h.completions))
+          h.completions = h.completions.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
+        if (Array.isArray(h.freeze_completions))
+          h.freeze_completions = h.freeze_completions.filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d));
+      });
+    }
+    // Sanitizar XP total
+    if (data.xp) data.xp.total = Math.max(0, parseInt(data.xp.total) || 0);
     data.__v = V;
     return data;
   }
@@ -1717,8 +1751,10 @@ const Router = (() => {
   }
 
   function updateNav(hash) {
+    // sinergy y finanzas ahora viven bajo resultados
+    const normalised = (hash === 'sinergy' || hash === 'finanzas') ? 'resultados' : hash;
     document.querySelectorAll('.nav-tab').forEach(t => {
-      t.classList.toggle('active', hash.startsWith(t.dataset.route));
+      t.classList.toggle('active', normalised.startsWith(t.dataset.route));
     });
   }
 
@@ -1933,7 +1969,7 @@ function renderFase0() {
               <div class="fase0-sub">Ingresa la ganancia neta del mes en Sinergy (lo que queda después de todos los gastos). Necesitas saber de dónde partes.</div>
               ${cl.pnl_sinergy_completo
                 ? `<span class="chip chip-success mt-sm">Completado</span>`
-                : `<button class="btn btn-sm btn-secondary mt-sm" onclick="Router.navigate('sinergy')">Ir a Sinergy</button>`}
+                : `<button class="btn btn-sm btn-secondary mt-sm" onclick="Router.navigate('resultados')">Ir a Resultados</button>`}
             </div>
           </div>
 
@@ -2165,8 +2201,13 @@ function renderHoy() {
   const weekMax = 7 * s.habits.length;
   const weekPct = weekMax > 0 ? Math.round(weekChecks / weekMax * 100) : 0;
 
-  // Monday summary: best streak
-  const maxStreakHabit = s.habits.reduce((best, h) => h.currentStreak > (best?.currentStreak||0) ? h : best, null);
+  // Monday summary: best streak (live, no desde currentStreak almacenado)
+  const maxStreakHabit = s.habits.reduce((best, h) => {
+    const ls = calcLiveStreak(h.completions || [], h.freeze_completions || []);
+    const bs = best ? calcLiveStreak(best.completions || [], best.freeze_completions || []) : 0;
+    return ls > bs ? h : best;
+  }, null);
+  const maxStreakVal = maxStreakHabit ? calcLiveStreak(maxStreakHabit.completions || [], maxStreakHabit.freeze_completions || []) : 0;
 
   // Progress XP today
   const { pct, current, needed } = XP.getProgress();
@@ -2196,7 +2237,7 @@ function renderHoy() {
       ${esFreshStart && !hayComeback ? `
         <div class="banner banner-fresh">
           ${esLunes
-            ? `Lunes · XP ×1.5 hoy.${maxStreakHabit && maxStreakHabit.currentStreak > 1 ? ` Mejor racha: <strong>${maxStreakHabit.currentStreak} días</strong> de ${esc(maxStreakHabit.nombre)}.` : ' A construir.'}`
+            ? `Lunes · XP ×1.5 hoy.${maxStreakVal > 1 ? ` Mejor racha: <strong>${maxStreakVal} días</strong> de ${esc(maxStreakHabit.nombre)}.` : ' A construir.'}`
             : `Primero de mes · XP ×1.5 hoy. ${weekPct >= 70 ? 'La semana pasada fue sólida.' : 'Esta semana puede ser diferente.'}`
           }
         </div>` : ''}
@@ -2247,43 +2288,6 @@ function renderHoy() {
         <div class="section-title">Hábitos núcleo</div>
         <div class="stack stack-md" id="habits-list">
           ${s.habits.slice(0,3).map((h, i) => renderHabitCard(h, todayCompletions[i], i)).join('')}
-        </div>
-      </div>
-
-      <!-- Output Sinergy -->
-      <div class="section">
-        <div class="section-title">Sinergy · outputs de hoy</div>
-        <div class="card">
-          ${(() => {
-            const TLABEL = { crm_llamada:'📞 Llamada', crm_cliente:'🎉 Cliente cerrado', crm_feature:'🚀 Feature', crm_bug:'🔧 Bug resuelto', ml_listing:'🛍️ Listing', ml_campaña:'📣 Campaña', ml_record:'🏆 Hito ML', llamada:'📞 Llamada', cliente_nuevo:'🎉 Cliente', feature:'🚀 Feature', margen_millon:'💰 Millón' };
-            const todayOutputs = s.sinergy.outputs_log.filter(o => o.fecha === today());
-            return todayOutputs.length
-              ? todayOutputs.map(o => `<div class="row row-gap-sm mb-sm">
-                  <span class="chip chip-primary">${TLABEL[o.tipo] || esc(o.tipo)}</span>
-                  <span class="text-sm text-md flex-1">${esc(o.detalle||'')}</span>
-                  <span class="text-xs text-primary font-bold">+${o.xp_ganado} XP</span>
-                </div>`).join('')
-              : `<p class="text-sm text-lo" style="padding:4px 0">Sin outputs registrados hoy.</p>`;
-          })()}
-          <button class="btn btn-secondary btn-block btn-sm mt-md" onclick="openOutputModal()">+ Registrar output</button>
-        </div>
-      </div>
-
-      <!-- Small wins (colapsable) -->
-      <div class="section">
-        <button class="section-title" style="background:none;border:none;padding:0;cursor:pointer;display:flex;align-items:center;gap:6px;width:100%;text-align:left" onclick="toggleSmallWins()" aria-expanded="false" id="sw-toggle">
-          <span>Micro-victorias de hoy</span>
-          <svg id="sw-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="margin-left:auto;transition:transform var(--dur-2) var(--ease-standard)"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div id="sw-body" class="hidden">
-          <div class="card mt-sm">
-            ${(() => {
-              const sw = s.small_wins.find(w => w.fecha === today());
-              if (sw) return sw.wins.map(w => `<div class="row row-gap-sm mb-sm"><span style="color:var(--success)">✓</span><span class="text-sm">${esc(w)}</span></div>`).join('');
-              return `<p class="text-sm text-lo" style="padding:4px 0">¿Qué salió bien hoy, aunque sea pequeño?</p>`;
-            })()}
-            <button class="btn btn-ghost btn-sm mt-sm" onclick="openSmallWinsModal()">+ Agregar</button>
-          </div>
         </div>
       </div>
 
@@ -3800,7 +3804,7 @@ function renderYo() {
         <div class="section-title">Accesos</div>
         <div class="stack stack-sm">
           ${[
-            ['finanzas','Finanzas personales','💰'],
+            ['habitos','Mis hábitos y rachas','✅'],
             ['protocolos','Protocolos de bienestar','🧠'],
             ['partner','Tu persona de apoyo','🤝'],
             ['experimentos','Experimentos','🔬'],
@@ -4699,6 +4703,355 @@ function renderFinanzas() {
   };
 }
 
+/* ═══════════════════════════════════════════════════════════
+   VISTA: RESULTADOS (Sinergy + Finanzas combinados)
+═══════════════════════════════════════════════════════════ */
+function renderResultados(tab = 'sinergy') {
+  const app = document.getElementById('app');
+  app.innerHTML = `
+    <div class="page-full">
+      <div class="page-header">
+        <h2 class="flex-1">Resultados</h2>
+      </div>
+      <div class="journal-tabs">
+        <button class="journal-tab ${tab==='sinergy'?'active':''}" onclick="renderResultados('sinergy')">Sinergy</button>
+        <button class="journal-tab ${tab==='finanzas'?'active':''}" onclick="renderResultados('finanzas')">Finanzas</button>
+      </div>
+      <div class="page" style="padding-top:8px" id="resultados-body"></div>
+    </div>`;
+  const body = document.getElementById('resultados-body');
+  if (tab === 'sinergy') _renderResultadosSinergy(body);
+  else _renderResultadosFinanzas(body);
+}
+
+function _renderResultadosSinergy(body) {
+  const s = State.get();
+  const mes = monthStr();
+  const mesOutputs = s.sinergy.outputs_log.filter(o => o.fecha.startsWith(mes));
+  const crmLlamadas = mesOutputs.filter(o => ['crm_llamada','llamada'].includes(o.tipo)).length;
+  const crmClientes = mesOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
+  const crmFeatures = mesOutputs.filter(o => ['crm_feature','feature'].includes(o.tipo)).length;
+  const mlListings  = mesOutputs.filter(o => o.tipo === 'ml_listing').length;
+  const mlCampañas  = mesOutputs.filter(o => o.tipo === 'ml_campaña').length;
+  const mlRecords   = mesOutputs.filter(o => o.tipo === 'ml_record').length;
+  const mesNombre   = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+  let mesData = s.sinergy.mensual.find(m => m.mes === mes) || { mes, ganancia_neta_clp: 0, notas: '' };
+  const metas = s.sinergy.metas_trimestre.learning_goals || [];
+  const TIPO_LABEL = {
+    crm_llamada:'📞 Llamada CRM', crm_cliente:'🎉 Cliente cerrado', crm_feature:'🚀 Feature lanzada',
+    crm_bug:'🔧 Bug resuelto', ml_listing:'🛍️ Listing ML', ml_campaña:'📣 Campaña ML',
+    ml_record:'🏆 Hito ML', llamada:'📞 Llamada', cliente_nuevo:'🎉 Cliente', feature:'🚀 Feature', margen_millon:'💰 Millón'
+  };
+  const fmt = n => `$${Math.abs(Math.round(n)).toLocaleString('es-CL')}`;
+
+  body.innerHTML = `
+    <div class="section">
+      <div class="section-title">${mesNombre}</div>
+      <div class="grid-2 mb-md">
+        <div class="stat-card"><div class="stat-val num">${crmLlamadas}</div><div class="stat-label">📞 Llamadas</div></div>
+        <div class="stat-card"><div class="stat-val num">${crmClientes}</div><div class="stat-label">🎉 Clientes</div></div>
+        <div class="stat-card"><div class="stat-val num">${crmFeatures + mlListings}</div><div class="stat-label">🚀 Features/Listings</div></div>
+        <div class="stat-card"><div class="stat-val num">${mesOutputs.length}</div><div class="stat-label">⚡ Total outputs</div></div>
+      </div>
+      <div class="card mb-md" style="padding:16px">
+        <div class="row-between mb-sm">
+          <span class="text-sm text-lo">Ganancia neta del mes</span>
+          <button class="btn btn-sm btn-ghost" onclick="openGananciaModal()">Editar</button>
+        </div>
+        <div class="num" style="font-size:var(--fs-xl);font-weight:800;color:${mesData.ganancia_neta_clp>0?'var(--success)':'var(--text-lo)'}">${mesData.ganancia_neta_clp > 0 ? fmt(mesData.ganancia_neta_clp) : '—'}</div>
+        ${mesData.notas ? `<div class="text-xs text-lo mt-sm">${esc(mesData.notas)}</div>` : ''}
+      </div>
+      <button class="btn btn-primary btn-block" onclick="openOutputModal()">+ Registrar output de hoy</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Outputs del mes</div>
+      ${mesOutputs.length === 0
+        ? `<div class="empty-state"><div class="empty-sub">Sin outputs este mes todavía.</div></div>`
+        : `<div class="stack stack-sm">${mesOutputs.slice(0,20).map(o => `
+            <div class="card" style="padding:10px 14px">
+              <div class="row-between">
+                <span class="chip chip-primary">${TIPO_LABEL[o.tipo]||esc(o.tipo)}</span>
+                <span class="text-xs text-lo">${formatDate(o.fecha)}</span>
+              </div>
+              ${o.detalle ? `<div class="text-sm text-md mt-sm">${esc(o.detalle)}</div>` : ''}
+            </div>`).join('')}</div>`}
+    </div>
+
+    <div class="section">
+      <div class="section-title">Metas del trimestre</div>
+      <div class="card" style="padding:0">
+        ${(s.sinergy.metas_trimestre.performance_goals||[]).concat(metas).map(g => `
+          <div class="row-between" style="padding:10px 14px;border-bottom:1px solid var(--border)">
+            <span class="text-sm">${esc(g)}</span>
+          </div>`).join('') || `<div style="padding:12px 14px"><span class="text-sm text-lo">Sin metas configuradas.</span></div>`}
+      </div>
+    </div>`;
+
+  window.openGananciaModal = () => {
+    const s2 = State.get();
+    const md = s2.sinergy.mensual.find(m => m.mes === mes) || {};
+    UI.modal({
+      title: 'Ganancia neta del mes',
+      body: `<div class="stack stack-md">
+        <div class="field">
+          <label>Ganancia neta CLP (después de gastos Sinergy)</label>
+          <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
+          <input id="gan-monto" class="input input-prefixed num" type="number" placeholder="ej. 450000" value="${md.ganancia_neta_clp||''}"></div>
+          <div class="hint">Lo que quedó en tu bolsillo de Sinergy este mes.</div>
+        </div>
+        <div class="field"><label>Nota (opcional)</label><input id="gan-nota" class="input" value="${esc(md.notas||'')}"></div>
+      </div>`,
+      actions: [
+        { label: 'Guardar', action: () => {
+          const monto = parseInt(document.getElementById('gan-monto')?.value) || 0;
+          const nota  = document.getElementById('gan-nota')?.value.trim() || '';
+          State.update(s => {
+            const idx = s.sinergy.mensual.findIndex(m => m.mes === mes);
+            const entry = { ...((s.sinergy.mensual[idx]) || {}), mes, ganancia_neta_clp: monto, notas: nota };
+            if (idx >= 0) s.sinergy.mensual[idx] = entry;
+            else s.sinergy.mensual.unshift(entry);
+          });
+          UI.toast('Guardado.', 'success');
+          renderResultados('sinergy');
+        }},
+        { label: 'Cancelar', action: () => {} },
+      ],
+    });
+  };
+
+  window.openOutputModal = window.openSinergyAccionModal || (() => {
+    const TIPOS = [
+      ['crm_llamada','📞 Llamada CRM'],['crm_cliente','🎉 Cliente cerrado'],['crm_feature','🚀 Feature lanzada'],
+      ['crm_bug','🔧 Bug resuelto'],['ml_listing','🛍️ Listing ML'],['ml_campaña','📣 Campaña ML'],['ml_record','🏆 Hito ML'],
+    ];
+    UI.modal({
+      title: '¿Qué hiciste hoy en Sinergy?',
+      body: `<div class="stack stack-md">
+        <div class="field"><label>Tipo</label>
+          <select id="out-tipo" class="input">${TIPOS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
+        </div>
+        <div class="field"><label>Detalle (opcional)</label>
+          <input id="out-detalle" class="input" placeholder="ej. Llamada con cliente ABC...">
+        </div>
+      </div>`,
+      actions: [
+        { label: 'Registrar', action: () => {
+          const tipo    = document.getElementById('out-tipo')?.value;
+          const detalle = document.getElementById('out-detalle')?.value.trim() || '';
+          const XP_MAP  = { crm_llamada:10, crm_cliente:50, crm_feature:40, crm_bug:20, ml_listing:15, ml_campaña:20, ml_record:60 };
+          const xpGanado = XP_MAP[tipo] || 10;
+          State.update(s => { s.sinergy.outputs_log.unshift({ fecha: todayISO(), tipo, detalle, xp_ganado: xpGanado }); });
+          XP.add(xpGanado, `Sinergy: ${tipo}`);
+          UI.toast(`Output registrado. +${xpGanado} XP`, 'success');
+          renderResultados('sinergy');
+        }},
+        { label: 'Cancelar', action: () => {} },
+      ],
+    });
+  });
+}
+
+function _renderResultadosFinanzas(body) {
+  const s = State.get();
+  const mes = monthStr();
+  const mesNombre = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+  const f = s.finanzas;
+  const mesDat = f.mensual.find(m => m.mes === mes) || { mes, ingreso_clp: 0, gastos_variables_clp: 0, notas: '' };
+  const totalFijos = f.gastos_fijos.reduce((sum, g) => sum + (g.monto_clp || 0), 0);
+  const ahorro = mesDat.ingreso_clp - totalFijos - mesDat.gastos_variables_clp;
+  const tasaAhorro = mesDat.ingreso_clp > 0 ? Math.round(ahorro / mesDat.ingreso_clp * 100) : 0;
+  const metaPct = f.meta_ahorro_pct || 20;
+  const metaMonto = mesDat.ingreso_clp > 0 ? Math.round(mesDat.ingreso_clp * metaPct / 100) : 0;
+  const cumpleMeta = mesDat.ingreso_clp > 0 && tasaAhorro >= metaPct;
+  const fmt = n => n >= 0 ? `$${Math.abs(n).toLocaleString('es-CL')}` : `-$${Math.abs(n).toLocaleString('es-CL')}`;
+
+  body.innerHTML = `
+    <div class="section">
+      <div class="section-title">${mesNombre}</div>
+      <div class="card card-primary mb-md" style="padding:20px">
+        <div class="row-between mb-md">
+          <div>
+            <div class="text-xs text-lo font-semibold uppercase mb-sm">Ahorrado este mes</div>
+            <div class="num" style="font-size:var(--fs-2xl);font-weight:800;color:${ahorro>=0?'var(--success)':'var(--danger)'}">${fmt(ahorro)}</div>
+          </div>
+          <div class="text-right">
+            <div style="font-size:32px;font-weight:800;color:${cumpleMeta?'var(--success)':'var(--warn)'}">${tasaAhorro}%</div>
+            <div class="text-xs text-lo">meta: ${metaPct}%</div>
+            ${mesDat.ingreso_clp > 0 ? `<div class="chip ${cumpleMeta?'chip-identity':'chip-warn'} mt-sm">${cumpleMeta?'✅ Meta cumplida':'⚠️ Bajo la meta'}</div>` : ''}
+          </div>
+        </div>
+        ${mesDat.ingreso_clp > 0 ? `
+        <div class="progress-bar" style="height:10px;background:var(--bg-3)">
+          <div style="height:10px;background:${cumpleMeta?'var(--success)':'var(--warn)'};width:${Math.min(tasaAhorro,100)}%;border-radius:var(--r-full);transition:width 1s var(--ease-standard)"></div>
+        </div>
+        <div class="text-xs text-lo mt-sm">Meta: ${fmt(metaMonto)} CLP</div>` : '<div class="text-xs text-lo">Ingresa tu ingreso del mes para ver el análisis.</div>'}
+      </div>
+
+      <div class="card mb-md" style="padding:0">
+        ${[
+          ['↑ Ingreso total', mesDat.ingreso_clp, 'var(--success)'],
+          ['− Gastos fijos', -totalFijos, 'var(--text-md)'],
+          ['− Gastos variables', -mesDat.gastos_variables_clp, 'var(--text-md)'],
+        ].map(([label,val,color]) => `
+          <div class="row-between" style="padding:12px 16px;border-bottom:1px solid var(--border)">
+            <span class="text-sm">${label}</span>
+            <span class="text-sm font-semibold" style="color:${color}">${val!==0?fmt(Math.abs(val)):'—'}</span>
+          </div>`).join('')}
+        <div class="row-between" style="padding:12px 16px;background:var(--bg-2)">
+          <span class="text-sm font-semibold">= Ahorro real</span>
+          <span class="font-semibold" style="color:${ahorro>=0?'var(--success)':'var(--danger)'}">${mesDat.ingreso_clp>0?fmt(ahorro):'—'}</span>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-block" onclick="editarMesFinanzas()">${mesDat.ingreso_clp>0?'Actualizar mes':'+ Ingresar datos del mes'}</button>
+    </div>
+
+    <div class="section">
+      <div class="section-title">Gastos fijos <span class="text-lo font-normal">(se configura una vez)</span></div>
+      <div class="card" style="padding:0">
+        ${f.gastos_fijos.length===0
+          ? `<div class="empty-state" style="padding:20px"><div class="empty-sub">Arriendo, servicios, suscripciones...</div></div>`
+          : f.gastos_fijos.map((g,i) => `
+            <div class="row-between" style="padding:11px 14px;border-bottom:1px solid var(--border)">
+              <span class="text-sm">${esc(g.nombre)}</span>
+              <div class="row row-gap-sm">
+                <span class="text-sm font-semibold">${fmt(g.monto_clp)}</span>
+                <button class="btn btn-icon btn-ghost btn-sm" onclick="eliminarGastoFijo(${i})" style="color:var(--text-lo)">✕</button>
+              </div>
+            </div>`).join('')}
+        <div class="row-between" style="padding:11px 14px;background:var(--bg-2)">
+          <span class="text-xs text-lo font-semibold uppercase">Total fijos</span>
+          <span class="font-semibold">${fmt(totalFijos)}</span>
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-block mt-md" onclick="agregarGastoFijo()">+ Agregar gasto fijo</button>
+    </div>
+
+    ${f.mensual.filter(m=>m.ingreso_clp>0).length>1 ? `
+    <div class="section">
+      <div class="section-title">Historial</div>
+      <div class="stack stack-sm">
+        ${f.mensual.filter(m=>m.ingreso_clp>0).slice(0,6).map(m => {
+          const fij = f.gastos_fijos.reduce((sum,g)=>sum+g.monto_clp,0);
+          const ah  = m.ingreso_clp - fij - m.gastos_variables_clp;
+          const tasa = Math.round(ah/m.ingreso_clp*100);
+          const ok   = tasa >= metaPct;
+          const mn   = new Date(m.mes+'-01').toLocaleDateString('es-CL',{month:'short',year:'numeric'});
+          return `<div class="card" style="padding:10px 14px">
+            <div class="row-between">
+              <span class="text-sm font-semibold">${mn}</span>
+              <div class="row row-gap-sm">
+                <span class="chip ${ok?'chip-identity':'chip-warn'}">${tasa}% ahorrado</span>
+                <span class="text-sm text-lo">${fmt(ah)}</span>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>` : ''}
+
+    <div class="section">
+      <div class="section-title">Configuración</div>
+      <div class="card">
+        <div class="row-between">
+          <div>
+            <div class="text-sm font-semibold">Meta de ahorro mensual</div>
+            <div class="text-xs text-lo mt-sm">Porcentaje del ingreso que quieres ahorrar</div>
+          </div>
+          <button class="btn btn-sm btn-ghost" onclick="editarMetaAhorro()">${metaPct}% →</button>
+        </div>
+      </div>
+    </div>`;
+
+  // Reusar handlers de renderFinanzas
+  window.editarMesFinanzas = () => {
+    const s2 = State.get();
+    const md  = s2.finanzas.mensual.find(m => m.mes === mes) || {};
+    UI.modal({
+      title: `Datos de ${new Date().toLocaleDateString('es-CL',{month:'long',year:'numeric'})}`,
+      body: `<div class="stack stack-md">
+        <div class="field"><label>Ingreso total del mes (CLP)</label>
+          <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
+          <input id="fin-ingreso" class="input input-prefixed num" type="number" placeholder="ej. 1200000" value="${md.ingreso_clp||''}"></div>
+          <div class="hint">Todo lo que entró: sueldo, Sinergy, otras fuentes</div>
+        </div>
+        <div class="field"><label>Gastos variables del mes (CLP)</label>
+          <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
+          <input id="fin-variables" class="input input-prefixed num" type="number" placeholder="ej. 400000" value="${md.gastos_variables_clp||''}"></div>
+          <div class="hint">Comida, transporte, salidas, imprevistos</div>
+        </div>
+        <div class="field"><label>Nota del mes (opcional)</label>
+          <input id="fin-notas" class="input" value="${esc(md.notas||'')}">
+        </div>
+      </div>`,
+      actions: [
+        { label: 'Guardar', action: () => {
+          const ingreso   = parseInt(document.getElementById('fin-ingreso')?.value) || 0;
+          const variables = parseInt(document.getElementById('fin-variables')?.value) || 0;
+          const notas     = document.getElementById('fin-notas')?.value.trim() || '';
+          if (!ingreso) { UI.toast('Ingresa al menos el ingreso del mes.', 'warn'); return false; }
+          const isNew = !State.get().finanzas.mensual.find(m => m.mes === mes);
+          State.update(s => {
+            const idx = s.finanzas.mensual.findIndex(m => m.mes === mes);
+            const entry = { mes, ingreso_clp: ingreso, gastos_variables_clp: variables, notas };
+            if (idx >= 0) s.finanzas.mensual[idx] = entry;
+            else s.finanzas.mensual.unshift(entry);
+          });
+          if (isNew) XP.add(20, 'Finanzas del mes registradas');
+          UI.toast('Guardado.', 'success');
+          renderResultados('finanzas');
+        }},
+        { label: 'Cancelar', action: () => {} },
+      ],
+    });
+  };
+  window.agregarGastoFijo = () => {
+    UI.modal({
+      title: 'Agregar gasto fijo',
+      body: `<div class="stack stack-md">
+        <div class="field"><label>Nombre</label><input id="gf-nombre" class="input" placeholder="ej. Arriendo, Netflix..."></div>
+        <div class="field"><label>Monto mensual (CLP)</label>
+          <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
+          <input id="gf-monto" class="input input-prefixed num" type="number" placeholder="ej. 350000"></div>
+        </div>
+      </div>`,
+      actions: [
+        { label: 'Agregar', action: () => {
+          const nombre = document.getElementById('gf-nombre')?.value.trim();
+          const monto  = parseInt(document.getElementById('gf-monto')?.value) || 0;
+          if (!nombre || !monto) { UI.toast('Completa nombre y monto.', 'warn'); return false; }
+          State.update(s => { s.finanzas.gastos_fijos.push({ nombre, monto_clp: monto }); });
+          UI.toast('Gasto fijo agregado.', 'success');
+          renderResultados('finanzas');
+        }},
+        { label: 'Cancelar', action: () => {} },
+      ],
+    });
+  };
+  window.eliminarGastoFijo = (i) => {
+    State.update(s => { s.finanzas.gastos_fijos.splice(i, 1); });
+    renderResultados('finanzas');
+  };
+  window.editarMetaAhorro = () => {
+    const actual = State.get().finanzas.meta_ahorro_pct;
+    UI.modal({
+      title: 'Meta de ahorro mensual',
+      body: `<p class="text-sm text-lo mb-md" style="line-height:var(--lh-relaxed)">La regla del 20% es un buen punto de partida. Si recién empiezas, 10% ya es un avance real.</p>
+        <div class="field"><label>Meta (%)</label>
+        <input id="meta-pct" class="input num" type="number" min="1" max="80" value="${actual}" placeholder="20"></div>`,
+      actions: [
+        { label: 'Guardar', action: () => {
+          const pct = parseInt(document.getElementById('meta-pct')?.value) || 20;
+          State.update(s => { s.finanzas.meta_ahorro_pct = Math.min(80, Math.max(1, pct)); });
+          UI.toast('Meta actualizada.', 'success');
+          renderResultados('finanzas');
+        }},
+        { label: 'Cancelar', action: () => {} },
+      ],
+    });
+  };
+}
+
 function renderInsights() {
   InsightsEngine.generate();
   const s = State.get();
@@ -5022,9 +5375,8 @@ function renderNav() {
   nav.setAttribute('aria-label','Navegación principal');
   nav.innerHTML = [
     ['hoy','Hoy',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`],
-    ['habitos','Hábitos',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>`],
     ['cuerpo','Cuerpo',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6.5 6.5h11M6.5 17.5h11M4 10h4M16 10h4M4 14h4M16 14h4M8 10v4M16 10v4"/></svg>`],
-    ['sinergy','Sinergy',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`],
+    ['resultados','Resultados',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`],
     ['diario','Diario',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`],
     ['yo','Yo',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`],
   ].map(([route, label, icon]) =>
@@ -5097,7 +5449,9 @@ const App = (() => {
     Router.register('hoy', () => { renderNav(); renderHoy(); });
     Router.register('habitos', () => { renderNav(); renderHabitos(); });
     Router.register('cuerpo', () => { renderNav(); renderCuerpo(); });
-    Router.register('sinergy', () => { renderNav(); renderSinergy(); });
+    Router.register('resultados', () => { renderNav(); renderResultados(); });
+    Router.register('sinergy', () => { renderNav(); renderResultados('sinergy'); });
+    Router.register('finanzas', () => { renderNav(); renderResultados('finanzas'); });
     Router.register('diario', () => { renderNav(); renderDiario(); });
     Router.register('yo', () => { renderNav(); renderYo(); });
     Router.register('protocolos', () => { renderNav(); renderProtocolos(); });
@@ -5106,14 +5460,21 @@ const App = (() => {
     Router.register('experimentos', () => { renderNav(); renderExperimentos(); });
     Router.register('insights', () => { renderNav(); renderInsights(); });
     Router.register('ajustes', () => { renderNav(); renderAjustes(); });
-    Router.register('finanzas', () => { renderNav(); renderFinanzas(); });
     Router.register('crisis', () => renderCrisis());
   }
 
   function registerSW() {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('./sw.js').catch(e => console.warn('SW error:', e));
-    }
+    if (!('serviceWorker' in navigator)) return;
+    navigator.serviceWorker.register('./sw.js').then(reg => {
+      reg.addEventListener('updatefound', () => {
+        const next = reg.installing;
+        next?.addEventListener('statechange', () => {
+          if (next.state === 'installed' && navigator.serviceWorker.controller) {
+            UI.toast('Hay una actualización disponible. Cierra y vuelve a abrir la app para aplicarla.', 'info', 12000);
+          }
+        });
+      });
+    }).catch(e => console.warn('SW error:', e));
   }
 
   function checkDailyComebackFlag() {
