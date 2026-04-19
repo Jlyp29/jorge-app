@@ -1113,9 +1113,11 @@ window.onerror = (msg, src, line, col, err) => {
    UTILIDADES GLOBALES
 ═══════════════════════════════════════════════════════════ */
 const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-const dateStr = (d = new Date()) => d.toISOString().slice(0,10);
+const _pad = n => String(n).padStart(2,'0');
+// Usa fecha LOCAL — evita que toISOString() devuelva "ayer" en UTC-3/UTC-4 después de medianoche
+const dateStr = (d = new Date()) => `${d.getFullYear()}-${_pad(d.getMonth()+1)}-${_pad(d.getDate())}`;
 const today = () => dateStr();
-const todayISO = () => new Date().toISOString().slice(0,10);
+const todayISO = () => dateStr();
 const formatDate = d => {
   const dt = typeof d === 'string' ? new Date(d + 'T00:00:00') : new Date(d);
   return dt.toLocaleDateString('es-CL',{day:'numeric',month:'short'});
@@ -1127,25 +1129,29 @@ const weekISO = (d = new Date()) => {
   const week1 = new Date(dt.getFullYear(),0,4);
   return dt.getFullYear() + '-W' + String(1 + Math.round(((dt-week1)/86400000-3+(week1.getDay()+6)%7)/7)).padStart(2,'0');
 };
-const monthStr = (d = new Date()) => d.toISOString().slice(0,7);
+const monthStr = (d = new Date()) => `${d.getFullYear()}-${_pad(d.getMonth()+1)}`;
 const clamp = (v,mn,mx) => Math.min(mx, Math.max(mn, v));
 const randItem = arr => arr[Math.floor(Math.random() * arr.length)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// Calcula la racha real contando hacia atrás desde las completions almacenadas.
-// Permite un día de gracia si no completó hoy (día en curso).
-function calcLiveStreak(completions) {
+// Calcula la racha real desde las completions. freezes son días de pausa: no rompen
+// la racha pero tampoco suman al contador (estadísticas honestas).
+function calcLiveStreak(completions, freezes = []) {
   const t = today();
   const hasDoneToday = completions.includes(t);
+  const frozeToday = freezes.includes(t);
   let streak = 0;
-  let gapAllowed = !hasDoneToday; // si no lo hizo hoy, el día de hoy no rompe la racha
-  for (let i = hasDoneToday ? 0 : 1; i < 400; i++) {
+  let gapAllowed = !hasDoneToday && !frozeToday;
+  for (let i = (hasDoneToday || frozeToday) ? 0 : 1; i < 400; i++) {
     const d = new Date(); d.setDate(d.getDate() - i);
-    if (completions.includes(dateStr(d))) {
+    const ds = dateStr(d);
+    if (completions.includes(ds)) {
       streak++;
-      gapAllowed = true; // después de un éxito se puede usar el gap nunca-fallar-dos
+      gapAllowed = true;
+    } else if (freezes.includes(ds)) {
+      // día de pausa: mantiene la cadena, no suma
     } else if (gapAllowed) {
-      gapAllowed = false; // usar la única gracia permitida
+      gapAllowed = false; // never-miss-twice: un día de gracia
     } else {
       break;
     }
@@ -1168,7 +1174,7 @@ const State = (() => {
       version_target:'Dormido 22:30, despertar 06:30 (7.5–8h)',
       identity_tag:'Soy alguien que se cuida',
       xp_por_check:20, cue_ubicacion:'dormitorio',
-      completions:[], tiny_completions:[],
+      completions:[], tiny_completions:[], freeze_completions:[],
       currentStreak:0, longestStreak:0,
       createdAt: Date.now(), updatedAt: Date.now(),
     },
@@ -1179,7 +1185,7 @@ const State = (() => {
       version_target:'25 min bloque enfocado',
       identity_tag:'Soy alguien que construye',
       xp_por_check:30, cue_ubicacion:'escritorio',
-      completions:[], tiny_completions:[],
+      completions:[], tiny_completions:[], freeze_completions:[],
       currentStreak:0, longestStreak:0,
       createdAt: Date.now(), updatedAt: Date.now(),
     },
@@ -1190,7 +1196,7 @@ const State = (() => {
       version_target:'Sesión 45–60 min estructurada',
       identity_tag:'Soy alguien con cuerpo fuerte',
       xp_por_check:25, cue_ubicacion:'sala',
-      completions:[], tiny_completions:[],
+      completions:[], tiny_completions:[], freeze_completions:[],
       currentStreak:0, longestStreak:0,
       createdAt: Date.now(), updatedAt: Date.now(),
     },
@@ -1296,7 +1302,11 @@ const State = (() => {
       data.insights = data.insights.filter(i => !STALE_PATTERNS.some(p => i.mensaje?.includes(p)));
     }
     // ensure each habit has all fields
-    data.habits = data.habits.map(h => ({ ...defaultHabits()[0], ...h, xp_awarded_dates: h.xp_awarded_dates || [] }));
+    data.habits = data.habits.map(h => ({
+      ...defaultHabits()[0], ...h,
+      xp_awarded_dates: h.xp_awarded_dates || [],
+      freeze_completions: h.freeze_completions || [],
+    }));
     if (!data.profile.identidad) data.profile.identidad = '';
     if (!data.profile.mision_personal) data.profile.mision_personal = '';
     if (!data.settings.fase) data.settings.fase = 0;
@@ -1327,7 +1337,13 @@ const State = (() => {
   }
 
   function save() {
-    try { localStorage.setItem(KEY, JSON.stringify(_state)); } catch(e) { console.warn('State save error',e); }
+    try { localStorage.setItem(KEY, JSON.stringify(_state)); } catch(e) {
+      console.warn('State save error', e);
+      if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
+        // UI puede no estar disponible aún, defer
+        setTimeout(() => UI?.toast?.('⚠️ Almacenamiento lleno. Exporta un backup en Ajustes antes de perder datos.', 'warn', 10000), 0);
+      }
+    }
   }
 
   function get(path) {
@@ -1347,8 +1363,9 @@ const State = (() => {
 
   function update(fn) {
     if (!_state) load();
-    fn(_state);
-    save();
+    const snap = (typeof structuredClone === 'function') ? structuredClone(_state) : JSON.parse(JSON.stringify(_state));
+    try { fn(_state); save(); }
+    catch(e) { _state = snap; console.error('State.update rollback', e); throw e; }
   }
 
   function reset() {
@@ -1378,6 +1395,19 @@ const State = (() => {
       reader.readAsText(file);
     });
   }
+
+  // Sincronizar si otra pestaña/instancia escribe en localStorage
+  window.addEventListener('storage', e => {
+    if (e.key !== KEY || !e.newValue) return;
+    try {
+      _state = JSON.parse(e.newValue);
+      if (document.visibilityState === 'visible') {
+        // Re-render la vista actual sin push al history
+        const h = location.hash.replace('#','') || 'hoy';
+        Router?.navigate(h, false);
+      }
+    } catch(err) {}
+  });
 
   return { load, get, set, update, save, reset, exportJSON, importJSON };
 })();
@@ -1457,50 +1487,6 @@ const XP = (() => {
     return { pct, current: s.total - curThresh, needed: nextThresh - curThresh };
   }
 
-  function checkStreak(habitId, dateChecked) {
-    State.update(s => {
-      const h = s.habits.find(x => x.id === habitId);
-      if (!h) return;
-      const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
-      const yStr = dateStr(yesterday);
-      const hadYest = h.completions.includes(yStr);
-      const hadDayBefore = (() => {
-        const d2 = new Date(); d2.setDate(d2.getDate()-2);
-        return h.completions.includes(dateStr(d2));
-      })();
-
-      if (hadYest) {
-        h.currentStreak = (h.currentStreak || 0) + 1;
-      } else if (!hadYest && hadDayBefore) {
-        // never miss twice rule: if missed yesterday but day before was ok, keep streak
-        h.currentStreak = (h.currentStreak || 0) + 1;
-      } else {
-        h.currentStreak = 1;
-      }
-      if (h.currentStreak > h.longestStreak) h.longestStreak = h.currentStreak;
-      h.updatedAt = Date.now();
-    });
-  }
-
-  function handleDecay(habitId) {
-    const h = State.get('habits').find(x => x.id === habitId);
-    if (!h) return;
-    // Check if freeze used today
-    // Decay capped at -10 per habit, -20 total per day
-    add(-10, `Fallo: ${h.nombre}`, { animate: false });
-    State.update(s => {
-      const habit = s.habits.find(x => x.id === habitId);
-      if (habit) {
-        // only reset streak if 2 consecutive misses
-        const yesterday = new Date(); yesterday.setDate(yesterday.getDate()-1);
-        const dayBefore = new Date(); dayBefore.setDate(dayBefore.getDate()-2);
-        const missedYest = !habit.completions.includes(dateStr(yesterday));
-        const missedDayBefore = !habit.completions.includes(dateStr(dayBefore));
-        if (missedYest && missedDayBefore) habit.currentStreak = 0;
-      }
-    });
-  }
-
   function useFreeze(habitId) {
     const s = State.get();
     if (s.xp.freezes_disponibles <= 0) return false;
@@ -1509,9 +1495,10 @@ const XP = (() => {
       s.xp.freezes_usados_mes++;
       const h = s.habits.find(x => x.id === habitId);
       if (h) {
-        // add today to completions so streak doesn't break
+        if (!h.freeze_completions) h.freeze_completions = [];
         const t = today();
-        if (!h.completions.includes(t)) h.completions.push(t);
+        // Registrar en freeze_completions (separado de completions reales)
+        if (!h.freeze_completions.includes(t)) h.freeze_completions.push(t);
       }
     });
     return true;
@@ -1526,7 +1513,7 @@ const XP = (() => {
     el.addEventListener('animationend', () => el.remove());
   }
 
-  return { add, calcLevel, getProgress, checkStreak, handleDecay, useFreeze, getLevelName, getLevelThreshold, checkMonthReset, setLevelUpCallback: cb => { _levelUpCallback = cb; } };
+  return { add, calcLevel, getProgress, useFreeze, getLevelName, getLevelThreshold, checkMonthReset, setLevelUpCallback: cb => { _levelUpCallback = cb; } };
 })();
 
 /* ═══════════════════════════════════════════════════════════
@@ -2405,7 +2392,7 @@ function renderHoy() {
 
 function renderHabitCard(h, done, idx) {
   const xpVal = h.escala_actual === 'tiny' ? (h.xp_por_check === 20 ? 20 : 10) : h.xp_por_check;
-  const liveStreak = calcLiveStreak(h.completions || []);
+  const liveStreak = calcLiveStreak(h.completions || [], h.freeze_completions || []);
   return `
     <div class="habit-card ${done ? 'done' : ''}" id="hcard-${h.id}">
       <button class="habit-check ${done ? 'done' : ''}" id="hcheck-${h.id}"
@@ -2425,6 +2412,10 @@ function renderHabitCard(h, done, idx) {
       <div class="habit-xp num">+${xpVal}</div>
     </div>`;
 }
+
+let _streakAfterMark = 0;
+let _habitNameAfterMark = '';
+let _identityTagAfterMark = '';
 
 function wireHabitChecks() {
   window.toggleHabit = (id) => {
@@ -2450,34 +2441,44 @@ function wireHabitChecks() {
       } else {
         // Marcar: agregar completion
         habit.completions.push(t);
-        XP.checkStreak(id, t);
         // Otorgar XP solo si no fue otorgado hoy aún
         if (!xpYaOtorgado) {
           XP.add(xpVal, `Hábito: ${habit.nombre}`);
           habit.xp_awarded_dates.push(t);
         }
-        // Streak badge check
-        const cs = habit.currentStreak;
-        if (cs === 3) {
-          UI.toast(`3 días seguidos de ${habit.nombre}. El hábito está despertando.`,'success', 3500);
-        } else if (cs === 7) {
-          UI.confetti(30);
-          UI.toast(`🔥 ¡Semana perfecta de ${habit.nombre}! 7 días. Sigue.`,'success', 4500);
-        } else if (cs === 14) {
-          UI.confetti(40);
-          UI.toast(`💪 ¡14 días de ${habit.nombre}! Dos semanas sólidas.`,'success', 4500);
-        } else if (cs === 21) {
-          UI.confetti(60);
-          UI.toast(`⭐ ¡21 días de ${habit.nombre}! Badge "${habit.identity_tag.replace('Soy alguien que ','').replace('Soy alguien con ','')}" desbloqueado.`,'success', 5000);
-        } else if (cs === 30) {
-          UI.confetti(60);
-          UI.toast(`🏆 ¡30 días de ${habit.nombre}! Un mes entero. Eres de los que cumplen.`,'success', 5000);
-        } else if (cs === 66) {
-          UI.confetti(80);
-          UI.toast(`🌟 ¡66 días! El hábito ya está automatizado. Es parte de ti.`,'success', 6000);
-        }
+        // Actualizar longestStreak con racha real (sin checkStreak)
+        const liveNow = calcLiveStreak(habit.completions, habit.freeze_completions || []);
+        if (liveNow > (habit.longestStreak || 0)) habit.longestStreak = liveNow;
+        _streakAfterMark = liveNow;
+        _habitNameAfterMark = habit.nombre;
+        _identityTagAfterMark = habit.identity_tag || '';
       }
     });
+
+    // Milestone toasts usando racha calculada en tiempo real
+    if (_streakAfterMark > 0) {
+      const cs = _streakAfterMark;
+      const hn = _habitNameAfterMark;
+      if (cs === 3) {
+        UI.toast(`3 días seguidos de ${hn}. El hábito está despertando.`, 'success', 3500);
+      } else if (cs === 7) {
+        UI.confetti(30);
+        UI.toast(`🔥 ¡Semana perfecta de ${hn}! 7 días seguidos.`, 'success', 4500);
+      } else if (cs === 14) {
+        UI.confetti(40);
+        UI.toast(`💪 14 días de ${hn}. Dos semanas sólidas.`, 'success', 4500);
+      } else if (cs === 21) {
+        UI.confetti(60);
+        UI.toast(`⭐ 21 días de ${hn}. "${_identityTagAfterMark.replace('Soy alguien que ','').replace('Soy alguien con ','')}" — ya lo eres.`, 'success', 5000);
+      } else if (cs === 30) {
+        UI.confetti(60);
+        UI.toast(`🏆 30 días de ${hn}. Un mes entero. Eres de los que cumplen.`, 'success', 5000);
+      } else if (cs === 66) {
+        UI.confetti(80);
+        UI.toast(`🌟 66 días de ${hn}. Ya es automático. Es parte de ti.`, 'success', 6000);
+      }
+    }
+    _streakAfterMark = 0;
 
     const card = document.getElementById(`hcard-${id}`);
     const check = document.getElementById(`hcheck-${id}`);
@@ -3245,13 +3246,13 @@ function renderJournalPennebaker(body, s) {
             s.protocols_log.unshift({ fecha:todayISO(), protocolo:'pennebaker', duracion_min:min, payload:{}, resultado_subjetivo_1_5:3 });
             if (text.length > 10) s.journal.push({ id:Date.now().toString(), fecha:todayISO(), tipo:'pennebaker', payload:{texto:text}, tags:[] });
           });
-          XP.add(40,'Pennebaker expresivo');
+          XP.add(40,'Escritura expresiva');
           UI.toast('Sesión completada. +40 XP','success');
           renderDiario('pennebaker');
         }},
         { label:'Destruir sin guardar', cls:'btn-danger btn-block', action:() => {
           State.update(s => { s.protocols_log.unshift({ fecha:todayISO(), protocolo:'pennebaker', duracion_min:min, payload:{}, resultado_subjetivo_1_5:3 }); });
-          XP.add(40,'Pennebaker expresivo');
+          XP.add(40,'Escritura expresiva');
           UI.toast('+40 XP. Lo que se fue, se fue.','success');
           renderDiario('pennebaker');
         }},
@@ -3969,11 +3970,11 @@ function renderProtocolo(id) {
 function renderABCDE() {
   let step = 0;
   const STEPS_ABCDE = [
-    { label:'A — Adversidad', placeholder:'¿Qué pasó exactamente? (hechos, sin interpretación)', hint:'' },
-    { label:'B — Creencia', placeholder:'¿Qué me dije? La voz interna, textual.', hint:'' },
-    { label:'C — Consecuencia', placeholder:'¿Qué sentí o hice después de creerlo?', hint:'' },
-    { label:'D — Disputa', placeholder:'¿Es 100% cierto? ¿Qué evidencia contraria tienes? ¿Qué le dirías a un amigo?', hint:'3 preguntas mínimo.' },
-    { label:'E — Energización', placeholder:'Nueva creencia + próxima micro-acción hoy.', hint:'¿Qué haces en los próximos 10 min?' },
+    { label:'¿Qué pasó?', placeholder:'Solo los hechos, sin interpretación. ¿Qué ocurrió exactamente?', hint:'' },
+    { label:'¿Qué me estoy diciendo?', placeholder:'La voz interna, textual. ¿Qué historia me cuento sobre eso?', hint:'' },
+    { label:'¿Cómo me afectó?', placeholder:'¿Qué sentí? ¿Qué hice (o dejé de hacer) a raíz de eso?', hint:'' },
+    { label:'¿Es realmente así?', placeholder:'¿Tengo evidencia sólida? ¿Qué le diría a un amigo que piensa lo mismo?', hint:'3 razones mínimo por las que puede no ser verdad.' },
+    { label:'¿Cómo sigo?', placeholder:'Una creencia más útil + una micro-acción concreta en los próximos 10 min.', hint:'' },
   ];
   const answers = {};
 
@@ -3993,7 +3994,7 @@ function renderABCDE() {
       <div class="row row-gap-sm">
         ${step > 0 ? `<button class="btn btn-secondary" onclick="abcdeBack()">Atrás</button>` : ''}
         <button class="btn btn-primary flex-1" onclick="abcdeNext()">
-          ${step < 4 ? 'Siguiente paso →' : 'Completar ABCDE (+30 XP)'}
+          ${step < 4 ? 'Siguiente →' : 'Cerrar y seguir (+30 XP)'}
         </button>
       </div>`;
     document.getElementById('abcde-ans')?.focus();
@@ -4008,8 +4009,8 @@ function renderABCDE() {
         s.protocols_log.unshift({ fecha:todayISO(), protocolo:'abcde', duracion_min:8, payload:answers, resultado_subjetivo_1_5:3 });
         s.journal.push({ id:Date.now().toString(), fecha:todayISO(), tipo:'abcde', payload:answers, tags:[] });
       });
-      XP.add(30,'ABCDE post-fallo');
-      UI.toast('ABCDE completado. +30 XP','success');
+      XP.add(30,'Reencuadra el fallo');
+      UI.toast('Reencuadre completado. +30 XP','success');
       Router.navigate('protocolos');
     }
   };

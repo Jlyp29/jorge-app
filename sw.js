@@ -1,16 +1,23 @@
-const CACHE = 'misistema-v2.1.0';
-const ASSETS = [
+const CACHE = 'misistema-v2.2.0';
+const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
+];
+const REMOTE = [
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
 ];
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE)
-      .then(c => c.addAll(ASSETS))
-      .then(() => self.skipWaiting())
+    caches.open(CACHE).then(async c => {
+      await c.addAll(SHELL);
+      // CDN best-effort: si falla no bloquea la instalación
+      await Promise.allSettled(REMOTE.map(url =>
+        fetch(url).then(r => { if (r.ok) c.put(url, r); }).catch(() => {})
+      ));
+      return self.skipWaiting();
+    })
   );
 });
 
