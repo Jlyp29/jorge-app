@@ -1427,6 +1427,11 @@ const State = (() => {
     // Agregar campos nuevos de metas_5y sin pisar los que ya existen
     const dm = defaults().metas_5y;
     Object.keys(dm).forEach(k => { if (data.metas_5y[k] === undefined) data.metas_5y[k] = dm[k]; });
+    // Auto-marcar pnl_sinergy_completo si ya hay ganancia registrada (fix: modal Editar no lo marcaba)
+    if (!data.fase0_checklist.pnl_sinergy_completo) {
+      const tieneGanancia = (data.sinergy?.mensual || []).some(m => m.ganancia_neta_clp > 0);
+      if (tieneGanancia) data.fase0_checklist.pnl_sinergy_completo = true;
+    }
     if (!data.finanzas) data.finanzas = defaults().finanzas;
     if (!data.finanzas.gastos_fijos) data.finanzas.gastos_fijos = [];
     if (!data.finanzas.mensual) data.finanzas.mensual = [];
@@ -5159,6 +5164,7 @@ function _renderResultadosSinergy(body) {
             const entry = { ...((s.sinergy.mensual[idx]) || {}), mes, ganancia_neta_clp: monto, notas: nota };
             if (idx >= 0) s.sinergy.mensual[idx] = entry;
             else s.sinergy.mensual.unshift(entry);
+            if (monto > 0) s.fase0_checklist.pnl_sinergy_completo = true;
           });
           UI.toast('Guardado.', 'success');
           renderResultados('sinergy');
