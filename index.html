@@ -1427,9 +1427,17 @@ const State = (() => {
     // Agregar campos nuevos de metas_5y sin pisar los que ya existen
     const dm = defaults().metas_5y;
     Object.keys(dm).forEach(k => { if (data.metas_5y[k] === undefined) data.metas_5y[k] = dm[k]; });
-    // Auto-marcar pnl_sinergy_completo si ya hay ganancia registrada (fix: modal Editar no lo marcaba)
+    // Migrar ganancia_neta_clp → retiro_clp (separación empresa vs retiro personal)
+    (data.sinergy?.mensual || []).forEach(m => {
+      if (m.ganancia_neta_clp !== undefined && m.retiro_clp === undefined) {
+        m.retiro_clp = m.ganancia_neta_clp;
+        delete m.ganancia_neta_clp;
+      }
+      if (m.ingresos_empresa_clp === undefined) m.ingresos_empresa_clp = 0;
+    });
+    // Auto-marcar pnl_sinergy_completo si ya hay datos registrados
     if (!data.fase0_checklist.pnl_sinergy_completo) {
-      const tieneGanancia = (data.sinergy?.mensual || []).some(m => m.ganancia_neta_clp > 0);
+      const tieneGanancia = (data.sinergy?.mensual || []).some(m => (m.retiro_clp || 0) > 0 || (m.ingresos_empresa_clp || 0) > 0);
       if (tieneGanancia) data.fase0_checklist.pnl_sinergy_completo = true;
     }
     if (!data.finanzas) data.finanzas = defaults().finanzas;
@@ -2983,7 +2991,7 @@ function renderSinergy() {
   // Ganancia neta ingresada manualmente (simple)
   let mesData = s.sinergy.mensual.find(m => m.mes === mes);
   if (!mesData) {
-    mesData = { mes, ganancia_neta_clp: 0, notas: '' };
+    mesData = { mes, ingresos_empresa_clp: 0, retiro_clp: 0, notas: '' };
     // no mutar state aquí, solo para display
   }
 
@@ -3033,11 +3041,11 @@ function renderSinergy() {
               <span class="input-prefix" style="font-size:11px">$</span>
               <input id="sin-ganancia" class="input input-prefixed num" type="number" step="100000"
                 placeholder="ej. 103682"
-                value="${mesData.ganancia_neta_clp || ''}"
+                value="${mesData.retiro_clp || ''}"
                 onchange="saveSinergyGanancia(this.value)">
             </div>
-            ${mesData.ganancia_neta_clp > 0
-              ? `<div class="hint" style="color:var(--success)">✓ Guardado: $${mesData.ganancia_neta_clp.toLocaleString('es-CL')} CLP</div>`
+            ${mesData.retiro_clp > 0
+              ? `<div class="hint" style="color:var(--success)">✓ Guardado: $${mesData.retiro_clp.toLocaleString('es-CL')} CLP</div>`
               : `<div class="hint">Solo 1 número. Sin cálculos acá.</div>`}
           </div>
         </div>
@@ -3152,8 +3160,8 @@ function renderSinergy() {
     const num = parseInt(val) || 0;
     State.update(s => {
       let md = s.sinergy.mensual.find(m => m.mes === mes);
-      if (!md) { md = { mes, ganancia_neta_clp: 0, notas: '' }; s.sinergy.mensual.push(md); }
-      md.ganancia_neta_clp = num;
+      if (!md) { md = { mes, ingresos_empresa_clp: 0, retiro_clp: 0, notas: '' }; s.sinergy.mensual.push(md); }
+      md.retiro_clp = num;
       // Si ganancia > 0, marcar P&L de Fase 0 como completado
       if (!s.fase0_checklist.pnl_sinergy_completo && num > 0) s.fase0_checklist.pnl_sinergy_completo = true;
       // XP por cada millón de ganancia
@@ -4040,10 +4048,10 @@ function renderYo() {
   })();
   const longestStreak = Math.max(...s.habits.map(h=>h.longestStreak),0);
   const medicion = s.fisico.mediciones.slice(-1)[0];
-  // Gross margin real del último mes con datos
-  const lastMesConDatos = s.sinergy.mensual.slice().reverse().find(m => m.ganancia_neta_clp > 0);
+  // Ingresos empresa Sinergy — último mes con datos
+  const lastMesConDatos = s.sinergy.mensual.slice().reverse().find(m => (m.ingresos_empresa_clp || 0) > 0);
   const gmDisplay = lastMesConDatos
-    ? `${(lastMesConDatos.ganancia_neta_clp/1000).toFixed(0)}k CLP (${new Date(lastMesConDatos.mes+'-01').toLocaleDateString('es-CL',{month:'short',year:'numeric'})})`
+    ? `${(lastMesConDatos.ingresos_empresa_clp/1000).toFixed(0)}k CLP (${new Date(lastMesConDatos.mes+'-01').toLocaleDateString('es-CL',{month:'short',year:'numeric'})})`
     : 'Sin datos aún';
 
   const app = document.getElementById('app');
@@ -5088,7 +5096,7 @@ function _renderResultadosSinergy(body) {
   const mlCampañas  = mesOutputs.filter(o => o.tipo === 'ml_campaña').length;
   const mlRecords   = mesOutputs.filter(o => o.tipo === 'ml_record').length;
   const mesNombre   = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
-  let mesData = s.sinergy.mensual.find(m => m.mes === mes) || { mes, ganancia_neta_clp: 0, notas: '' };
+  let mesData = s.sinergy.mensual.find(m => m.mes === mes) || { mes, ingresos_empresa_clp: 0, retiro_clp: 0, notas: '' };
   const metas = s.sinergy.metas_trimestre.learning_goals || [];
   const TIPO_LABEL = {
     crm_llamada:'📞 Llamada CRM', crm_cliente:'🎉 Cliente cerrado', crm_feature:'🚀 Feature lanzada',
@@ -5107,11 +5115,18 @@ function _renderResultadosSinergy(body) {
         <div class="stat-card"><div class="stat-val num">${mesOutputs.length}</div><div class="stat-label">⚡ Total outputs</div></div>
       </div>
       <div class="card mb-md" style="padding:16px">
-        <div class="row-between mb-sm">
-          <span class="text-sm text-lo">Ganancia neta del mes</span>
+        <div class="row-between mb-md">
+          <span class="text-sm font-semibold">Dinero del mes</span>
           <button class="btn btn-sm btn-ghost" onclick="openGananciaModal()">Editar</button>
         </div>
-        <div class="num" style="font-size:var(--fs-xl);font-weight:800;color:${mesData.ganancia_neta_clp>0?'var(--success)':'var(--text-lo)'}">${mesData.ganancia_neta_clp > 0 ? fmt(mesData.ganancia_neta_clp) : '—'}</div>
+        <div class="row-between mb-sm">
+          <span class="text-sm text-lo">Ingresos empresa (Sinergy)</span>
+          <span class="text-sm font-semibold" style="color:${mesData.ingresos_empresa_clp>0?'var(--success)':'var(--text-lo)'}">${mesData.ingresos_empresa_clp>0?fmt(mesData.ingresos_empresa_clp):'—'}</span>
+        </div>
+        <div class="row-between">
+          <span class="text-sm text-lo">Tu retiro personal</span>
+          <span class="text-sm font-semibold" style="color:${mesData.retiro_clp>0?'var(--primary)':'var(--text-lo)'}">${mesData.retiro_clp>0?fmt(mesData.retiro_clp):'—'}</span>
+        </div>
         ${mesData.notas ? `<div class="text-xs text-lo mt-sm">${esc(mesData.notas)}</div>` : ''}
       </div>
       <button class="btn btn-primary btn-block" onclick="openOutputModal()">+ Registrar output de hoy</button>
@@ -5145,26 +5160,33 @@ function _renderResultadosSinergy(body) {
     const s2 = State.get();
     const md = s2.sinergy.mensual.find(m => m.mes === mes) || {};
     UI.modal({
-      title: 'Ganancia neta del mes',
+      title: 'Dinero del mes · Sinergy',
       body: `<div class="stack stack-md">
         <div class="field">
-          <label>Ganancia neta CLP (después de gastos Sinergy)</label>
+          <label>Ingresos de Sinergy como empresa (CLP)</label>
           <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
-          <input id="gan-monto" class="input input-prefixed num" type="number" placeholder="ej. 450000" value="${md.ganancia_neta_clp||''}"></div>
-          <div class="hint">Lo que quedó en tu bolsillo de Sinergy este mes.</div>
+          <input id="gan-empresa" class="input input-prefixed num" type="number" placeholder="ej. 1200000" value="${md.ingresos_empresa_clp||''}"></div>
+          <div class="hint">Lo que facturó Sinergy este mes antes de gastos.</div>
+        </div>
+        <div class="field">
+          <label>Tu retiro personal de Sinergy (CLP)</label>
+          <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
+          <input id="gan-retiro" class="input input-prefixed num" type="number" placeholder="ej. 300000" value="${md.retiro_clp||''}"></div>
+          <div class="hint">Lo que te llevaste vos. Inclúyelo en Finanzas como parte de tu ingreso total.</div>
         </div>
         <div class="field"><label>Nota (opcional)</label><input id="gan-nota" class="input" value="${esc(md.notas||'')}"></div>
       </div>`,
       actions: [
         { label: 'Guardar', action: () => {
-          const monto = parseInt(document.getElementById('gan-monto')?.value) || 0;
-          const nota  = document.getElementById('gan-nota')?.value.trim() || '';
+          const empresa = parseInt(document.getElementById('gan-empresa')?.value) || 0;
+          const retiro  = parseInt(document.getElementById('gan-retiro')?.value) || 0;
+          const nota    = document.getElementById('gan-nota')?.value.trim() || '';
           State.update(s => {
             const idx = s.sinergy.mensual.findIndex(m => m.mes === mes);
-            const entry = { ...((s.sinergy.mensual[idx]) || {}), mes, ganancia_neta_clp: monto, notas: nota };
+            const entry = { ...((s.sinergy.mensual[idx]) || {}), mes, ingresos_empresa_clp: empresa, retiro_clp: retiro, notas: nota };
             if (idx >= 0) s.sinergy.mensual[idx] = entry;
             else s.sinergy.mensual.unshift(entry);
-            if (monto > 0) s.fase0_checklist.pnl_sinergy_completo = true;
+            if (empresa > 0 || retiro > 0) s.fase0_checklist.pnl_sinergy_completo = true;
           });
           UI.toast('Guardado.', 'success');
           renderResultados('sinergy');
@@ -5327,7 +5349,7 @@ function _renderResultadosFinanzas(body) {
         <div class="field"><label>Ingreso total del mes (CLP)</label>
           <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
           <input id="fin-ingreso" class="input input-prefixed num" type="number" placeholder="ej. 1200000" value="${md.ingreso_clp||''}"></div>
-          <div class="hint">Todo lo que entró: sueldo, Sinergy, otras fuentes</div>
+          <div class="hint">Carvuk + retiro Sinergy + cualquier otra fuente</div>
         </div>
         <div class="field"><label>Gastos variables del mes (CLP)</label>
           <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
