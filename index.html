@@ -2429,7 +2429,7 @@ function renderHoy() {
       <div class="section">
         <div class="section-title">Hábitos núcleo</div>
         <div class="stack stack-md" id="habits-list">
-          ${s.habits.slice(0,3).map((h, i) => renderHabitCard(h, todayCompletions[i], i)).join('')}
+          ${s.habits.map((h, i) => renderHabitCard(h, todayCompletions[i], i)).join('')}
         </div>
       </div>
 
@@ -5707,11 +5707,56 @@ function renderAjustes() {
         </div>
       </div>
 
+      <div class="card mb-md">
+        <div class="font-semibold mb-sm">Exportar mis datos</div>
+        <p class="text-sm text-lo mb-md" style="line-height:var(--lh-relaxed)">Descarga todo en JSON. Pegalo en una IA para analizar fallas, progreso y patrones del mes.</p>
+        <button class="btn btn-secondary btn-block" onclick="exportarDatos()">Descargar JSON</button>
+      </div>
+
       <div class="danger-zone">
         <div class="font-semibold mb-md" style="color:var(--danger)">Zona peligrosa</div>
         <button class="btn btn-danger btn-block" onclick="confirmReset()">Borrar todos los datos</button>
       </div>
     </div>`;
+
+  window.exportarDatos = () => {
+    const s = State.get();
+    const mes = monthStr();
+    // Resumen legible para IA
+    const resumen = {
+      exportado_el: new Date().toISOString(),
+      mes_actual: mes,
+      perfil: { nombre: s.profile.nombre, fase: s.settings.fase },
+      xp: { total: s.xp.total, nivel: s.xp.nivel },
+      habitos: s.habits.map(h => ({
+        nombre: h.nombre,
+        escala: h.escala_actual,
+        racha_actual: calcLiveStreak(h.completions || [], h.freeze_completions || []),
+        racha_record: h.longestStreak || 0,
+        completions_totales: (h.completions || []).length,
+        completions_este_mes: (h.completions || []).filter(d => d.startsWith(mes)).length,
+      })),
+      agua_este_mes: Object.entries(s.fisico.agua || {})
+        .filter(([k]) => k.startsWith(mes))
+        .map(([fecha, vasos]) => ({ fecha, vasos })),
+      sinergy_este_mes: {
+        datos: s.sinergy.mensual.find(m => m.mes === mes) || {},
+        outputs: (s.sinergy.outputs_log || []).filter(o => o.fecha?.startsWith(mes)),
+      },
+      finanzas_este_mes: s.finanzas.mensual.find(m => m.mes === mes) || {},
+      gastos_fijos: s.finanzas.gastos_fijos || [],
+      revisiones_mensuales: s.revisiones_mensuales || [],
+      mediciones_fisicas: s.fisico.mediciones || [],
+      journal_este_mes: (s.journal || []).filter(j => j.fecha?.startsWith(mes)),
+      metas_5y: s.metas_5y,
+    };
+    const blob = new Blob([JSON.stringify(resumen, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `misistema-${mes}.json`; a.click();
+    URL.revokeObjectURL(url);
+    UI.toast('Datos exportados. Pégalos en una IA para analizarlos.', 'success', 4000);
+  };
 
   window.setTheme = (t) => {
     State.set('settings.theme', t);
@@ -5782,29 +5827,55 @@ function applyTheme(t) {
    NOTIFICATIONS
 ═══════════════════════════════════════════════════════════ */
 const Notifs = (() => {
+  // Programa una notificación a una hora fija de hoy. Si ya pasó, no hace nada.
+  function at(hh, mm, title, body, tag) {
+    const t = new Date(); t.setHours(hh, mm, 0, 0);
+    const ms = t.getTime() - Date.now();
+    if (ms <= 0) return;
+    setTimeout(() => {
+      try { new Notification(title, { body, icon:'./icon-192.png', badge:'./icon-192.png', tag }); } catch(e) {}
+    }, Math.min(ms, 2147483647));
+  }
+
   function schedule() {
     const s = State.get();
     if (!s.settings.notificaciones_activas) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    const now = new Date();
-    const tomorrow8 = new Date(now); tomorrow8.setDate(tomorrow8.getDate()+1); tomorrow8.setHours(8,0,0,0);
-    const tonight22 = new Date(now); tonight22.setHours(22,0,0,0);
-    const nombre = s.profile.nombre || '';
+    const nombre = s.profile.nombre ? `, ${s.profile.nombre}` : '';
 
-    if (tonight22 > now) {
-      const ms = tonight22.getTime() - now.getTime();
-      setTimeout(() => {
-        const yStr = (() => { const d = new Date(); d.setDate(d.getDate()-1); return dateStr(d); })();
-        const allDoneToday = s.habits.every(h => h.completions.includes(today()));
-        if (!allDoneToday) send('MI SISTEMA', 'Sueño es la meta 12% empezando. Cierra y sube.', { tag:'bedtime' });
+    // 🌅 Buenos días
+    at(8, 0, 'MI SISTEMA', `Buenos días${nombre}. Arranca con tus hábitos tiny.`, 'buenos-dias');
+
+    // 💊 Vitaminas — después del desayuno
+    at(9, 0, 'Vitaminas', '¿Ya las tomaste después del desayuno?', 'vitaminas');
+
+    // 💧 Agua — 8 vasos distribuidos cada ~2h (9:30 a 21:30)
+    const aguaHoras = [9,30, 11,30, 13,30, 15,30, 17,0, 18,30, 20,0, 21,30];
+    for (let i = 0; i < aguaHoras.length; i += 2) {
+      const vaso = i / 2 + 1;
+      at(aguaHoras[i], aguaHoras[i+1], '💧 Agua', `Vaso ${vaso} de 8. Registralo en la app.`, `agua-${vaso}`);
+    }
+
+    // 😴 Dormir — 22:00 si no completaste todos los hábitos
+    {
+      const t = new Date(); t.setHours(22, 0, 0, 0);
+      const ms = t.getTime() - Date.now();
+      if (ms > 0) setTimeout(() => {
+        const allDone = State.get().habits.every(h => h.completions.includes(today()));
+        if (!allDone) {
+          try { new Notification('😴 Hora de dormir', { body: 'Las 22:00. Cierra el día y ve a la cama.', icon:'./icon-192.png', tag:'bedtime' }); } catch(e) {}
+        }
       }, Math.min(ms, 2147483647));
     }
 
-    // Comeback
-    const anoche = s.habits.some(h => { const d = new Date(); d.setDate(d.getDate()-1); return !h.completions.includes(dateStr(d)); });
-    if (anoche && tomorrow8 > now) {
-      const ms = tomorrow8.getTime() - now.getTime();
-      setTimeout(() => send('MI SISTEMA', 'Ayer se pasó. Hoy está aquí. Versión mínima cuenta.', { tag:'comeback' }), Math.min(ms, 2147483647));
+    // 🔄 Comeback — mañana 8am si fallaste hoy
+    {
+      const t = new Date(); t.setDate(t.getDate()+1); t.setHours(8, 0, 0, 0);
+      const ms = t.getTime() - Date.now();
+      const fallaste = s.habits.some(h => { const d = new Date(); d.setDate(d.getDate()-1); return !h.completions.includes(dateStr(d)); });
+      if (fallaste && ms > 0) setTimeout(() => {
+        try { new Notification('MI SISTEMA', { body: 'Ayer se pasó. Hoy está aquí. Versión mínima cuenta.', icon:'./icon-192.png', tag:'comeback' }); } catch(e) {}
+      }, Math.min(ms, 2147483647));
     }
   }
 
