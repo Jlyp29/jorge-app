@@ -2975,7 +2975,7 @@ window.addHabitoModal = () => {
 function renderSinergy() {
   const s = State.get();
   const mes = monthStr();
-  const mesOutputs = s.sinergy.outputs_log.filter(o => o.fecha.startsWith(mes));
+  const mesOutputs = s.sinergy.outputs_log.filter(o => o.fecha?.startsWith(mes));
   const crmLlamadas = mesOutputs.filter(o => ['crm_llamada','llamada'].includes(o.tipo)).length;
   const crmClientes = mesOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
   const crmFeatures = mesOutputs.filter(o => ['crm_feature','feature'].includes(o.tipo)).length;
@@ -5286,7 +5286,7 @@ function _renderResultadosResumen(body) {
 function _renderResultadosSinergy(body) {
   const s = State.get();
   const mes = monthStr();
-  const mesOutputs = s.sinergy.outputs_log.filter(o => o.fecha.startsWith(mes));
+  const mesOutputs = s.sinergy.outputs_log.filter(o => o.fecha?.startsWith(mes));
   const crmLlamadas = mesOutputs.filter(o => ['crm_llamada','llamada'].includes(o.tipo)).length;
   const crmClientes = mesOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
   const crmFeatures = mesOutputs.filter(o => ['crm_feature','feature'].includes(o.tipo)).length;
