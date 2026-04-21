@@ -3267,23 +3267,15 @@ function renderSinergy() {
    VISTA: DIARIO
 ═══════════════════════════════════════════════════════════ */
 function renderDiario(sub = 'daily') {
-  const SECONDARY = ['emocional','pennebaker','bps','valores','gratitud'];
-  const isSecondary = SECONDARY.includes(sub);
+  const TABS = [['daily','Diario'],['emocional','Emocional'],['pennebaker','Escritura libre'],['bps','Mi mejor yo'],['valores','Valores']];
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="page-full">
       <div class="page-header">
         <h2 class="flex-1">Diario</h2>
       </div>
-      <div class="journal-tabs">
-        <button class="journal-tab ${sub==='daily'?'active':''}" onclick="renderDiario('daily')">Diario</button>
-        <button class="journal-tab ${isSecondary?'active':''}" onclick="toggleDiarioExtra()" id="diario-mas-btn">
-          ${isSecondary ? ['emocional','Emocional','pennebaker','Escritura libre','bps','Mi mejor yo','valores','Valores','gratitud','Gratitud'].reduce((a,v,i,arr)=>i%2===0&&arr[i]===sub?arr[i+1]:a,'Más') : 'Más ＋'}
-        </button>
-      </div>
-      <div id="diario-extra-tabs" style="display:${isSecondary?'flex':'none'};padding:0 16px 8px;gap:8px;overflow-x:auto;border-bottom:1px solid var(--border)">
-        ${[['emocional','Emocional'],['pennebaker','Escritura libre'],['bps','Mi mejor yo'],['valores','Valores'],['gratitud','Gratitud']]
-          .map(([key,label]) => `<button class="journal-tab ${sub===key?'active':''}" onclick="renderDiario('${key}')" style="white-space:nowrap;flex-shrink:0">${label}</button>`).join('')}
+      <div style="overflow-x:auto;white-space:nowrap;padding:0 16px 8px;border-bottom:1px solid var(--border);display:flex;gap:8px">
+        ${TABS.map(([key,label])=>`<button class="journal-tab ${sub===key?'active':''}" onclick="renderDiario('${key}')" style="flex-shrink:0">${label}</button>`).join('')}
       </div>
       <div class="page" style="padding-top:0" id="journal-body"></div>
     </div>`;
@@ -3309,38 +3301,102 @@ function renderDiario(sub = 'daily') {
 }
 
 function renderJournalDaily(body, s) {
+  const hora = new Date().getHours();
+  const esMañana = hora < 13;
   const yesterday = (() => { const d = new Date(); d.setDate(d.getDate()-1); return dateStr(d); })();
   const yFailed = s.habits.some(h => !h.completions.includes(yesterday));
-  const streak30 = Math.max(...s.habits.map(h => h.currentStreak), 0);
-  const prompt = yFailed
-    ? '¿Qué pasó realmente ayer? No el juicio, los hechos.'
-    : streak30 > 14
-    ? '¿Qué ritual está funcionando mejor esta semana?'
-    : '¿Qué fue diferente hoy vs hace un mes?';
+  const bestStreak = Math.max(...s.habits.map(h => calcLiveStreak(h.completions||[], h.freeze_completions||[])), 0);
+  const adh7 = (() => {
+    const dias = Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return dateStr(d);});
+    const done = s.habits.reduce((acc,h)=>acc+dias.filter(d=>h.completions.includes(d)).length,0);
+    return s.habits.length > 0 ? Math.round(done/(7*s.habits.length)*100) : 0;
+  })();
+
+  // Pool de prompts contextuales — rotan por día de la semana + datos
+  const PROMPTS_MAÑANA = [
+    '¿Qué tiene que pasar hoy para que sea un buen día?',
+    '¿Qué es lo más importante que no puedes dejar sin hacer hoy?',
+    '¿Cuál es el primer paso real hacia tu meta de esta semana?',
+    '¿Qué hábito de hoy va a mover la aguja más?',
+    '¿Hay algo que postergaste ayer que hoy sí vas a hacer?',
+    '¿Cómo quieres sentirte esta noche al cerrar el día?',
+    '¿Qué cosa concreta de Sinergy puedes avanzar en las próximas 2 horas?',
+  ];
+  const PROMPTS_NOCHE = [
+    '¿Qué fue lo mejor que pasó hoy? ¿Y qué lo hizo posible?',
+    '¿Qué harías diferente si pudieras repetir el día?',
+    '¿Cumpliste lo que te propusiste esta mañana?',
+    '¿Qué aprendiste hoy, aunque sea algo pequeño?',
+    '¿Hubo un momento en que actuaste desde el miedo o desde la claridad?',
+    '¿Qué te acerca a tu mejor versión y qué te alejó hoy?',
+    yFailed ? '¿Qué pasó realmente ayer? No el juicio, los hechos.' : '¿Avanzaste o evitaste algo importante hoy?',
+    bestStreak > 14 ? `${bestStreak} días seguidos. ¿Qué cambió en vos desde que empezaste?` : '¿Qué te está frenando de ser más consistente?',
+    adh7 < 50 ? '¿Qué está pasando que no podes sostener los hábitos esta semana?' : '¿Qué está funcionando esta semana que vale la pena repetir?',
+  ];
+  const pool = esMañana ? PROMPTS_MAÑANA : PROMPTS_NOCHE;
+  const prompt = pool[new Date().getDay() % pool.length];
 
   const todayEntry = s.journal.find(j => j.fecha === today() && j.tipo === 'daily');
 
+  // Trend emocional últimos 14 días
+  const trend14 = Array.from({length:14},(_,i)=>{
+    const d=new Date(); d.setDate(d.getDate()-13+i);
+    const ds=dateStr(d);
+    const e=s.journal.find(j=>j.fecha===ds&&j.tipo==='daily');
+    return {ds, v:e?.payload?.estado ? parseInt(e.payload.estado) : null};
+  });
+  const trendHTML = trend14.some(x=>x.v!==null) ? `
+    <div class="section mt-lg">
+      <div class="section-title">Estado emocional · 14 días</div>
+      <div class="card" style="padding:12px 16px">
+        <div style="display:flex;align-items:flex-end;gap:3px;height:48px">
+          ${trend14.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+            <div style="width:100%;border-radius:3px 3px 0 0;background:${x.v===null?'var(--bg-3)':x.v>=7?'var(--success)':x.v>=4?'var(--primary)':'var(--danger)'};height:${x.v!==null?Math.round(x.v/10*44):4}px" title="${x.v||'?'}"></div>
+          </div>`).join('')}
+        </div>
+        <div class="row-between mt-sm">
+          <span class="text-xs text-lo">${trend14[0].ds.slice(5)}</span>
+          <span class="text-xs text-lo">${trend14[13].ds.slice(5)}</span>
+        </div>
+        <div class="text-xs text-lo mt-sm" style="text-align:center">Promedio: ${(trend14.filter(x=>x.v!==null).reduce((a,x)=>a+x.v,0)/Math.max(1,trend14.filter(x=>x.v!==null).length)).toFixed(1)}/10</div>
+      </div>
+    </div>` : '';
+
   body.innerHTML = `
-    <div class="card mb-md card-primary">
-      <p class="text-xs text-lo font-semibold uppercase mb-sm">Prompt de hoy</p>
+    <div class="card mb-md card-primary" style="margin-top:12px">
+      <p class="text-xs text-lo font-semibold uppercase mb-sm">${esMañana ? '☀️ Check-in de mañana' : '🌙 Reflexión de noche'}</p>
       <p class="text-sm" style="line-height:var(--lh-relaxed);font-style:italic">"${esc(prompt)}"</p>
     </div>
     <form id="daily-form" onsubmit="saveDailyJournal(event)">
       <div class="field mb-md">
-        <label>Tu respuesta</label>
         <textarea class="input" name="respuesta" rows="5" placeholder="Escribe aquí...">${esc(todayEntry?.payload?.respuesta||'')}</textarea>
       </div>
+      ${esMañana ? `
       <div class="field mb-md">
-        <label>Estado emocional hoy (1-10)</label>
-        <input class="input" name="estado" type="number" min="1" max="10" placeholder="7" value="${todayEntry?.payload?.estado||''}">
+        <label>¿A qué hábito te comprometés hoy? (opcional)</label>
+        <input class="input" name="compromiso" placeholder="Hoy sí hago..." value="${esc(todayEntry?.payload?.compromiso||'')}">
+      </div>` : `
+      <div class="field mb-md">
+        <label>¿Cómo estuvo el día? (1–10)</label>
+        <input class="input num" name="estado" type="number" min="1" max="10" placeholder="7" value="${todayEntry?.payload?.estado||''}">
       </div>
-      <button type="submit" class="btn btn-primary btn-block">Guardar entrada</button>
+      <div class="field mb-md">
+        <label>3 cosas buenas de hoy (separadas por coma)</label>
+        <input class="input" name="gratitud" placeholder="Ej: entrené, avancé en Sinergy, dormí bien" value="${esc(todayEntry?.payload?.gratitud||'')}">
+      </div>`}
+      <button type="submit" class="btn btn-primary btn-block">Guardar ${esMañana?'intención':'reflexión'}</button>
     </form>
-    ${s.journal.filter(j=>j.tipo==='daily').slice(0,5).length
+
+    ${trendHTML}
+
+    ${s.journal.filter(j=>j.tipo==='daily').slice(0,4).length
       ? `<div class="section mt-lg"><div class="section-title">Entradas recientes</div>
-          ${s.journal.filter(j=>j.tipo==='daily').slice(0,5).map(j =>
+          ${s.journal.filter(j=>j.tipo==='daily').slice(0,4).map(j =>
             `<div class="card mb-sm">
-              <div class="text-xs text-lo mb-sm">${formatDate(j.fecha)}</div>
+              <div class="row-between mb-sm">
+                <span class="text-xs text-lo">${formatDate(j.fecha)}</span>
+                ${j.payload?.estado ? `<span class="chip chip-primary" style="font-size:10px">${j.payload.estado}/10</span>` : ''}
+              </div>
               <p class="text-sm" style="line-height:var(--lh-relaxed)">${esc((j.payload?.respuesta||'').slice(0,120))}${(j.payload?.respuesta||'').length>120?'...':''}</p>
             </div>`).join('')}
         </div>` : ''}`;
@@ -3349,13 +3405,14 @@ function renderJournalDaily(body, s) {
     e.preventDefault();
     const d = new FormData(e.target);
     const isNew = !s.journal.find(j => j.fecha===todayISO() && j.tipo==='daily');
-    State.update(s => {
-      const idx = s.journal.findIndex(j => j.fecha===todayISO() && j.tipo==='daily');
-      const entry = { id: idx>=0 ? s.journal[idx].id : Date.now().toString(), fecha:todayISO(), tipo:'daily', payload:{ respuesta:d.get('respuesta'), estado:d.get('estado') }, tags:[] };
-      if (idx>=0) s.journal[idx] = entry; else s.journal.unshift(entry);
+    State.update(st => {
+      const idx = st.journal.findIndex(j => j.fecha===todayISO() && j.tipo==='daily');
+      const entry = { id: idx>=0 ? st.journal[idx].id : Date.now().toString(), fecha:todayISO(), tipo:'daily',
+        payload:{ respuesta:d.get('respuesta'), estado:d.get('estado')||null, compromiso:d.get('compromiso')||null, gratitud:d.get('gratitud')||null }, tags:[] };
+      if (idx>=0) st.journal[idx] = entry; else st.journal.unshift(entry);
     });
     if (isNew) XP.add(10,'Diario daily');
-    UI.toast(isNew ? 'Entrada guardada. +10 XP' : 'Entrada actualizada.','success');
+    UI.toast(isNew ? 'Guardado. +10 XP' : 'Actualizado.','success');
     renderDiario('daily');
   };
 }
@@ -5067,7 +5124,7 @@ function renderFinanzas() {
 /* ═══════════════════════════════════════════════════════════
    VISTA: RESULTADOS (Sinergy + Finanzas combinados)
 ═══════════════════════════════════════════════════════════ */
-function renderResultados(tab = 'sinergy') {
+function renderResultados(tab = 'resumen') {
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="page-full">
@@ -5075,14 +5132,155 @@ function renderResultados(tab = 'sinergy') {
         <h2 class="flex-1">Resultados</h2>
       </div>
       <div class="journal-tabs">
+        <button class="journal-tab ${tab==='resumen'?'active':''}" onclick="renderResultados('resumen')">Resumen</button>
         <button class="journal-tab ${tab==='sinergy'?'active':''}" onclick="renderResultados('sinergy')">Sinergy</button>
         <button class="journal-tab ${tab==='finanzas'?'active':''}" onclick="renderResultados('finanzas')">Finanzas</button>
       </div>
       <div class="page" style="padding-top:8px" id="resultados-body"></div>
     </div>`;
   const body = document.getElementById('resultados-body');
-  if (tab === 'sinergy') _renderResultadosSinergy(body);
+  if (tab === 'resumen') _renderResultadosResumen(body);
+  else if (tab === 'sinergy') _renderResultadosSinergy(body);
   else _renderResultadosFinanzas(body);
+}
+
+function _renderResultadosResumen(body) {
+  const s = State.get();
+  const mes = monthStr();
+  const mesNombre = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
+  const fmt = n => `$${Math.abs(Math.round(n)).toLocaleString('es-CL')}`;
+  const mesPrev = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return monthStr(d); })();
+
+  // — Sinergy —
+  const mesOutputs = (s.sinergy.outputs_log || []).filter(o => o.fecha?.startsWith(mes));
+  const prevOutputs = (s.sinergy.outputs_log || []).filter(o => o.fecha?.startsWith(mesPrev));
+  const mesData = s.sinergy.mensual.find(m => m.mes === mes) || {};
+  const prevData = s.sinergy.mensual.find(m => m.mes === mesPrev) || {};
+  const crmClientes = mesOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
+  const prevClientes = prevOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
+  const mrrActual = mesData.ingresos_empresa_clp || 0;
+  const mrrPrev = prevData.ingresos_empresa_clp || 0;
+  const mrrDelta = mrrActual - mrrPrev;
+  const outputDelta = mesOutputs.length - prevOutputs.length;
+  const dia = new Date().getDate(); const diasMes = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate();
+  const ritmo = dia > 0 ? Math.round(mesOutputs.length / dia * diasMes) : 0;
+
+  // — Hábitos —
+  const adh7 = (() => {
+    const dias = Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return dateStr(d);});
+    const done = s.habits.reduce((acc,h)=>acc+dias.filter(d=>h.completions.includes(d)).length,0);
+    return s.habits.length > 0 ? Math.round(done/(7*s.habits.length)*100) : 0;
+  })();
+  const mejorRacha = s.habits.reduce((b,h)=>{const ls=calcLiveStreak(h.completions||[],h.freeze_completions||[]);return ls>b.n?{n:ls,nombre:h.nombre}:b;},{n:0,nombre:''});
+  const habitosMasFlojo = s.habits.reduce((b,h)=>{const ls=calcLiveStreak(h.completions||[],h.freeze_completions||[]);return ls<b.n?{n:ls,nombre:h.nombre}:b;},{n:999,nombre:''});
+
+  // — Físico —
+  const medicion = (s.fisico?.mediciones||[]).slice(-1)[0];
+  const aguaHoy = (s.fisico?.agua||{})[today()] || 0;
+  const adh30 = (() => {
+    const total=s.habits.length*30; if(!total) return null;
+    const done=s.habits.reduce((acc,h)=>{for(let i=0;i<30;i++){const d=new Date();d.setDate(d.getDate()-i);if(h.completions.includes(dateStr(d)))acc++;}return acc;},0);
+    return Math.round(done/total*100);
+  })();
+
+  // — Finanzas —
+  const finMes = s.finanzas.mensual.find(m=>m.mes===mes)||{};
+  const finPrev = s.finanzas.mensual.find(m=>m.mes===mesPrev)||{};
+  const totalFijos = (s.finanzas.gastos_fijos||[]).reduce((sum,g)=>sum+(g.monto_clp||0),0);
+  const ahorro = (finMes.ingreso_clp||0) - totalFijos - (finMes.gastos_variables_clp||0);
+  const ahorroP = (finPrev.ingreso_clp||0) - totalFijos - (finPrev.gastos_variables_clp||0);
+  const ahorroMeta = s.finanzas.meta_ahorro_pct || 20;
+  const tasaAhorro = finMes.ingreso_clp > 0 ? Math.round(ahorro/finMes.ingreso_clp*100) : null;
+
+  function deltaChip(val, prev, fmt2 = v => v, invertir = false) {
+    if (!prev && prev !== 0) return '';
+    const diff = val - prev;
+    if (diff === 0) return `<span class="chip" style="font-size:10px">= igual</span>`;
+    const positivo = invertir ? diff < 0 : diff > 0;
+    return `<span class="chip ${positivo?'chip-identity':'chip-warn'}" style="font-size:10px">${diff>0?'↑':'↓'} ${fmt2(Math.abs(diff))}</span>`;
+  }
+
+  body.innerHTML = `
+    <div class="section">
+      <div class="section-title row-between"><span>${mesNombre}</span><span class="text-xs text-lo">Día ${dia}/${diasMes}</span></div>
+
+      <!-- SINERGY -->
+      <div class="card mb-sm" style="padding:14px 16px">
+        <div class="row-between mb-sm">
+          <span class="font-semibold text-sm">Sinergy</span>
+          <button class="btn btn-ghost btn-sm" onclick="renderResultados('sinergy')">Ver detalle →</button>
+        </div>
+        <div class="grid-2" style="gap:8px;margin-bottom:8px">
+          <div style="background:var(--bg-2);border-radius:var(--r-md);padding:10px">
+            <div class="num" style="font-size:20px;font-weight:800;color:${mrrActual>0?'var(--success)':'var(--text-lo)'}">${mrrActual>0?fmt(mrrActual):'—'}</div>
+            <div class="text-xs text-lo">MRR empresa ${deltaChip(mrrActual,mrrPrev,v=>'$'+(v/1000).toFixed(0)+'k')}</div>
+          </div>
+          <div style="background:var(--bg-2);border-radius:var(--r-md);padding:10px">
+            <div class="num" style="font-size:20px;font-weight:800">${mesOutputs.length}</div>
+            <div class="text-xs text-lo">Outputs ${deltaChip(mesOutputs.length,prevOutputs.length,v=>v+' más')}</div>
+          </div>
+        </div>
+        ${mrrActual===0 ? `<div class="text-xs text-lo">Sin MRR registrado · <button class="btn btn-ghost btn-sm" onclick="renderResultados('sinergy')" style="font-size:11px;padding:2px 6px">Registrar →</button></div>`
+          : `<div class="text-xs text-lo">Ritmo: ~${ritmo} outputs/mes · ${crmClientes} cliente${crmClientes!==1?'s':''} cerrado${crmClientes!==1?'s':''} este mes</div>`}
+      </div>
+
+      <!-- HÁBITOS -->
+      <div class="card mb-sm" style="padding:14px 16px">
+        <div class="row-between mb-sm">
+          <span class="font-semibold text-sm">Hábitos</span>
+          <button class="btn btn-ghost btn-sm" onclick="Router.navigate('habitos')">Ver detalle →</button>
+        </div>
+        <div class="grid-2" style="gap:8px;margin-bottom:8px">
+          <div style="background:var(--bg-2);border-radius:var(--r-md);padding:10px">
+            <div class="num" style="font-size:20px;font-weight:800;color:${adh7>=70?'var(--success)':adh7>=40?'var(--warn)':'var(--danger)'}">${adh7}%</div>
+            <div class="text-xs text-lo">Adherencia 7 días</div>
+          </div>
+          <div style="background:var(--bg-2);border-radius:var(--r-md);padding:10px">
+            <div class="num" style="font-size:20px;font-weight:800;color:var(--primary)">${mejorRacha.n}</div>
+            <div class="text-xs text-lo">Racha ${esc(mejorRacha.nombre)}</div>
+          </div>
+        </div>
+        ${adh7 < 70 && habitosMasFlojo.nombre ? `<div class="text-xs" style="color:var(--warn)">Punto débil: ${esc(habitosMasFlojo.nombre)} (${habitosMasFlojo.n} días seguidos)</div>` : `<div class="text-xs text-lo">Adherencia 30d: ${adh30 !== null ? adh30+'%' : '—'}</div>`}
+      </div>
+
+      <!-- FÍSICO -->
+      <div class="card mb-sm" style="padding:14px 16px">
+        <div class="row-between mb-sm">
+          <span class="font-semibold text-sm">Físico</span>
+          <button class="btn btn-ghost btn-sm" onclick="Router.navigate('cuerpo')">Ver detalle →</button>
+        </div>
+        <div class="grid-2" style="gap:8px;margin-bottom:8px">
+          <div style="background:var(--bg-2);border-radius:var(--r-md);padding:10px">
+            <div class="num" style="font-size:20px;font-weight:800;color:var(--success)">${medicion ? medicion.grasa_pct+'%' : '—'}</div>
+            <div class="text-xs text-lo">% Grasa${medicion?` · ${medicion.fecha}`:' · sin datos'}</div>
+          </div>
+          <div style="background:var(--bg-2);border-radius:var(--r-md);padding:10px">
+            <div class="num" style="font-size:20px;font-weight:800;color:${aguaHoy>=8?'var(--success)':aguaHoy>=4?'var(--primary)':'var(--text-lo)'}">${aguaHoy}/8</div>
+            <div class="text-xs text-lo">Vasos de agua hoy</div>
+          </div>
+        </div>
+        ${!medicion ? `<div class="text-xs text-lo">Registra una medición en la revisión mensual para ver tu progreso.</div>` : ''}
+      </div>
+
+      <!-- FINANZAS -->
+      <div class="card mb-sm" style="padding:14px 16px">
+        <div class="row-between mb-sm">
+          <span class="font-semibold text-sm">Finanzas personales</span>
+          <button class="btn btn-ghost btn-sm" onclick="renderResultados('finanzas')">Ver detalle →</button>
+        </div>
+        <div class="grid-2" style="gap:8px;margin-bottom:8px">
+          <div style="background:var(--bg-2);border-radius:var(--r-md);padding:10px">
+            <div class="num" style="font-size:20px;font-weight:800;color:${ahorro>=0?'var(--success)':'var(--danger)'}">${finMes.ingreso_clp>0?fmt(ahorro):'—'}</div>
+            <div class="text-xs text-lo">Ahorro ${finMes.ingreso_clp>0?deltaChip(ahorro,ahorroP,v=>fmt(v)):''}</div>
+          </div>
+          <div style="background:var(--bg-2);border-radius:var(--r-md);padding:10px">
+            <div class="num" style="font-size:20px;font-weight:800;color:${tasaAhorro!==null&&tasaAhorro>=ahorroMeta?'var(--success)':'var(--warn)'}">${tasaAhorro!==null?tasaAhorro+'%':'—'}</div>
+            <div class="text-xs text-lo">Tasa ahorro · meta ${ahorroMeta}%</div>
+          </div>
+        </div>
+        ${!finMes.ingreso_clp ? `<div class="text-xs text-lo">Ingresa tus datos del mes en la pestaña Finanzas.</div>` : ''}
+      </div>
+    </div>`;
 }
 
 function _renderResultadosSinergy(body) {
@@ -5105,30 +5303,63 @@ function _renderResultadosSinergy(body) {
   };
   const fmt = n => `$${Math.abs(Math.round(n)).toLocaleString('es-CL')}`;
 
+  // MRR últimos 6 meses para trend
+  const ultimos6 = Array.from({length:6},(_,i)=>{const d=new Date();d.setMonth(d.getMonth()-i);return monthStr(d);}).reverse();
+  const mrrTrend = ultimos6.map(m=>({m,v:(s.sinergy.mensual.find(x=>x.mes===m)||{}).ingresos_empresa_clp||0}));
+  const mrrMax = Math.max(...mrrTrend.map(x=>x.v),1);
+  const dia = new Date().getDate(); const diasMes = new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
+  const ritmo = dia > 0 ? Math.round(mesOutputs.length/dia*diasMes) : 0;
+  const mesPrev = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return monthStr(d); })();
+  const prevOutputs = (s.sinergy.outputs_log||[]).filter(o=>o.fecha?.startsWith(mesPrev));
+  const outDelta = mesOutputs.length - prevOutputs.length;
+  const prevData = s.sinergy.mensual.find(m=>m.mes===mesPrev)||{};
+  const mrrDelta = (mesData.ingresos_empresa_clp||0) - (prevData.ingresos_empresa_clp||0);
+
   body.innerHTML = `
     <div class="section">
-      <div class="section-title">${mesNombre}</div>
-      <div class="grid-2 mb-md">
-        <div class="stat-card"><div class="stat-val num">${crmLlamadas}</div><div class="stat-label">📞 Llamadas</div></div>
-        <div class="stat-card"><div class="stat-val num">${crmClientes}</div><div class="stat-label">🎉 Clientes</div></div>
-        <div class="stat-card"><div class="stat-val num">${crmFeatures + mlListings}</div><div class="stat-label">🚀 Features/Listings</div></div>
-        <div class="stat-card"><div class="stat-val num">${mesOutputs.length}</div><div class="stat-label">⚡ Total outputs</div></div>
-      </div>
+      <div class="section-title row-between"><span>${mesNombre}</span><span class="text-xs text-lo">Día ${dia}/${diasMes}</span></div>
+
+      <!-- MRR card -->
       <div class="card mb-md" style="padding:16px">
-        <div class="row-between mb-md">
-          <span class="text-sm font-semibold">Dinero del mes</span>
-          <button class="btn btn-sm btn-ghost" onclick="openGananciaModal()">Editar</button>
-        </div>
         <div class="row-between mb-sm">
-          <span class="text-sm text-lo">Ingresos empresa (Sinergy)</span>
-          <span class="text-sm font-semibold" style="color:${mesData.ingresos_empresa_clp>0?'var(--success)':'var(--text-lo)'}">${mesData.ingresos_empresa_clp>0?fmt(mesData.ingresos_empresa_clp):'—'}</span>
+          <div>
+            <div class="text-xs text-lo font-semibold uppercase mb-sm">Ingresos empresa (MRR)</div>
+            <div class="num" style="font-size:var(--fs-2xl);font-weight:800;color:${mesData.ingresos_empresa_clp>0?'var(--success)':'var(--text-lo)'}">${mesData.ingresos_empresa_clp>0?fmt(mesData.ingresos_empresa_clp):'Sin datos'}</div>
+          </div>
+          <div class="text-right">
+            ${mesData.ingresos_empresa_clp>0&&prevData.ingresos_empresa_clp>0 ? `<div style="font-size:20px;font-weight:800;color:${mrrDelta>=0?'var(--success)':'var(--danger)'}">${mrrDelta>=0?'↑':'↓'} ${fmt(Math.abs(mrrDelta))}</div><div class="text-xs text-lo">vs mes anterior</div>` : ''}
+          </div>
         </div>
-        <div class="row-between">
-          <span class="text-sm text-lo">Tu retiro personal</span>
-          <span class="text-sm font-semibold" style="color:${mesData.retiro_clp>0?'var(--primary)':'var(--text-lo)'}">${mesData.retiro_clp>0?fmt(mesData.retiro_clp):'—'}</span>
-        </div>
-        ${mesData.notas ? `<div class="text-xs text-lo mt-sm">${esc(mesData.notas)}</div>` : ''}
+        <!-- Mini bar chart MRR -->
+        ${mrrTrend.some(x=>x.v>0) ? `<div style="display:flex;align-items:flex-end;gap:4px;height:40px;margin-top:8px">
+          ${mrrTrend.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+            <div style="width:100%;border-radius:3px 3px 0 0;background:${x.m===mes?'var(--success)':'var(--bg-3)'};height:${Math.max(4,Math.round(x.v/mrrMax*36))}px" title="${fmt(x.v)}"></div>
+            <div class="text-xs text-lo" style="font-size:9px">${x.m.slice(5)}</div>
+          </div>`).join('')}
+        </div>` : `<div class="text-xs text-lo mt-sm">Registra el MRR mensual para ver la curva de crecimiento.</div>`}
+        <button class="btn btn-ghost btn-sm mt-md" onclick="openGananciaModal()" style="width:100%">Actualizar MRR →</button>
       </div>
+
+      <!-- Stats outputs -->
+      <div class="grid-2 mb-md" style="gap:8px">
+        <div class="stat-card">
+          <div class="stat-val num">${crmLlamadas}</div>
+          <div class="stat-label">📞 Llamadas</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val num">${crmClientes}</div>
+          <div class="stat-label">🎉 Clientes</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val num">${crmFeatures + mlListings}</div>
+          <div class="stat-label">🚀 Features/Listings</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val num" style="color:${outDelta>=0?'var(--success)':'var(--warn)'}">${mesOutputs.length}</div>
+          <div class="stat-label">⚡ Outputs ${outDelta!==0?`(${outDelta>=0?'+':''}${outDelta} vs ant.)`:''}</div>
+        </div>
+      </div>
+      <div class="text-xs text-lo mb-md" style="text-align:center">Ritmo actual: ~${ritmo} outputs este mes</div>
       <button class="btn btn-primary btn-block" onclick="openOutputModal()">+ Registrar output de hoy</button>
     </div>
 
@@ -5149,12 +5380,19 @@ function _renderResultadosSinergy(body) {
     <div class="section">
       <div class="section-title">Metas del trimestre</div>
       <div class="card" style="padding:0">
-        ${(s.sinergy.metas_trimestre.performance_goals||[]).concat(metas).map(g => `
+        ${(s.sinergy.metas_trimestre.performance_goals||[]).concat(metas).map((g,i) => `
           <div class="row-between" style="padding:10px 14px;border-bottom:1px solid var(--border)">
             <span class="text-sm">${esc(g)}</span>
-          </div>`).join('') || `<div style="padding:12px 14px"><span class="text-sm text-lo">Sin metas configuradas.</span></div>`}
+            <button class="btn btn-ghost btn-sm" onclick="toggleMetaTrimestre(${i})" style="color:var(--success);font-size:18px">○</button>
+          </div>`).join('') || `<div style="padding:12px 14px"><span class="text-sm text-lo">Sin metas configuradas aún.</span></div>`}
       </div>
     </div>`;
+
+  window.toggleMetaTrimestre = (i) => {
+    UI.toast('Meta marcada ✓','success');
+    const btn = document.querySelectorAll('[onclick^="toggleMetaTrimestre"]')[i];
+    if (btn) { btn.textContent = '✓'; btn.style.color = 'var(--text-lo)'; btn.disabled = true; }
+  };
 
   window.openGananciaModal = () => {
     const s2 = State.get();
