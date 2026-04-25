@@ -6164,17 +6164,20 @@ const Notifs = (() => {
       }, Math.min(ms, 2147483647));
     }
 
-    // 🏋️ Anti-bajón 19:00 — si no entrenaste, recordatorio de tiny
+    // 🏋️ Entrenamiento mañana L/M/X — 5:45 despertador + check 8:30 si no lo registraste
     {
-      const t = new Date(); t.setHours(19, 0, 0, 0);
-      const ms = t.getTime() - Date.now();
-      if (ms > 0) setTimeout(() => {
-        const hEntrenamiento = State.get().habits.find(h => h.id === 'h3');
-        const entrenado = hEntrenamiento && hEntrenamiento.completions.includes(today());
-        if (!entrenado) {
-          try { new Notification('🏋️ ¿Entrenaste hoy?', { body: 'Son las 19:00. Tiny obligatorio: 2 min ahora. 10 flexiones o sentadillas.', icon:'./icon-192.png', tag:'entrenamiento-19' }); } catch(e) {}
-        }
-      }, Math.min(ms, 2147483647));
+      const dia = new Date().getDay(); // 0=dom, 1=lun, 2=mar, 3=mie
+      if ([1, 2, 3].includes(dia)) {
+        at(5, 45, '🏋️ Hora de entrenar', 'Son las 5:45. Levántate. Entreno 6:00–7:00.', 'entreno-545');
+        const tCheck = new Date(); tCheck.setHours(8, 30, 0, 0);
+        const msCheck = tCheck.getTime() - Date.now();
+        if (msCheck > 0) setTimeout(() => {
+          const h3 = State.get().habits.find(h => h.id === 'h3');
+          if (h3 && !h3.completions.includes(today())) {
+            try { new Notification('🏋️ ¿Ya entrenaste?', { body: 'No hay registro. Si fue tiny, cuenta igual — márcalo.', icon:'./icon-192.png', tag:'entreno-check' }); } catch(e) {}
+          }
+        }, Math.min(msCheck, 2147483647));
+      }
     }
 
     // 🔄 Comeback — mañana 8am si fallaste hoy
