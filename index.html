@@ -1295,6 +1295,39 @@ const State = (() => {
       currentStreak:0, longestStreak:0, scale_history:[],
       createdAt: Date.now(), updatedAt: Date.now(),
     },
+    {
+      id:'h7', nombre:'Suplementos mañana', tipo:'salud',
+      anchor:'Después del primer sorbo de café', escala_actual:'tiny',
+      version_tiny:'Preparar Whey + Creatina junto al café',
+      version_target:'Whey 30g + Creatina 5g antes de entrenar',
+      identity_tag:'Soy alguien que optimiza su cuerpo',
+      xp_por_check:10, cue_ubicacion:'cocina',
+      completions:[], tiny_completions:[], freeze_completions:[],
+      currentStreak:0, longestStreak:0, scale_history:[],
+      createdAt: Date.now(), updatedAt: Date.now(),
+    },
+    {
+      id:'h8', nombre:'Omega-3 + D3', tipo:'salud',
+      anchor:'Al momento del almuerzo', escala_actual:'tiny',
+      version_tiny:'Dejar Omega-3 y D3 visibles en la mesa del almuerzo',
+      version_target:'Tomar Omega-3 (2g) + D3 (2000UI) con el almuerzo',
+      identity_tag:'Soy alguien que se cuida por dentro',
+      xp_por_check:10, cue_ubicacion:'comedor',
+      completions:[], tiny_completions:[], freeze_completions:[],
+      currentStreak:0, longestStreak:0, scale_history:[],
+      createdAt: Date.now(), updatedAt: Date.now(),
+    },
+    {
+      id:'h9', nombre:'Magnesio noche', tipo:'salud',
+      anchor:'Después de cenar', escala_actual:'tiny',
+      version_tiny:'Dejar el Magnesio sobre la mesa de noche',
+      version_target:'Tomar Magnesio (300mg) después de cenar',
+      identity_tag:'Soy alguien que cuida su recuperación',
+      xp_por_check:10, cue_ubicacion:'dormitorio',
+      completions:[], tiny_completions:[], freeze_completions:[],
+      currentStreak:0, longestStreak:0, scale_history:[],
+      createdAt: Date.now(), updatedAt: Date.now(),
+    },
   ];
 
   const defaults = () => ({
@@ -2327,6 +2360,16 @@ function renderHoy() {
   const todayCompletions = s.habits.map(h => h.completions.includes(today()));
   const allDoneToday = todayCompletions.every(Boolean);
 
+  // Orden lógico mañana → noche: cama, vitaminas, suplementos mañana, deep work, entreno, omega, lectura, magnesio, sueño
+  const HABIT_PRIORITY = ['h5','h6','h7','h2','h3','h8','h4','h9','h1'];
+  const sortedHabits = [...s.habits].sort((a, b) => {
+    const aDone = a.completions.includes(today());
+    const bDone = b.completions.includes(today());
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    const ai = HABIT_PRIORITY.indexOf(a.id); const bi = HABIT_PRIORITY.indexOf(b.id);
+    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+  });
+
   // Weekly completion rate (last 7 days)
   const weekDays = Array.from({length:7},(_,i) => { const d = new Date(); d.setDate(d.getDate()-i); return dateStr(d); });
   const weekChecks = weekDays.reduce((sum, d) => sum + s.habits.filter(h => h.completions.includes(d)).length, 0);
@@ -2429,7 +2472,7 @@ function renderHoy() {
       <div class="section">
         <div class="section-title">Hábitos núcleo</div>
         <div class="stack stack-md" id="habits-list">
-          ${s.habits.map((h, i) => renderHabitCard(h, todayCompletions[i], i)).join('')}
+          ${sortedHabits.map(h => renderHabitCard(h, h.completions.includes(today()), 0)).join('')}
         </div>
       </div>
 
@@ -5903,12 +5946,20 @@ function renderAjustes() {
             </label>
           </div>
           <div class="settings-row">
-            <div class="settings-row-info"><div class="settings-row-label">Notificaciones</div></div>
+            <div class="settings-row-info"><div class="settings-row-label">Notificaciones</div>
+              <div class="settings-row-sub">Agua, suplementos, sueño, entrenamiento</div>
+            </div>
             <label class="toggle">
               <input type="checkbox" ${s.settings.notificaciones_activas?'checked':''} onchange="toggleNotifs(this.checked)">
               <div class="toggle-track"><div class="toggle-thumb"></div></div>
             </label>
           </div>
+          ${s.settings.notificaciones_activas ? `<div class="settings-row">
+            <div class="settings-row-info"><div class="settings-row-label">Probar notificación</div>
+              <div class="settings-row-sub">Verifica que lleguen correctamente</div>
+            </div>
+            <button class="btn btn-sm btn-ghost" onclick="testNotif()">Probar →</button>
+          </div>` : ''}
           <div class="settings-row">
             <div class="settings-row-info"><div class="settings-row-label">Hora objetivo sueño</div></div>
             <input class="input" type="time" style="width:auto" value="${s.settings.bedtime_target}" onchange="State.set('settings.bedtime_target',this.value)">
@@ -6016,6 +6067,13 @@ function renderAjustes() {
       setTimeout(() => location.reload(), 1500);
     } catch(e) { UI.toast('Error al importar. Verifica el archivo.','warn'); }
   };
+  window.testNotif = () => {
+    if (!('Notification' in window) || Notification.permission !== 'granted') {
+      UI.toast('Primero activa las notificaciones.', 'warn'); return;
+    }
+    Notifs.send('MI SISTEMA', 'Las notificaciones están funcionando. Estás al día.');
+    UI.toast('Notificación enviada', 'success');
+  };
   window.confirmReset = async () => {
     const ok1 = await UI.confirm('¿Quieres pausar 7 días en lugar de borrar? El sistema esperará. Tus datos siguen aquí.', { title:'Antes de borrar', ok:'Pausar 7 días', cancel:'Borrar de todas formas', danger:false });
     if (ok1) { State.set('settings.modo_crisis', true); UI.toast('Modo pausa activado por 7 días.','success'); Router.navigate('hoy'); return; }
@@ -6106,6 +6164,19 @@ const Notifs = (() => {
       }, Math.min(ms, 2147483647));
     }
 
+    // 🏋️ Anti-bajón 19:00 — si no entrenaste, recordatorio de tiny
+    {
+      const t = new Date(); t.setHours(19, 0, 0, 0);
+      const ms = t.getTime() - Date.now();
+      if (ms > 0) setTimeout(() => {
+        const hEntrenamiento = State.get().habits.find(h => h.id === 'h3');
+        const entrenado = hEntrenamiento && hEntrenamiento.completions.includes(today());
+        if (!entrenado) {
+          try { new Notification('🏋️ ¿Entrenaste hoy?', { body: 'Son las 19:00. Tiny obligatorio: 2 min ahora. 10 flexiones o sentadillas.', icon:'./icon-192.png', tag:'entrenamiento-19' }); } catch(e) {}
+        }
+      }, Math.min(ms, 2147483647));
+    }
+
     // 🔄 Comeback — mañana 8am si fallaste hoy
     {
       const t = new Date(); t.setDate(t.getDate()+1); t.setHours(8, 0, 0, 0);
@@ -6180,6 +6251,8 @@ const App = (() => {
     Router.init();
     registerSW();
     Notifs.schedule();
+    // Re-schedule al volver a la app (resuelve que setTimeout muere cuando la app está en background)
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') Notifs.schedule(); });
     // Run insights if enough data
     const diasSistema = State.get('settings.fase_start')
       ? Math.floor((Date.now() - new Date(State.get('settings.fase_start')+'T00:00:00').getTime())/86400000)+1 : 0;
