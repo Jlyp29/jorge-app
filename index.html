@@ -2376,108 +2376,128 @@ function defaultRecetas() {
       costo_total_clp:7150, costo_por_porcion_clp:1430,
       notas:'El jengibre reduce DOMS (dolor post-entreno). Wok a fuego alto = más sabor, menos tiempo.' },
 
-    // ── SHOT MATUTINO ────────────────────────────────────────
-    { id:'sh1', tipo:'shot', nombre:'Shot antiinflamatorio matutino',
-      tiempo_min:2, porciones:1, meal_prep:false,
-      tags:['antiinflamatorio','digestion','testosterona','diario'],
+    // ── SHOTS PRO (evidencia real, absorción correcta) ────────
+    { id:'sh1', tipo:'shot', nombre:'Shot antiinflamatorio REAL',
+      tiempo_min:3, porciones:1, meal_prep:false,
+      tags:['antiinflamatorio','top-tier','testosterona','diario'],
       ingredientes:[
         {item:'Cúrcuma en polvo',cantidad:'1 cdita (3g)',costo_clp:60,cat:'especias'},
-        {item:'Pimienta negra molida',cantidad:'1 pizca pequeña',costo_clp:10,cat:'especias'},
+        {item:'Pimienta negra molida',cantidad:'1 pizca',costo_clp:10,cat:'especias'},
+        {item:'Jengibre fresco',cantidad:'1cm rallado',costo_clp:50,cat:'especias'},
         {item:'Limón fresco',cantidad:'½ unidad',costo_clp:80,cat:'frutas'},
-        {item:'Agua caliente (no hirviendo, ~60-70°C)',cantidad:'200ml',costo_clp:0,cat:'extras'},
+        {item:'Aceite de oliva extra virgen',cantidad:'1 cdita',costo_clp:80,cat:'grasas'},
+        {item:'Agua caliente (~60-70°C)',cantidad:'200ml',costo_clp:0,cat:'extras'},
       ],
       pasos:[
-        'Calentar agua (no hervir — el calor excesivo degrada la curcumina).',
-        'Poner cúrcuma y pimienta negra en taza.',
-        'Exprimir el limón sobre las especias.',
-        'Agregar el agua caliente y mezclar bien.',
-        'Tomar en ayunas, antes del desayuno.',
+        'Calentar agua sin hervir (60-70°C — el hervor degrada curcumina).',
+        'Poner cúrcuma, pimienta negra y jengibre rallado en la taza.',
+        'Exprimir el limón y agregar la cdita de aceite de oliva.',
+        'Verter agua caliente. Mezclar 30 segundos.',
+        'Tomar en ayunas. El aceite es clave: curcumina es liposoluble.',
       ],
-      macros:{proteina_g:0,calorias:12,grasas_g:0,carbos_g:3},
-      costo_total_clp:150,
-      notas:'La piperina de la pimienta negra aumenta absorción de curcumina hasta 20x (evidencia real). La curcumina reduce inflamación sistémica y apoya el hígado. El limón estimula bilis. Lo que NO hace: no "disuelve grasa hepática" ni "purifica la sangre" — ese lenguaje es marketing. Lo que SÍ hace: reduce inflamación y mejora digestión con consistencia diaria.' },
+      macros:{proteina_g:0,calorias:50,grasas_g:4,carbos_g:4},
+      costo_total_clp:280,
+      notas:'El mejor armado. Pimienta ↑ absorción curcumina 20x. Jengibre suma efecto antiinflamatorio. Aceite de oliva activa la absorción porque la curcumina es liposoluble: sin grasa, casi nada se absorbe. La trinidad correcta.' },
 
-    { id:'sh2', tipo:'shot', nombre:'Shot de energía matutina',
+    { id:'sh2', tipo:'shot', nombre:'Shot digestivo y metabólico',
       tiempo_min:2, porciones:1, meal_prep:false,
-      tags:['energia','termogenico','metabolismo','diario'],
+      tags:['digestivo','metabolismo','distension','diario'],
       ingredientes:[
-        {item:'Jengibre fresco',cantidad:'1 trozo (1cm)',costo_clp:50,cat:'especias'},
+        {item:'Jengibre fresco',cantidad:'2cm rallado (dosis doble)',costo_clp:80,cat:'especias'},
         {item:'Limón fresco',cantidad:'½ unidad',costo_clp:80,cat:'frutas'},
-        {item:'Miel',cantidad:'1 cdita',costo_clp:80,cat:'extras'},
-        {item:'Pizca de cayena o ají molido',cantidad:'1 pizca',costo_clp:10,cat:'especias'},
+        {item:'Sal marina',cantidad:'1 pizca pequeña',costo_clp:5,cat:'especias'},
+        {item:'Agua (puede ser fría)',cantidad:'150ml',costo_clp:0,cat:'extras'},
+      ],
+      pasos:[
+        'Rallar bastante jengibre en la taza (el doble que otros shots).',
+        'Exprimir el limón encima.',
+        'Agregar la pizca de sal marina.',
+        'Mezclar con agua fría o tibia. Tomar de golpe.',
+        'Ideal antes de la comida principal o cuando hay distensión.',
+      ],
+      macros:{proteina_g:0,calorias:8,grasas_g:0,carbos_g:2},
+      costo_total_clp:165,
+      notas:'Impacto diario real. El jengibre mejora vaciado gástrico, reduce distensión y náuseas — es el ingrediente más respaldado para digestión. La sal activa receptores y mejora absorción. Sin humo: funciona porque el jengibre tiene gingeroles con efecto real sobre el tracto GI.' },
+
+    { id:'sh3', tipo:'shot', nombre:'Shot termogénico',
+      tiempo_min:2, porciones:1, meal_prep:false,
+      tags:['termogenico','metabolismo','deficit','diario'],
+      ingredientes:[
+        {item:'Jengibre fresco',cantidad:'1cm rallado',costo_clp:50,cat:'especias'},
+        {item:'Cayena o ají molido',cantidad:'¼ cdita (dosis real)',costo_clp:20,cat:'especias'},
+        {item:'Limón fresco',cantidad:'½ unidad',costo_clp:80,cat:'frutas'},
         {item:'Agua caliente',cantidad:'150ml',costo_clp:0,cat:'extras'},
       ],
       pasos:[
-        'Rallar el jengibre fresco o machacarlo en una taza.',
-        'Exprimir el limón encima.',
-        'Agregar la miel y la cayena.',
-        'Verter el agua caliente y mezclar bien.',
-        'Tomar en ayunas o antes del entreno.',
-      ],
-      macros:{proteina_g:0,calorias:25,grasas_g:0,carbos_g:6},
-      costo_total_clp:220,
-      notas:'El jengibre activa el metabolismo y reduce el dolor muscular post-entreno (DOMS). La cayena tiene efecto termogénico leve real. La miel evita pico de cortisol matutino. Ideal semanas de entrenamiento.' },
-
-    { id:'sh3', tipo:'shot', nombre:'Shot dorado de recuperación',
-      tiempo_min:3, porciones:1, meal_prep:false,
-      tags:['recuperacion','post-entreno','antiinflamatorio','diario'],
-      ingredientes:[
-        {item:'Cúrcuma en polvo',cantidad:'1 cdita (3g)',costo_clp:60,cat:'especias'},
-        {item:'Canela en polvo',cantidad:'½ cdita',costo_clp:20,cat:'especias'},
-        {item:'Jengibre en polvo',cantidad:'½ cdita',costo_clp:30,cat:'especias'},
-        {item:'Pimienta negra molida',cantidad:'1 pizca',costo_clp:10,cat:'especias'},
-        {item:'Leche descremada o leche de avena',cantidad:'150ml',costo_clp:150,cat:'lacteos'},
-        {item:'Miel',cantidad:'1 cdita',costo_clp:80,cat:'extras'},
-      ],
-      pasos:[
-        'Calentar la leche sin hervir.',
-        'Mezclar todas las especias en la taza.',
-        'Agregar la leche caliente y la miel.',
-        'Revolver bien hasta disolver. Tomar templado.',
-        'Ideal: justo después del entreno o antes de dormir.',
-      ],
-      macros:{proteina_g:5,calorias:90,grasas_g:1,carbos_g:16},
-      costo_total_clp:350,
-      notas:'Golden milk shot. La combinación cúrcuma+pimienta+canela tiene efecto antiinflamatorio probado post-ejercicio. La canela mejora la sensibilidad a la insulina (mejor recuperación glucogénica). Tomar la noche después de entrenar.' },
-
-    { id:'sh4', tipo:'shot', nombre:'Shot digestivo y de absorción',
-      tiempo_min:2, porciones:1, meal_prep:false,
-      tags:['digestion','absorcion','gut-health','diario'],
-      ingredientes:[
-        {item:'Jengibre fresco',cantidad:'1 trozo (1cm)',costo_clp:50,cat:'especias'},
-        {item:'Limón fresco',cantidad:'½ unidad',costo_clp:80,cat:'frutas'},
-        {item:'Menta seca o fresca',cantidad:'5 hojitas',costo_clp:30,cat:'especias'},
-        {item:'Miel',cantidad:'1 cdita',costo_clp:80,cat:'extras'},
-        {item:'Agua caliente',cantidad:'200ml',costo_clp:0,cat:'extras'},
-      ],
-      pasos:[
-        'Poner la menta y el jengibre rallado en la taza.',
+        'Mezclar cayena y jengibre rallado en la taza.',
         'Exprimir el limón.',
-        'Verter el agua caliente. Dejar reposar 2 min.',
-        'Agregar miel. Tomar antes de comer o en la mañana.',
+        'Agregar agua caliente y revolver.',
+        'Tomar antes del entreno o en ayunas.',
+        '⚠️ Si arde demasiado: reducir cayena a 1 pizca mínima.',
+      ],
+      macros:{proteina_g:0,calorias:12,grasas_g:0,carbos_g:3},
+      costo_total_clp:150,
+      notas:'El único "fat burner" natural con respaldo real. Capsaicina (cayena) ↑ termogénesis leve y gasto calórico (+50-100 kcal/día en estudios). Jengibre ↑ metabolismo leve. No hace milagros — pero en déficit calórico sí suma. Úsalo semanas de entreno fuerte.' },
+
+    { id:'sh4', tipo:'shot', nombre:'Shot de saciedad (psyllium)',
+      tiempo_min:2, porciones:1, meal_prep:false,
+      tags:['saciedad','deficit','fibra','gut-health'],
+      ingredientes:[
+        {item:'Psyllium husk puro (cáscara de psyllium)',cantidad:'1 cda (5g)',costo_clp:150,cat:'extras'},
+        {item:'Limón fresco',cantidad:'½ unidad',costo_clp:80,cat:'frutas'},
+        {item:'Agua fría',cantidad:'250ml',costo_clp:0,cat:'extras'},
+      ],
+      pasos:[
+        '⚠️ Mezclar y tomar INMEDIATAMENTE — el psyllium espesa en segundos.',
+        'Poner el psyllium en el vaso.',
+        'Exprimir el limón.',
+        'Agregar 250ml de agua fría.',
+        'Mezclar rápido y tomar de golpe. Tomar 20-30 min antes de comer.',
       ],
       macros:{proteina_g:0,calorias:20,grasas_g:0,carbos_g:5},
-      costo_total_clp:240,
-      notas:'El jengibre estimula la secreción gástrica y mejora el vaciado del estómago. La menta relaja el músculo del intestino. El limón aumenta producción de bilis. Mejor semana cuando comes mucho o tienes pesadez digestiva.' },
+      costo_total_clp:230,
+      notas:'El más impactante para déficit calórico. Psyllium = fibra soluble que retrasa vaciado gástrico = menos hambre real. Impacta más tu adherencia al déficit que todos los otros shots juntos. Compra psyllium husk PURO (no Metamucil azucarado). Nota: buscar en farmacias o tiendas naturistas.' },
 
-    { id:'sh5', tipo:'shot', nombre:'Shot inmune venezolano',
-      tiempo_min:2, porciones:1, meal_prep:false,
-      tags:['inmunidad','antiviral','venezolano','diario'],
+    { id:'sh5', tipo:'shot', nombre:'Shot inmune funcional',
+      tiempo_min:3, porciones:1, meal_prep:false,
+      tags:['inmunidad','antiinflamatorio','antioxidante','diario'],
       ingredientes:[
-        {item:'Ajo fresco',cantidad:'1 diente pequeño',costo_clp:20,cat:'especias'},
+        {item:'Jengibre fresco',cantidad:'1.5cm rallado',costo_clp:60,cat:'especias'},
         {item:'Limón fresco',cantidad:'½ unidad',costo_clp:80,cat:'frutas'},
-        {item:'Miel',cantidad:'1 cdita',costo_clp:80,cat:'extras'},
-        {item:'Agua caliente',cantidad:'100ml',costo_clp:0,cat:'extras'},
+        {item:'Miel',cantidad:'½ cdita (poca)',costo_clp:40,cat:'extras'},
+        {item:'Cúrcuma en polvo',cantidad:'½ cdita',costo_clp:30,cat:'especias'},
+        {item:'Pimienta negra',cantidad:'1 pizca',costo_clp:10,cat:'especias'},
+        {item:'Agua caliente',cantidad:'150ml',costo_clp:0,cat:'extras'},
       ],
       pasos:[
-        'Machacar el ajo y dejar reposar 5 min (activa la alicina).',
-        'Agregar el jugo del limón y la miel.',
-        'Mezclar con el agua caliente.',
-        'Tomar de un solo trago. Cepillar dientes después.',
+        'Poner jengibre rallado, cúrcuma y pimienta en la taza.',
+        'Exprimir el limón.',
+        'Verter el agua caliente y revolver bien.',
+        'Agregar la miel AL FINAL (el calor degrada sus propiedades).',
+        'Tomar en ayunas. Ideal semanas de estrés o poco sueño.',
       ],
-      macros:{proteina_g:0,calorias:30,grasas_g:0,carbos_g:8},
-      costo_total_clp:180,
-      notas:'El remedio casero venezolano de toda la vida. La alicina del ajo machacado tiene efecto antiviral y antibacteriano real (evidencia clínica). El limón da vitamina C. Usa en semanas de estrés, falta de sueño o cuando sientas que te vas a enfermar.' },
+      macros:{proteina_g:0,calorias:28,grasas_g:0,carbos_g:7},
+      costo_total_clp:220,
+      notas:'Versión inteligente del shot inmune. Jengibre + cúrcuma + pimienta = antiinflamatorio real. Miel en ½ cdita: no rompe déficit y tiene propiedades antimicrobianas leves. Úsalo cuando baje el sueño, aumente el estrés, o sientas que te vas a enfermar.' },
+
+    { id:'sh6', tipo:'shot', nombre:'Shot anti-náuseas',
+      tiempo_min:2, porciones:1, meal_prep:false,
+      tags:['nauseas','recuperacion','gut-health','viaje'],
+      ingredientes:[
+        {item:'Jengibre fresco',cantidad:'3cm rallado (dosis alta)',costo_clp:120,cat:'especias'},
+        {item:'Limón fresco',cantidad:'½ unidad',costo_clp:80,cat:'frutas'},
+        {item:'Agua fría o tibia',cantidad:'150ml',costo_clp:0,cat:'extras'},
+      ],
+      pasos:[
+        'Rallar bastante jengibre (3cm = dosis terapéutica real, ~1-2g gingeroles).',
+        'Exprimir el limón directamente sobre el jengibre.',
+        'Mezclar con el agua. No agregar nada más.',
+        'Si hay náuseas activas: tomar despacio, a sorbos.',
+        'Si es prevención: tomar de golpe.',
+      ],
+      macros:{proteina_g:0,calorias:10,grasas_g:0,carbos_g:2},
+      costo_total_clp:200,
+      notas:'Uno de los pocos ingredientes naturales con evidencia clínica sólida para náuseas (estudios en quimioterapia, mareo por movimiento, náuseas post-operatorias). Dosis real = ~1-2g gingeroles. Este shot llega a esa dosis. También funciona mascar jengibre crudo directamente.' },
   ];
 }
 
@@ -6746,7 +6766,7 @@ function _renderRecetasList(s, recetas, container) {
     window._cocinaTipo = tipo;
     const filtered = tipo === 'todos' ? recetas : recetas.filter(r => r.tipo === tipo);
     const TIPO_ICON = { desayuno:'🌅', almuerzo:'☀️', cena:'🌙', shot:'⚡' };
-    const TECNICA_MAP = { dr1:'directo',dr2:'sellado',dr3:'sin-cocina',dr4:'sin-cocina',dr5:'sellado', al1:'sellado',al2:'sellado',al3:'directo',al4:'sellado',al5:'sellado',al6:'horno',al7:'sellado', ce1:'sellado',ce2:'sin-cocina',ce3:'sellado',ce4:'sellado',ce5:'sellado',ce6:'wok', sh1:'directo',sh2:'directo',sh3:'directo',sh4:'directo',sh5:'directo' };
+    const TECNICA_MAP = { dr1:'directo',dr2:'sellado',dr3:'sin-cocina',dr4:'sin-cocina',dr5:'sellado', al1:'sellado',al2:'sellado',al3:'directo',al4:'sellado',al5:'sellado',al6:'horno',al7:'sellado', ce1:'sellado',ce2:'sin-cocina',ce3:'sellado',ce4:'sellado',ce5:'sellado',ce6:'wok', sh1:'directo',sh2:'directo',sh3:'directo',sh4:'directo',sh5:'directo',sh6:'directo' };
     const TECNICA_LABEL = { sellado:'🔥 Sellado', horno:'🫙 Horno', wok:'⚡ Wok', directo:'🍵 Simple', 'sin-cocina':'❄️ Sin cocina' };
     container.innerHTML = `
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
@@ -6870,6 +6890,10 @@ function _renderPlanSemanal(s, recetas, container) {
         </div>`}
     </div>`;
 
+  const ROTACION_SHOTS = ['sh1','sh2','sh4','sh3','sh5'];
+  const semNum = parseInt((weekISO()||'W1').split('W')[1]) || 1;
+  const shotRecId = ROTACION_SHOTS[(semNum - 1) % ROTACION_SHOTS.length];
+  const shotRec = recetas.find(r => r.id === shotRecId);
   const hasPlan = rAlmuerzos.length || rCenas.length || rDesayuno || rShot;
   container.innerHTML = `
     <div>
@@ -6880,6 +6904,11 @@ function _renderPlanSemanal(s, recetas, container) {
       ${renderSlotGrupo('🌙 Cenas — meal prep', rCenas, 'cena', 2)}
 
       ${renderSlotSimple('⚡ Shot semanal (2 min/día)', rShot, 'shot')}
+      ${shotRec && plan.shot_id !== shotRecId ? `
+      <div style="margin-top:-8px;margin-bottom:16px;padding:8px 12px;background:var(--bg-3);border-radius:var(--r-md);display:flex;align-items:center;gap:10px">
+        <span class="text-xs text-lo" style="flex:1">🔄 Rotación semana ${semNum%5||5}: <strong style="color:var(--text-md)">${esc(shotRec.nombre)}</strong></span>
+        <button class="btn btn-sm btn-ghost" onclick="usarRecetaSemana('${shotRecId}','shot')" style="font-size:11px;padding:4px 8px">Usar →</button>
+      </div>` : ''}
 
       ${hasPlan ? `
         <!-- Resumen macros -->
