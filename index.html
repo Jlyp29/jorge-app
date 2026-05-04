@@ -1423,7 +1423,7 @@ const State = (() => {
     },
     cocina: {
       favoritas: [],
-      plan_semanal: { semana: '', almuerzo_id: null, cena_id: null, desayuno_id: null },
+      plan_semanal: { semana: '', almuerzo_ids: [], cena_ids: [], desayuno_id: null, incluir_shot: true },
       lista_compras: { items: [], semana: '', generada: null },
     },
   });
@@ -1494,6 +1494,18 @@ const State = (() => {
     if (!data.cocina) data.cocina = defaults().cocina;
     if (!data.cocina.favoritas) data.cocina.favoritas = [];
     if (!data.cocina.plan_semanal) data.cocina.plan_semanal = defaults().cocina.plan_semanal;
+    // Migrar scalar ids → arrays
+    if (data.cocina.plan_semanal.almuerzo_id !== undefined) {
+      data.cocina.plan_semanal.almuerzo_ids = data.cocina.plan_semanal.almuerzo_id ? [data.cocina.plan_semanal.almuerzo_id] : [];
+      delete data.cocina.plan_semanal.almuerzo_id;
+    }
+    if (data.cocina.plan_semanal.cena_id !== undefined) {
+      data.cocina.plan_semanal.cena_ids = data.cocina.plan_semanal.cena_id ? [data.cocina.plan_semanal.cena_id] : [];
+      delete data.cocina.plan_semanal.cena_id;
+    }
+    if (!Array.isArray(data.cocina.plan_semanal.almuerzo_ids)) data.cocina.plan_semanal.almuerzo_ids = [];
+    if (!Array.isArray(data.cocina.plan_semanal.cena_ids)) data.cocina.plan_semanal.cena_ids = [];
+    if (data.cocina.plan_semanal.incluir_shot === undefined) data.cocina.plan_semanal.incluir_shot = true;
     if (!data.cocina.lista_compras) data.cocina.lista_compras = defaults().cocina.lista_compras;
     // Recalcular nivel siempre desde total (fuente de verdad)
     if (data.xp && data.xp.total !== undefined) {
@@ -2343,6 +2355,27 @@ function defaultRecetas() {
       macros:{proteina_g:36,calorias:510,grasas_g:8,carbos_g:70},
       costo_total_clp:7150, costo_por_porcion_clp:1430,
       notas:'El jengibre reduce DOMS (dolor post-entreno). Wok a fuego alto = más sabor, menos tiempo.' },
+
+    // ── SHOT MATUTINO ────────────────────────────────────────
+    { id:'sh1', tipo:'shot', nombre:'Shot antiinflamatorio matutino',
+      tiempo_min:2, porciones:1, meal_prep:false,
+      tags:['antiinflamatorio','digestion','testosterona','diario'],
+      ingredientes:[
+        {item:'Cúrcuma en polvo',cantidad:'1 cdita (3g)',costo_clp:60,cat:'especias'},
+        {item:'Pimienta negra molida',cantidad:'1 pizca pequeña',costo_clp:10,cat:'especias'},
+        {item:'Limón fresco',cantidad:'½ unidad',costo_clp:80,cat:'frutas'},
+        {item:'Agua caliente (no hirviendo, ~60-70°C)',cantidad:'200ml',costo_clp:0,cat:'extras'},
+      ],
+      pasos:[
+        'Calentar agua (no hervir — el calor excesivo degrada la curcumina).',
+        'Poner cúrcuma y pimienta negra en taza.',
+        'Exprimir el limón sobre las especias.',
+        'Agregar el agua caliente y mezclar bien.',
+        'Tomar en ayunas, antes del desayuno.',
+      ],
+      macros:{proteina_g:0,calorias:12,grasas_g:0,carbos_g:3},
+      costo_total_clp:150,
+      notas:'La piperina de la pimienta negra aumenta absorción de curcumina hasta 20x (evidencia real). La curcumina reduce inflamación sistémica y apoya el hígado. El limón estimula bilis. Lo que NO hace: no "disuelve grasa hepática" ni "purifica la sangre" — ese lenguaje es marketing. Lo que SÍ hace: reduce inflamación y mejora digestión con consistencia diaria.' },
   ];
 }
 
@@ -6541,11 +6574,22 @@ function renderCocina(tab = 'recetas') {
   window.usarRecetaSemana = (id, tipo) => {
     State.update(st => {
       st.cocina.plan_semanal.semana = weekISO();
-      if (tipo === 'almuerzo') st.cocina.plan_semanal.almuerzo_id = id;
-      else if (tipo === 'cena') st.cocina.plan_semanal.cena_id = id;
-      else if (tipo === 'desayuno') st.cocina.plan_semanal.desayuno_id = id;
+      if (tipo === 'desayuno') {
+        st.cocina.plan_semanal.desayuno_id = st.cocina.plan_semanal.desayuno_id === id ? null : id;
+      } else {
+        const key = tipo === 'almuerzo' ? 'almuerzo_ids' : 'cena_ids';
+        const arr = st.cocina.plan_semanal[key];
+        const idx = arr.indexOf(id);
+        if (idx !== -1) arr.splice(idx, 1); // toggle off
+        else if (arr.length < 2) arr.push(id); // add if < 2
+        else UI.toast('Ya tienes 2 recetas de ' + tipo + '. Quita una primero.', 'warn');
+      }
     });
-    UI.toast(`Receta asignada al plan de la semana.`, 'success');
+    UI.toast('Plan actualizado.', 'success');
+    renderCocina(tab);
+  };
+  window.toggleShotPlan = () => {
+    State.update(st => { st.cocina.plan_semanal.incluir_shot = !st.cocina.plan_semanal.incluir_shot; });
     renderCocina(tab);
   };
   window.generarListaCompras = () => {
@@ -6555,17 +6599,18 @@ function renderCocina(tab = 'recetas') {
       const r = recetas.find(x => x.id === recetaId);
       if (!r) return;
       r.ingredientes.forEach(ing => {
-        const exist = items.find(i => i.item.toLowerCase() === ing.item.toLowerCase());
-        if (exist) {
-          exist.cantidad_raw = (exist.cantidad_raw || 1) + mult;
-        } else {
-          items.push({ item: ing.item, cantidad: ing.cantidad, cantidad_raw: mult, cat: ing.cat, costo_clp: ing.costo_clp * mult, comprado: false });
-        }
+        const key = ing.item.toLowerCase();
+        const exist = items.find(i => i.item.toLowerCase() === key);
+        if (exist) { exist.costo_clp += ing.costo_clp * mult; }
+        else { items.push({ item: ing.item, cantidad: ing.cantidad + (mult > 1 ? ` ×${mult}` : ''), cat: ing.cat, costo_clp: ing.costo_clp * mult, comprado: false }); }
       });
     };
-    if (plan.almuerzo_id) addIngredientes(plan.almuerzo_id, 5);
-    if (plan.cena_id) addIngredientes(plan.cena_id, 5);
+    const nAl = (plan.almuerzo_ids || []).length;
+    (plan.almuerzo_ids || []).forEach(id => addIngredientes(id, nAl === 1 ? 5 : 3));
+    const nCe = (plan.cena_ids || []).length;
+    (plan.cena_ids || []).forEach(id => addIngredientes(id, nCe === 1 ? 5 : 3));
     if (plan.desayuno_id) addIngredientes(plan.desayuno_id, 5);
+    if (plan.incluir_shot) addIngredientes('sh1', 7); // 7 días
     const CATS_ORDER = ['proteinas','lacteos','verduras','frutas','carbos','grasas','especias','extras'];
     items.sort((a, b) => CATS_ORDER.indexOf(a.cat) - CATS_ORDER.indexOf(b.cat));
     State.update(st => { st.cocina.lista_compras = { items, semana: weekISO(), generada: todayISO() }; });
@@ -6592,7 +6637,7 @@ function _renderRecetasList(s, recetas, container) {
   const render = (tipo) => {
     filtroTipo = tipo;
     const filtered = tipo === 'todos' ? recetas : recetas.filter(r => r.tipo === tipo);
-    const TIPO_ICON = { desayuno:'🌅', almuerzo:'☀️', cena:'🌙' };
+    const TIPO_ICON = { desayuno:'🌅', almuerzo:'☀️', cena:'🌙', shot:'⚡' };
     container.innerHTML = `
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
         ${['todos','desayuno','almuerzo','cena'].map(t => `<button class="btn btn-sm ${filtroTipo===t?'btn-primary':'btn-ghost'}" onclick="window._filtrarRecetas('${t}')">${t==='todos'?'Todas':t.charAt(0).toUpperCase()+t.slice(1)}</button>`).join('')}
@@ -6600,7 +6645,7 @@ function _renderRecetasList(s, recetas, container) {
       <div class="stack stack-md">
         ${filtered.map(r => {
           const esFav = favs.includes(r.id);
-          const enPlan = plan.almuerzo_id === r.id || plan.cena_id === r.id || plan.desayuno_id === r.id;
+          const enPlan = (plan.almuerzo_ids||[]).includes(r.id) || (plan.cena_ids||[]).includes(r.id) || plan.desayuno_id === r.id;
           const costoDisplay = r.meal_prep ? `$${(r.costo_por_porcion_clp||0).toLocaleString('es-CL')}/porción` : `$${(r.costo_total_clp||0).toLocaleString('es-CL')}`;
           return `<div class="card" style="${enPlan?'border:1.5px solid var(--primary);':''}">
             <div class="row-between mb-sm">
@@ -6622,7 +6667,7 @@ function _renderRecetasList(s, recetas, container) {
             <div class="text-xs text-lo mb-md" style="font-style:italic">${esc(r.notas||'')}</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-sm btn-ghost" onclick="window._toggleRecetaDetail('${r.id}')">Ver receta</button>
-              ${r.tipo!=='desayuno'?`<button class="btn btn-sm ${enPlan?'btn-primary':''}" onclick="usarRecetaSemana('${r.id}','${r.tipo}')">${enPlan?'✓ En el plan':'Usar esta semana'}</button>`:''}
+              ${r.tipo !== 'desayuno' && r.tipo !== 'shot' ? (() => { const key = r.tipo === 'almuerzo' ? 'almuerzo_ids' : 'cena_ids'; const arr = plan[key] || []; const full = arr.length >= 2 && !enPlan; return `<button class="btn btn-sm ${enPlan ? 'btn-primary' : ''}" ${full ? `disabled title="Ya tienes 2 recetas de ${r.tipo}"` : ''} onclick="usarRecetaSemana('${r.id}','${r.tipo}')">${enPlan ? '✓ En el plan' : full ? 'Plan lleno' : 'Usar esta semana'}</button>`; })() : ''}
               ${r.tipo==='desayuno'?`<button class="btn btn-sm ${plan.desayuno_id===r.id?'btn-primary':''}" onclick="usarRecetaSemana('${r.id}','desayuno')">${plan.desayuno_id===r.id?'✓ Desayuno de semana':'Usar de desayuno'}</button>`:''}
             </div>
             <div id="detail-${r.id}" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
@@ -6653,46 +6698,132 @@ function _renderPlanSemanal(s, recetas, container) {
   const plan = s.cocina.plan_semanal;
   const semanaActual = weekISO();
   const planEsSemanaActual = plan.semana === semanaActual;
-  const rAlmuerzo = recetas.find(r => r.id === plan.almuerzo_id);
-  const rCena = recetas.find(r => r.id === plan.cena_id);
+  const almIds = plan.almuerzo_ids || [];
+  const ceIds = plan.cena_ids || [];
+  const rAlmuerzos = almIds.map(id => recetas.find(r => r.id === id)).filter(Boolean);
+  const rCenas = ceIds.map(id => recetas.find(r => r.id === id)).filter(Boolean);
   const rDesayuno = recetas.find(r => r.id === plan.desayuno_id);
-  const protDia = (rAlmuerzo ? rAlmuerzo.macros.proteina_g : 0) + (rCena ? rCena.macros.proteina_g : 0) + (rDesayuno ? rDesayuno.macros.proteina_g : 0);
-  const calDia = (rAlmuerzo ? rAlmuerzo.macros.calorias : 0) + (rCena ? rCena.macros.calorias : 0) + (rDesayuno ? rDesayuno.macros.calorias : 0);
+  const rShot = recetas.find(r => r.id === 'sh1');
   const targetProt = s.fisico.target_proteina_g || 145;
+  // Proteína promedio diaria: almuerzo avg + cena avg + desayuno
+  const protAlm = rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r) => s + r.macros.proteina_g, 0) / rAlmuerzos.length) : 0;
+  const protCen = rCenas.length ? Math.round(rCenas.reduce((s,r) => s + r.macros.proteina_g, 0) / rCenas.length) : 0;
+  const protDes = rDesayuno ? rDesayuno.macros.proteina_g : 0;
+  const protDia = protAlm + protCen + protDes;
+  const calDia = (rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r)=>s+r.macros.calorias,0)/rAlmuerzos.length) : 0) + (rCenas.length ? Math.round(rCenas.reduce((s,r)=>s+r.macros.calorias,0)/rCenas.length) : 0) + (rDesayuno ? rDesayuno.macros.calorias : 0);
   const protPct = Math.min(100, Math.round(protDia / targetProt * 100));
-  const costSemana = ((rAlmuerzo ? (rAlmuerzo.costo_por_porcion_clp||rAlmuerzo.costo_total_clp) : 0) + (rCena ? (rCena.costo_por_porcion_clp||rCena.costo_total_clp) : 0)) * 5 + (rDesayuno ? rDesayuno.costo_total_clp * 5 : 0);
-  const renderSlot = (label, receta, tipo) => `
-    <div class="card mb-md" style="${receta?'border:1.5px solid var(--primary);':'border:1.5px dashed var(--border-strong);background:var(--bg-2)'}">
+  const costSem = rAlmuerzos.reduce((s,r) => s + (r.costo_por_porcion_clp||r.costo_total_clp||0) * (almIds.length===1?5:3), 0) + rCenas.reduce((s,r) => s + (r.costo_por_porcion_clp||r.costo_total_clp||0) * (ceIds.length===1?5:3), 0) + (rDesayuno ? (rDesayuno.costo_total_clp||0) * 5 : 0);
+
+  const renderSlotGrupo = (label, recetasArr, tipo, max) => {
+    const porciones = recetasArr.length < 2 ? 5 : 3;
+    return `<div class="mb-md">
+      <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${label} <span style="font-weight:400;color:var(--text-lo)">(hasta ${max}, ${porciones} porciones c/u)</span></div>
+      ${recetasArr.map(r => `
+        <div class="card mb-sm" style="border:1.5px solid var(--primary);padding:12px 14px">
+          <div class="row-between">
+            <div>
+              <div class="font-semibold text-sm">${esc(r.nombre)}</div>
+              <div class="text-xs text-lo mt-sm">${r.macros.proteina_g}g prot · ${r.macros.calorias} kcal · $${((r.costo_por_porcion_clp||r.costo_total_clp)||0).toLocaleString('es-CL')}/porción</div>
+            </div>
+            <button onclick="usarRecetaSemana('${r.id}','${tipo}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:18px;padding:4px" aria-label="Quitar">✕</button>
+          </div>
+        </div>`).join('')}
+      ${recetasArr.length < max ? `
+        <div class="card" style="border:1.5px dashed var(--border-strong);background:var(--bg-2);padding:12px 14px;text-align:center">
+          <span class="text-sm text-lo">+ Agregar ${tipo} desde </span><button class="btn-link" onclick="renderCocina('recetas')" style="color:var(--primary);background:none;border:none;cursor:pointer;padding:0">Recetas</button>
+        </div>` : ''}
+    </div>`;
+  };
+
+  const renderSlotSimple = (label, receta, tipo) => `
+    <div class="mb-md">
       <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${label}</div>
       ${receta ? `
-        <div class="font-semibold text-sm mb-sm">${esc(receta.nombre)}</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <span class="text-xs" style="background:var(--primary-glow);color:var(--primary);padding:2px 8px;border-radius:var(--r-full)">${receta.macros.proteina_g}g prot × ${receta.porciones===1?'día':'5'}</span>
-          <span class="text-xs" style="background:var(--bg-3);color:var(--text-md);padding:2px 8px;border-radius:var(--r-full)">${receta.macros.calorias} kcal/ración</span>
-          <span class="text-xs" style="background:var(--bg-3);color:var(--text-md);padding:2px 8px;border-radius:var(--r-full)">$${((receta.costo_por_porcion_clp||receta.costo_total_clp)||0).toLocaleString('es-CL')}/ración</span>
-        </div>
-        <button class="btn btn-sm btn-ghost mt-sm" onclick="renderCocina('recetas')" style="color:var(--text-lo)">Cambiar</button>
-      ` : `<div class="text-sm text-lo">Sin receta asignada — <button class="btn-link" onclick="renderCocina('recetas')" style="color:var(--primary);background:none;border:none;cursor:pointer;padding:0">Elegir ${tipo}</button></div>`}
+        <div class="card" style="border:1.5px solid var(--primary);padding:12px 14px">
+          <div class="row-between">
+            <div>
+              <div class="font-semibold text-sm">${esc(receta.nombre)}</div>
+              <div class="text-xs text-lo mt-sm">${receta.macros.proteina_g}g prot · ${receta.tiempo_min} min/día</div>
+            </div>
+            <button onclick="usarRecetaSemana('${receta.id}','${tipo}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:18px;padding:4px">✕</button>
+          </div>
+        </div>` : `
+        <div class="card" style="border:1.5px dashed var(--border-strong);background:var(--bg-2);padding:12px 14px;text-align:center">
+          <span class="text-sm text-lo">+ Elegir desayuno en </span><button class="btn-link" onclick="renderCocina('recetas')" style="color:var(--primary);background:none;border:none;cursor:pointer;padding:0">Recetas</button>
+        </div>`}
     </div>`;
+
+  const hasPlan = rAlmuerzos.length || rCenas.length || rDesayuno;
   container.innerHTML = `
     <div>
-      ${!planEsSemanaActual && (plan.almuerzo_id || plan.cena_id) ? `<div class="banner banner-comeback mb-md" style="background:var(--accent-glow);border-color:var(--accent);color:var(--accent)">Plan de semana anterior. Actualiza tu selección.</div>` : ''}
-      ${renderSlot('🌅 Desayuno (diario, ~10 min)', rDesayuno, 'desayuno')}
-      ${renderSlot('☀️ Almuerzo (meal prep 5 porciones)', rAlmuerzo, 'almuerzo')}
-      ${renderSlot('🌙 Cena (meal prep 5 porciones)', rCena, 'cena')}
-      ${rAlmuerzo || rCena || rDesayuno ? `
+      ${!planEsSemanaActual && hasPlan ? `<div class="banner banner-comeback mb-md" style="background:var(--accent-glow);border-color:var(--accent);color:var(--accent)">Plan de semana anterior. Actualiza tu selección.</div>` : ''}
+
+      ${renderSlotSimple('🌅 Desayuno diario (~10 min)', rDesayuno, 'desayuno')}
+      ${renderSlotGrupo('☀️ Almuerzos — meal prep', rAlmuerzos, 'almuerzo', 2)}
+      ${renderSlotGrupo('🌙 Cenas — meal prep', rCenas, 'cena', 2)}
+
+      <!-- Shot antiinflamatorio -->
+      <div class="card mb-md" style="background:var(--bg-2);padding:12px 14px">
+        <div class="row-between">
+          <div>
+            <div class="font-semibold text-sm">🧡 Shot antiinflamatorio matutino</div>
+            <div class="text-xs text-lo mt-sm">Cúrcuma + pimienta negra + limón · 2 min · incluye ingredientes en la lista</div>
+          </div>
+          <button onclick="toggleShotPlan()" style="width:44px;height:24px;border-radius:12px;border:none;background:${plan.incluir_shot?'var(--primary)':'var(--bg-3)'};cursor:pointer;transition:background .2s;position:relative;flex-shrink:0">
+            <span style="position:absolute;top:2px;${plan.incluir_shot?'right:2px':'left:2px'};width:20px;height:20px;border-radius:10px;background:#fff;transition:all .2s"></span>
+          </button>
+        </div>
+      </div>
+
+      ${hasPlan ? `
+        <!-- Resumen macros -->
         <div class="card mb-md" style="background:var(--bg-2)">
-          <div class="text-xs font-semibold text-lo mb-md" style="text-transform:uppercase;letter-spacing:.06em">Estimado semanal</div>
+          <div class="text-xs font-semibold text-lo mb-md" style="text-transform:uppercase;letter-spacing:.06em">Estimado diario promedio</div>
           <div class="row-between mb-sm">
-            <span class="text-sm">Proteína/día</span>
+            <span class="text-sm">Proteína</span>
             <span class="font-semibold text-sm" style="color:${protPct>=80?'var(--success)':protPct>=60?'var(--accent)':'var(--danger)'}">${protDia}g / ${targetProt}g (${protPct}%)</span>
           </div>
           <div class="progress-bar mb-md"><div class="progress-fill" style="width:${protPct}%"></div></div>
-          <div class="row-between mb-sm"><span class="text-sm">Calorías/día</span><span class="font-semibold text-sm">${calDia} kcal</span></div>
-          <div class="row-between"><span class="text-sm">Costo semana (5 días)</span><span class="font-semibold text-sm" style="color:var(--success)">$${(costSemana).toLocaleString('es-CL')}</span></div>
+          <div class="row-between mb-sm"><span class="text-sm">Calorías</span><span class="font-semibold text-sm">${calDia} kcal/día</span></div>
+          <div class="row-between"><span class="text-sm">Costo aprox. semana</span><span class="font-semibold text-sm" style="color:var(--success)">$${costSem.toLocaleString('es-CL')}</span></div>
         </div>
-        <button class="btn btn-primary btn-block" onclick="generarListaCompras()">Generar lista de compras →</button>
+        <button class="btn btn-primary btn-block mb-lg" onclick="generarListaCompras()">Generar lista de compras →</button>
       ` : ''}
+
+      <!-- Guía de cocina óptima -->
+      <div class="card" style="background:var(--bg-2)">
+        <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.chevron').style.transform=this.nextElementSibling.style.display==='block'?'rotate(180deg)':'rotate(0)'" style="background:none;border:none;width:100%;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:2px 0">
+          <span class="font-semibold text-sm">⏱️ Guía de cocina óptima (~2h domingo)</span>
+          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform .2s;flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+          <div class="text-xs font-semibold text-lo mb-md" style="text-transform:uppercase;letter-spacing:.06em">Orden de cocción (cocina todo en paralelo)</div>
+          ${[
+            ['00:00','Poner a cocinar lo que más demora: arroz integral (35 min), lentejas (25 min) o quinoa (15 min). Poner a hervir agua.'],
+            ['00:05','Precalentar horno a 180°C si hay pollo o merluza para hornear.'],
+            ['00:10','Cortar toda la proteína (pollo, carne, etc.) y condimentar. Marinar si aplica.'],
+            ['00:20','Meter proteína al horno O empezar en sartén grande. Dejar sin tocar.'],
+            ['00:25','Cortar todas las verduras mientras la proteína se cocina sola.'],
+            ['00:40','Revisar cocción de granos. Comenzar a cocinar verduras.'],
+            ['00:55','Apagar fuego. Todo cocinado. Dejar enfriar 15-20 min con tapa quitada.'],
+            ['01:15','Distribuir en 5 envases por receta. Porciones iguales.'],
+            ['01:30','Limpiar cocina mientras envases enfrían. Cerrar cuando estén a temperatura ambiente.'],
+            ['01:45','Guardar: días 1-2 al frente del refrigerador, días 3-5 al fondo (más frío y dura más).'],
+          ].map(([t, paso]) => `<div style="display:flex;gap:12px;margin-bottom:10px">
+            <span class="text-xs font-semibold" style="color:var(--primary);min-width:44px;padding-top:2px">${t}</span>
+            <span class="text-sm text-md" style="line-height:1.5">${paso}</span>
+          </div>`).join('')}
+          <div style="margin-top:14px;padding:10px 12px;background:var(--primary-glow);border-radius:var(--r-md)">
+            <div class="text-xs font-semibold text-primary mb-sm">Tips para 2 meal preps en paralelo</div>
+            <div class="text-xs text-lo" style="line-height:1.6">
+              • Usa horno para una receta y sartén/olla para la otra simultáneamente.<br>
+              • Prepara los ingredientes de ambas recetas juntos antes de empezar a cocinar.<br>
+              • Escribe en los envases el día con marcador de pizarrón.<br>
+              • El shot de cúrcuma se hace cada mañana en 2 min, no necesita prep semanal.
+            </div>
+          </div>
+        </div>
+      </div>
     </div>`;
 }
 
@@ -6700,7 +6831,7 @@ function _renderListaCompras(s, recetas, container) {
   const lc = s.cocina.lista_compras;
   const plan = s.cocina.plan_semanal;
   if (!lc.items || !lc.items.length) {
-    const tieneplan = plan.almuerzo_id || plan.cena_id || plan.desayuno_id;
+    const tieneplan = (plan.almuerzo_ids||[]).length || (plan.cena_ids||[]).length || plan.desayuno_id;
     container.innerHTML = `<div class="section" style="text-align:center;padding:40px 0">
       <div style="font-size:40px;margin-bottom:16px">🛒</div>
       <div class="font-semibold mb-sm">Sin lista generada</div>
