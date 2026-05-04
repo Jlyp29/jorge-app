@@ -6775,10 +6775,10 @@ function renderCocina(tab = 'recetas') {
         else { items.push({ item: ing.item, cantidad: ing.cantidad + (mult > 1 ? ` ×${mult}` : ''), cat: ing.cat, costo_clp: ing.costo_clp * mult, comprado: false }); }
       });
     };
-    const nAl = (plan.almuerzo_ids || []).length;
-    (plan.almuerzo_ids || []).forEach(id => addIngredientes(id, nAl === 1 ? 5 : 3));
-    const nCe = (plan.cena_ids || []).length;
-    (plan.cena_ids || []).forEach(id => addIngredientes(id, nCe === 1 ? 5 : 3));
+    // Almuerzos y cenas: batch de 5 porciones — comprar 1 batch por receta × sem
+    (plan.almuerzo_ids || []).forEach(id => addIngredientes(id, 1));
+    (plan.cena_ids || []).forEach(id => addIngredientes(id, 1));
+    // Desayunos: 1 porción — necesitan ×5/semana (o ×3 si son 2 desayunos alternados)
     const nDes = (plan.desayuno_ids || []).length;
     (plan.desayuno_ids || []).forEach(id => addIngredientes(id, nDes === 1 ? 5 : 3));
     if (plan.shot_id) addIngredientes(plan.shot_id, 7); // 7 días/sem
