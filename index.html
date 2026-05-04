@@ -1206,7 +1206,7 @@ function calcLiveStreak(completions, freezes = []) {
   const hasDoneToday = completions.includes(t);
   const frozeToday = freezes.includes(t);
   let streak = 0;
-  let gapAllowed = !hasDoneToday && !frozeToday;
+  let gapAllowed = false;
   for (let i = (hasDoneToday || frozeToday) ? 0 : 1; i < 400; i++) {
     const d = new Date(); d.setDate(d.getDate() - i);
     const ds = dateStr(d);
@@ -1549,6 +1549,16 @@ const State = (() => {
     }
     // Sanitizar XP total
     if (data.xp) data.xp.total = Math.max(0, parseInt(data.xp.total) || 0);
+    // Podar entradas Pennebaker antiguas — retener últimas 365 para evitar llenar localStorage
+    if (Array.isArray(data.journal)) {
+      const pb = data.journal
+        .filter(j => j.tipo === 'pennebaker')
+        .sort((a, b) => (b.fecha || '').localeCompare(a.fecha || ''));
+      if (pb.length > 365) {
+        const toRemove = new Set(pb.slice(365).map(j => j.id));
+        data.journal = data.journal.filter(j => !toRemove.has(j.id));
+      }
+    }
     data.__v = V;
     return data;
   }
@@ -2964,45 +2974,48 @@ function renderHoy() {
         </button>
       </div>
 
-      <!-- Banners contextuales -->
-      ${hayComeback ? `
-        <div class="banner banner-comeback">
-          ${diasFuera >= 3
-            ? `Llevas ${diasFuera} días. El sistema sigue aquí. Vuelve con un hábito. <strong>+100 XP Comeback.</strong>`
-            : `Ayer se pasó. Hoy está aquí. Eso es el sistema funcionando. <strong>+100 XP Comeback.</strong>`
-          }
-        </div>` : ''}
-      ${esFreshStart && !hayComeback ? `
-        <div class="banner banner-fresh">
-          ${esLunes
-            ? `Lunes · XP ×1.5 hoy.${maxStreakVal > 1 ? ` Mejor racha: <strong>${maxStreakVal} días</strong> de ${esc(maxStreakHabit.nombre)}.` : ' A construir.'}`
-            : `Primero de mes · XP ×1.5 hoy. ${weekPct >= 70 ? 'La semana pasada fue sólida.' : 'Esta semana puede ser diferente.'}`
-          }
-        </div>` : ''}
-      ${s.settings.modo_crisis ? `
-        <div class="banner banner-crisis">
-          Modo pausa activo. Tómate el tiempo que necesites. <a href="#" onclick="toggleCrisisMode(false)">Retomar</a>
-        </div>` : ''}
-      ${mostrarRevision ? `
-        <div class="card mb-md" style="border:1.5px solid var(--primary);background:var(--primary-glow);padding:14px 16px">
-          <div class="row-between">
-            <div>
-              <div class="font-semibold text-sm">📋 Revisión de la semana</div>
-              <div class="text-xs text-lo mt-sm">5 minutos · Cierra la semana · +50 XP</div>
+      <!-- Banner contextual — un solo banner por prioridad: crisis > revMes > revSemanal > comeback > freshStart -->
+      ${(() => {
+        if (s.settings.modo_crisis) return `
+          <div class="banner banner-crisis">
+            Modo pausa activo. Tómate el tiempo que necesitas. <a href="#" onclick="toggleCrisisMode(false)">Retomar</a>
+          </div>`;
+        if (mostrarRevisionMes) return `
+          <div class="card mb-md" style="border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);padding:14px 16px">
+            <div class="row-between">
+              <div>
+                <div class="font-semibold text-sm">📊 Revisión mensual · 5 años</div>
+                <div class="text-xs text-lo mt-sm">Actualiza tu progreso · Grasa, ingresos, Sinergy · +75 XP</div>
+              </div>
+              <button class="btn btn-sm" style="background:var(--accent);color:#fff;white-space:nowrap" onclick="openRevisionMensual()">Registrar →</button>
             </div>
-            <button class="btn btn-primary btn-sm" onclick="openRevisionSemanal()">Revisar →</button>
-          </div>
-        </div>` : ''}
-      ${mostrarRevisionMes ? `
-        <div class="card mb-md" style="border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);padding:14px 16px">
-          <div class="row-between">
-            <div>
-              <div class="font-semibold text-sm">📊 Revisión mensual · 5 años</div>
-              <div class="text-xs text-lo mt-sm">Actualiza tu progreso · Grasa, ingresos, Sinergy · +75 XP</div>
+          </div>`;
+        if (mostrarRevision) return `
+          <div class="card mb-md" style="border:1.5px solid var(--primary);background:var(--primary-glow);padding:14px 16px">
+            <div class="row-between">
+              <div>
+                <div class="font-semibold text-sm">📋 Revisión de la semana</div>
+                <div class="text-xs text-lo mt-sm">5 minutos · Cierra la semana · +50 XP</div>
+              </div>
+              <button class="btn btn-primary btn-sm" onclick="openRevisionSemanal()">Revisar →</button>
             </div>
-            <button class="btn btn-sm" style="background:var(--accent);color:#fff" onclick="openRevisionMensual()">Registrar →</button>
-          </div>
-        </div>` : ''}
+          </div>`;
+        if (hayComeback) return `
+          <div class="banner banner-comeback">
+            ${diasFuera >= 3
+              ? `Llevas ${diasFuera} días. El sistema sigue aquí. Vuelve con un hábito. <strong>+100 XP Comeback.</strong>`
+              : `Ayer se pasó. Hoy está aquí. Eso es el sistema funcionando. <strong>+100 XP Comeback.</strong>`
+            }
+          </div>`;
+        if (esFreshStart) return `
+          <div class="banner banner-fresh">
+            ${esLunes
+              ? `Lunes · XP ×1.5 hoy.${maxStreakVal > 1 ? ` Mejor racha: <strong>${maxStreakVal} días</strong> de ${esc(maxStreakHabit.nombre)}.` : ' A construir.'}`
+              : `Primero de mes · XP ×1.5 hoy. ${weekPct >= 70 ? 'La semana pasada fue sólida.' : 'Esta semana puede ser diferente.'}`
+            }
+          </div>`;
+        return '';
+      })()}
 
       <!-- XP / Nivel -->
       <div class="card card-primary mb-lg">
@@ -3120,16 +3133,21 @@ function renderHoy() {
           const cambia = document.getElementById('rev-cambia')?.value.trim() || '';
           const estado = parseInt(document.getElementById('rev-estado')?.value) || 0;
           if (!funciono || !cambia) { UI.toast('Responde al menos qué funcionó y qué cambia.','warn'); return false; }
+          const isNewRevSem = !s.revisiones_semanales.some(r => r.semana_iso === semana);
           State.update(st => {
-            st.revisiones_semanales.unshift({
-              id: Date.now().toString(), semana_iso: semana, fecha: todayISO(),
+            const idx = st.revisiones_semanales.findIndex(r => r.semana_iso === semana);
+            const entry = {
+              id: idx >= 0 ? st.revisiones_semanales[idx].id : Date.now().toString(),
+              semana_iso: semana, fecha: todayISO(),
               adherencia_pct: adh, xp_ganado: xpSemana, sinergy_outputs: outputsSemana, entrenos: entrenSemana,
               estado_general: estado, que_funciono: funciono, que_no_funciono: noFunciono, que_cambia: cambia,
-            });
+            };
+            if (idx >= 0) st.revisiones_semanales[idx] = entry;
+            else st.revisiones_semanales.unshift(entry);
           });
-          XP.add(50, 'Revisión semanal');
+          if (isNewRevSem) XP.add(50, 'Revisión semanal');
           UI.confetti(30);
-          UI.toast('Semana cerrada. +50 XP 🎯','success', 4000);
+          UI.toast(isNewRevSem ? 'Semana cerrada. +50 XP 🎯' : 'Revisión actualizada.','success', 4000);
           renderHoy();
         }},
         { label: 'Ahora no', action: () => {} },
@@ -3177,6 +3195,9 @@ function wireHabitChecks() {
     // XP ya otorgado hoy para este hábito (evita farm con check/uncheck)
     const xpYaOtorgado = (h.xp_awarded_dates || []).includes(t);
 
+    let _xpEffect = null;
+    let _comebackXP = false;
+
     State.update(st => {
       const habit = st.habits.find(x => x.id === id);
       if (!habit.xp_awarded_dates) habit.xp_awarded_dates = [];
@@ -3184,20 +3205,20 @@ function wireHabitChecks() {
         // Desmarcar: quitar completion y restar XP solo si fue otorgado hoy
         habit.completions = habit.completions.filter(d => d !== t);
         if (xpYaOtorgado) {
-          XP.add(-xpVal, `Desmarcar: ${habit.nombre}`, { animate: false });
           habit.xp_awarded_dates = habit.xp_awarded_dates.filter(d => d !== t);
+          _xpEffect = { delta: -xpVal, reason: `Desmarcar: ${habit.nombre}`, opts: { animate: false } };
         }
       } else {
         // Marcar: agregar completion
         habit.completions.push(t);
         // Otorgar XP solo si no fue otorgado hoy aún
         if (!xpYaOtorgado) {
-          XP.add(xpVal, `Hábito: ${habit.nombre}`);
           habit.xp_awarded_dates.push(t);
+          _xpEffect = { delta: xpVal, reason: `Hábito: ${habit.nombre}`, opts: {} };
         }
-        // Comeback: primer hábito marcado tras haber fallado ayer → premio aquí
+        // Comeback: marcar flag, aplicar XP fuera del update
         if (st.xp.comeback_pendiente) {
-          XP.add(100, 'Comeback — volviste al otro día', { animate: true });
+          _comebackXP = true;
           st.xp.comeback_pendiente = false;
         }
         // Actualizar longestStreak con racha real (sin checkStreak)
@@ -3208,6 +3229,10 @@ function wireHabitChecks() {
         _identityTagAfterMark = habit.identity_tag || '';
       }
     });
+
+    // XP effects FUERA del State.update — nunca anidar State.update dentro de otro
+    if (_xpEffect) XP.add(_xpEffect.delta, _xpEffect.reason, _xpEffect.opts);
+    if (_comebackXP) XP.add(100, 'Comeback — volviste al otro día', { animate: true });
 
     // Milestone toasts usando racha calculada en tiempo real
     if (_streakAfterMark > 0) {
@@ -4633,6 +4658,8 @@ window.openRevisionMensual = () => {
 
         if (!grasa && !ingreso) { UI.toast('Completa al menos grasa o ingresos.','warn'); return false; }
 
+        const isNewRevMes = !(s.revisiones_mensuales || []).find(r => r.mes === mes);
+
         State.update(st => {
           if (!st.revisiones_mensuales) st.revisiones_mensuales = [];
           const idx = st.revisiones_mensuales.findIndex(r => r.mes === mes);
@@ -4655,8 +4682,8 @@ window.openRevisionMensual = () => {
           }
         });
 
-        XP.add(75, 'Revisión mensual completada');
-        UI.toast('Revisión guardada. +75 XP 📊', 'success', 4000);
+        if (isNewRevMes) XP.add(75, 'Revisión mensual completada');
+        UI.toast(isNewRevMes ? 'Revisión guardada. +75 XP 📊' : 'Revisión actualizada.', 'success', 4000);
         renderYo();
       }},
       { label: 'Ahora no', action: () => {} },
@@ -4665,9 +4692,17 @@ window.openRevisionMensual = () => {
 };
 
 function debeRevisarMes(s) {
+  const dia = new Date().getDate();
   const mes = monthStr();
   if ((s.revisiones_mensuales || []).find(r => r.mes === mes)) return false;
-  return new Date().getDate() >= 25; // Mostrar los últimos 6 días del mes
+  if (dia >= 25) return true;
+  // Primeros 5 días del mes: mostrar si el mes anterior no tiene revisión
+  if (dia <= 5) {
+    const prevDate = new Date(); prevDate.setDate(0);
+    const prevMes = monthStr(prevDate);
+    if (!(s.revisiones_mensuales || []).find(r => r.mes === prevMes)) return true;
+  }
+  return false;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -7086,7 +7121,7 @@ function renderNav() {
     ['resultados','Resultados',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`],
     ['diario','Diario',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`],
     ['yo','Yo',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`],
-    ['cocina','Cocina',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 11l19-9-9 19-2-8-8-2z"/></svg>`],
+    ['cocina','Cocina',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="2" x2="18" y2="22"/><path d="M22 8.5c0 2.5-2 4-4 4"/><path d="M6 2v4c0 1.7 1.3 3 3 3s3-1.3 3-3V2"/><line x1="9" y1="9" x2="9" y2="22"/></svg>`],
   ].map(([route, label, icon]) =>
     `<button class="nav-tab" data-route="${route}" aria-label="Ir a ${label}" onclick="Router.navigate('${route}')">
       ${icon}<span aria-hidden="true">${label}</span>
@@ -7141,6 +7176,18 @@ const Notifs = (() => {
     for (let i = 0; i < aguaHoras.length; i += 2) {
       const vaso = i / 2 + 1;
       at(aguaHoras[i], aguaHoras[i+1], '💧 Agua', `Vaso ${vaso} de 8. Registralo en la app.`, `agua-${vaso}`);
+    }
+
+    // 📓 Diario — reflexión nocturna (21:00, solo si no hay entrada de noche hoy)
+    {
+      const t = new Date(); t.setHours(21, 0, 0, 0);
+      const ms = t.getTime() - Date.now();
+      if (ms > 0) setTimeout(() => {
+        const hoyEntry = State.get().journal.find(j => j.fecha === today() && j.tipo === 'daily');
+        if (!hoyEntry?.payload?.estado) {
+          try { new Notification('📓 Reflexión del día', { body: '¿Qué pasó hoy? 3 preguntas, 2 minutos.', icon:'./icon-192.png', tag:'diario-noche' }); } catch(e) {}
+        }
+      }, Math.min(ms, 2147483647));
     }
 
     // 😴 Dormir — 22:00 si no completaste todos los hábitos
