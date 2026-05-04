@@ -1427,7 +1427,7 @@ const State = (() => {
     },
     cocina: {
       favoritas: [],
-      plan_semanal: { semana: '', almuerzo_ids: [], cena_ids: [], desayuno_id: null, shot_id: 'sh1' },
+      plan_semanal: { semana: '', almuerzo_ids: [], cena_ids: [], desayuno_id: null, shot_id: 'sh1', batidos_dia: 1 },
       lista_compras: { items: [], semana: '', generada: null },
     },
   });
@@ -1514,6 +1514,7 @@ const State = (() => {
       delete data.cocina.plan_semanal.incluir_shot;
     }
     if (data.cocina.plan_semanal.shot_id === undefined) data.cocina.plan_semanal.shot_id = 'sh1';
+    if (data.cocina.plan_semanal.batidos_dia === undefined) data.cocina.plan_semanal.batidos_dia = 1;
     if (!data.cocina.lista_compras) data.cocina.lista_compras = defaults().cocina.lista_compras;
     // Recalcular nivel siempre desde total (fuente de verdad)
     if (data.xp && data.xp.total !== undefined) {
@@ -2011,19 +2012,19 @@ function defaultRecetas() {
       costo_total_clp:1090,
       notas:'Ideal antes de entrenar. Sumar 1 cda de mantequilla de maní para +90 kcal y más testosterona.' },
 
-    { id:'dr2', tipo:'desayuno', nombre:'3 Huevos revueltos con pan integral y palta',
+    { id:'dr2', tipo:'desayuno', nombre:'3 Huevos revueltos con pan de masa madre y palta',
       tiempo_min:12, porciones:1, meal_prep:false,
       tags:['rapido','testosterona','economico'],
       ingredientes:[
         {item:'Huevos enteros',cantidad:'3 unidades',costo_clp:350,cat:'proteinas'},
-        {item:'Pan integral',cantidad:'2 rebanadas',costo_clp:250,cat:'carbos'},
+        {item:'Pan de masa madre',cantidad:'2 rebanadas',costo_clp:350,cat:'carbos'},
         {item:'Palta',cantidad:'½ unidad',costo_clp:400,cat:'grasas'},
         {item:'Aceite de oliva',cantidad:'1 cdita',costo_clp:80,cat:'grasas'},
         {item:'Sal y pimienta',cantidad:'al gusto',costo_clp:10,cat:'especias'},
       ],
-      pasos:['Batir huevos con sal y pimienta.','Cocinar en sartén con aceite a fuego medio-bajo, revolviendo suave.','Servir sobre pan integral tostado con palta en rodajas.'],
-      macros:{proteina_g:26,calorias:480,grasas_g:26,carbos_g:38},
-      costo_total_clp:1090,
+      pasos:['Batir huevos con sal y pimienta.','Cocinar en sartén con aceite a fuego medio-bajo, revolviendo suave.','Servir sobre pan de masa madre tostado con palta en rodajas.'],
+      macros:{proteina_g:26,calorias:490,grasas_g:26,carbos_g:40},
+      costo_total_clp:1190,
       notas:'Los huevos enteros son la mejor fuente de colesterol HDL para producir testosterona. No los tires.' },
 
     { id:'dr3', tipo:'desayuno', nombre:'Yogur griego con granola y miel',
@@ -2045,14 +2046,14 @@ function defaultRecetas() {
       tags:['rapido','omega3','economico'],
       ingredientes:[
         {item:'Atún en agua (lata)',cantidad:'1 lata (165g)',costo_clp:700,cat:'proteinas'},
-        {item:'Pan integral tostado',cantidad:'2 rebanadas',costo_clp:250,cat:'carbos'},
+        {item:'Pan de masa madre tostado',cantidad:'2 rebanadas',costo_clp:350,cat:'carbos'},
         {item:'Palta',cantidad:'½ unidad',costo_clp:400,cat:'grasas'},
         {item:'Limón',cantidad:'½ unidad',costo_clp:80,cat:'extras'},
         {item:'Orégano',cantidad:'1 pizca',costo_clp:10,cat:'especias'},
       ],
       pasos:['Escurrir atún y mezclar con limón y orégano.','Tostar el pan.','Untar palta y poner atún encima.'],
-      macros:{proteina_g:30,calorias:420,grasas_g:16,carbos_g:36},
-      costo_total_clp:1440,
+      macros:{proteina_g:30,calorias:430,grasas_g:16,carbos_g:38},
+      costo_total_clp:1540,
       notas:'Omega-3 del atún + grasas monoinsaturadas de la palta = combo ideal para energía y recuperación.' },
 
     { id:'dr5', tipo:'desayuno', nombre:'Omelette de claras con espinaca y queso',
@@ -2071,12 +2072,12 @@ function defaultRecetas() {
       notas:'Bajo en carbos, ideal si no vas a entrenar esa mañana. El zinc del queso apoya testosterona.' },
 
     // ── ALMUERZOS (5 porciones meal prep) ───────────────────
-    { id:'al1', tipo:'almuerzo', nombre:'Pollo al limón con arroz integral y brócoli',
-      tiempo_min:50, porciones:5, meal_prep:true,
+    { id:'al1', tipo:'almuerzo', nombre:'Pollo al limón con arroz y brócoli',
+      tiempo_min:40, porciones:5, meal_prep:true,
       tags:['clasico','meal-prep','alto-proteina'],
       ingredientes:[
         {item:'Pechuga de pollo',cantidad:'800g',costo_clp:5500,cat:'proteinas'},
-        {item:'Arroz integral',cantidad:'300g',costo_clp:1200,cat:'carbos'},
+        {item:'Arroz blanco',cantidad:'300g',costo_clp:900,cat:'carbos'},
         {item:'Brócoli',cantidad:'500g',costo_clp:1200,cat:'verduras'},
         {item:'Limón',cantidad:'2 unidades',costo_clp:300,cat:'extras'},
         {item:'Ajo',cantidad:'4 dientes',costo_clp:100,cat:'especias'},
@@ -2085,13 +2086,13 @@ function defaultRecetas() {
       ],
       pasos:[
         'Marinar pollo 10 min con limón, ajo, sal y pimienta.',
-        'Cocinar arroz integral (35 min aprox).',
+        'Cocinar arroz blanco (18 min aprox).',
         'Cocinar pollo en sartén/horno 180°C por 25 min.',
         'Cocinar brócoli al vapor 8 min.',
         'Dividir en 5 porciones iguales en los envases.',
       ],
-      macros:{proteina_g:45,calorias:520,grasas_g:10,carbos_g:58},
-      costo_total_clp:8650, costo_por_porcion_clp:1730,
+      macros:{proteina_g:45,calorias:520,grasas_g:10,carbos_g:55},
+      costo_total_clp:8350, costo_por_porcion_clp:1670,
       notas:'El clásico. Duración 5 días en refrigerador. El brócoli tiene DIM que ayuda a equilibrar estrógenos.' },
 
     { id:'al2', tipo:'almuerzo', nombre:'Carne molida con lentejas y verduras',
@@ -2105,7 +2106,7 @@ function defaultRecetas() {
         {item:'Tomate',cantidad:'2 unidades',costo_clp:400,cat:'verduras'},
         {item:'Ajo',cantidad:'4 dientes',costo_clp:100,cat:'especias'},
         {item:'Comino, pimentón, sal',cantidad:'al gusto',costo_clp:60,cat:'especias'},
-        {item:'Aceite',cantidad:'2 cdas',costo_clp:150,cat:'grasas'},
+        {item:'Aceite de oliva',cantidad:'2 cdas',costo_clp:200,cat:'grasas'},
         {item:'Arroz blanco',cantidad:'200g',costo_clp:600,cat:'carbos'},
       ],
       pasos:[
@@ -2116,15 +2117,15 @@ function defaultRecetas() {
         'Cocinar arroz aparte. Dividir en 5 envases.',
       ],
       macros:{proteina_g:42,calorias:580,grasas_g:16,carbos_g:62},
-      costo_total_clp:7010, costo_por_porcion_clp:1402,
+      costo_total_clp:7060, costo_por_porcion_clp:1412,
       notas:'Carne + lentejas = zinc + hierro + proteína completa. Combo clave para testosterona. Muy económico.' },
 
-    { id:'al3', tipo:'almuerzo', nombre:'Atún con pasta integral al pesto',
+    { id:'al3', tipo:'almuerzo', nombre:'Atún con pasta al pesto',
       tiempo_min:30, porciones:5, meal_prep:true,
       tags:['rapido','omega3','economico'],
       ingredientes:[
         {item:'Atún en agua (latas)',cantidad:'4 latas (165g c/u)',costo_clp:2800,cat:'proteinas'},
-        {item:'Pasta integral (espiral o penne)',cantidad:'500g',costo_clp:1800,cat:'carbos'},
+        {item:'Pasta (espiral o penne)',cantidad:'500g',costo_clp:1500,cat:'carbos'},
         {item:'Pesto (frasco)',cantidad:'1 frasco (130g)',costo_clp:1800,cat:'grasas'},
         {item:'Tomates cherry',cantidad:'200g',costo_clp:800,cat:'verduras'},
         {item:'Aceite de oliva',cantidad:'2 cdas',costo_clp:200,cat:'grasas'},
@@ -2137,8 +2138,8 @@ function defaultRecetas() {
         'Agregar atún, tomates cherry partidos y parmesano.',
         'Dividir en 5 porciones. Guardar fría.',
       ],
-      macros:{proteina_g:38,calorias:540,grasas_g:18,carbos_g:62},
-      costo_total_clp:7920, costo_por_porcion_clp:1584,
+      macros:{proteina_g:38,calorias:530,grasas_g:18,carbos_g:60},
+      costo_total_clp:7620, costo_por_porcion_clp:1524,
       notas:'Fácil y rápido. Ideal semanas de poco tiempo. El pesto tiene grasas buenas y albahaca antiinflamatoria.' },
 
     { id:'al4', tipo:'almuerzo', nombre:'Pollo con garbanzos al curry',
@@ -2153,7 +2154,7 @@ function defaultRecetas() {
         {item:'Ajo',cantidad:'4 dientes',costo_clp:100,cat:'especias'},
         {item:'Curry en polvo',cantidad:'2 cdas',costo_clp:200,cat:'especias'},
         {item:'Arroz blanco',cantidad:'200g',costo_clp:600,cat:'carbos'},
-        {item:'Sal, aceite',cantidad:'al gusto',costo_clp:80,cat:'especias'},
+        {item:'Sal, aceite de oliva',cantidad:'al gusto',costo_clp:100,cat:'especias'},
       ],
       pasos:[
         'Saltear cebolla y ajo 3 min. Agregar curry 1 min.',
@@ -2163,7 +2164,7 @@ function defaultRecetas() {
         'Servir con arroz. Dividir en 5 envases.',
       ],
       macros:{proteina_g:43,calorias:610,grasas_g:22,carbos_g:58},
-      costo_total_clp:8880, costo_por_porcion_clp:1776,
+      costo_total_clp:8900, costo_por_porcion_clp:1780,
       notas:'Curry cúrcuma = antiinflamatorio potente. Garbanzos + pollo = zinc máximo. Uno de los mejores para testosterona.' },
 
     { id:'al5', tipo:'almuerzo', nombre:'Arroz con pollo venezolano',
@@ -2180,18 +2181,18 @@ function defaultRecetas() {
         {item:'Caldo de pollo (cubo)',cantidad:'1 cubo',costo_clp:200,cat:'extras'},
         {item:'Cúrcuma o bijol',cantidad:'1 cdita',costo_clp:50,cat:'especias'},
         {item:'Comino, orégano, sal, pimienta',cantidad:'al gusto',costo_clp:60,cat:'especias'},
-        {item:'Aceite',cantidad:'2 cdas',costo_clp:150,cat:'grasas'},
+        {item:'Aceite de oliva',cantidad:'2 cdas',costo_clp:200,cat:'grasas'},
       ],
       pasos:[
         'Cortar pollo en trozos. Sazonar con sal, pimienta y comino.',
-        'Dorar pollo en aceite 5 min por lado. Retirar.',
+        'Dorar pollo en aceite de oliva 5 min por lado. Retirar.',
         'Sofrito: saltear cebolla, ajo, pimentón y tomate 5 min hasta que ablanden.',
         'Agregar zanahoria, cúrcuma y arroz crudo. Mezclar 2 min.',
         'Agregar pollo, caldo y 2.5 tazas agua caliente. Cocinar tapado 25 min a fuego bajo.',
         'Dividir en 5 envases. Queda húmedo pero portable.',
       ],
       macros:{proteina_g:40,calorias:530,grasas_g:11,carbos_g:62},
-      costo_total_clp:7310, costo_por_porcion_clp:1462,
+      costo_total_clp:7360, costo_por_porcion_clp:1472,
       notas:'El plato venezolano más clásico. El sofrito base (cebolla+ajo+pimentón+tomate) es la clave del sabor. Portable y aguanta 5 días bien.' },
 
     { id:'al6', tipo:'almuerzo', nombre:'Bowl de pollo asado con quinoa y pimentón',
@@ -2228,7 +2229,7 @@ function defaultRecetas() {
         {item:'Tomate',cantidad:'1 unidad',costo_clp:200,cat:'verduras'},
         {item:'Ajo',cantidad:'4 dientes',costo_clp:100,cat:'especias'},
         {item:'Comino, orégano, sal, pimienta',cantidad:'al gusto',costo_clp:60,cat:'especias'},
-        {item:'Aceite',cantidad:'2 cdas',costo_clp:150,cat:'grasas'},
+        {item:'Aceite de oliva',cantidad:'2 cdas',costo_clp:200,cat:'grasas'},
       ],
       pasos:[
         'Sancochar la carne 30 min en agua con sal hasta que ablande. Escurrir y desmechar (mechar = deshilachar).',
@@ -2239,7 +2240,7 @@ function defaultRecetas() {
         'Dividir en 5 envases: arroz + carne mechada + caraotas + 2-3 rodajas plátano.',
       ],
       macros:{proteina_g:42,calorias:580,grasas_g:12,carbos_g:72},
-      costo_total_clp:6960, costo_por_porcion_clp:1392,
+      costo_total_clp:7010, costo_por_porcion_clp:1402,
       notas:'El plato nacional venezolano. Zinc del res + hierro de las caraotas = combo clave para testosterona y fuerza. Portable perfectamente en envase.' },
 
     // ── CENAS (5 porciones meal prep, más livianas) ──────────
@@ -2254,7 +2255,7 @@ function defaultRecetas() {
         {item:'Ajo',cantidad:'3 dientes',costo_clp:80,cat:'especias'},
         {item:'Pimentón verde',cantidad:'½ unidad',costo_clp:250,cat:'verduras'},
         {item:'Comino, orégano, sal',cantidad:'al gusto',costo_clp:40,cat:'especias'},
-        {item:'Aceite',cantidad:'2 cdas',costo_clp:150,cat:'grasas'},
+        {item:'Aceite de oliva',cantidad:'2 cdas',costo_clp:200,cat:'grasas'},
       ],
       pasos:[
         'Saltear cebolla, ajo y pimentón 4 min. Agregar caraotas y condimentar.',
@@ -2264,7 +2265,7 @@ function defaultRecetas() {
         'Dividir en 5 envases: arroz + caraotas + plátano.',
       ],
       macros:{proteina_g:20,calorias:390,grasas_g:6,carbos_g:70},
-      costo_total_clp:2920, costo_por_porcion_clp:584,
+      costo_total_clp:2970, costo_por_porcion_clp:594,
       notas:'Cena venezolana clásica. Muy barata, alto en magnesio y hierro vegetal. Cena liviana = mejor sueño. El plátano maduro da el dulce natural.' },
 
     { id:'ce2', tipo:'cena', nombre:'Ensalada proteica de atún con aguacate',
@@ -2279,17 +2280,17 @@ function defaultRecetas() {
         {item:'Limón',cantidad:'2 unidades',costo_clp:200,cat:'frutas'},
         {item:'Aceite de oliva',cantidad:'2 cdas',costo_clp:200,cat:'grasas'},
         {item:'Sal, pimienta, orégano',cantidad:'al gusto',costo_clp:30,cat:'especias'},
-        {item:'Pan integral (opcional)',cantidad:'5 rebanadas',costo_clp:600,cat:'carbos'},
+        {item:'Pan de masa madre (opcional)',cantidad:'5 rebanadas',costo_clp:800,cat:'carbos'},
       ],
       pasos:[
         'Escurrir bien el atún.',
         'Cortar tomates, pepino y cebolla morada en trozos medianos.',
         'Mezclar atún + vegetales + aceite + limón + condimentos.',
         'Dividir en 5 envases. Guardar el aguacate entero (cortar al momento de comer para que no se oxide).',
-        'Opcionalmente agregar pan integral al servir.',
+        'Opcionalmente agregar pan de masa madre al servir.',
       ],
-      macros:{proteina_g:32,calorias:380,grasas_g:18,carbos_g:20},
-      costo_total_clp:6380, costo_por_porcion_clp:1276,
+      macros:{proteina_g:32,calorias:390,grasas_g:18,carbos_g:22},
+      costo_total_clp:6580, costo_por_porcion_clp:1316,
       notas:'La cena más portable que existe. Omega-3 del atún + grasas del aguacate = combo testosterona. Guarda el aguacate aparte para cortarlo al momento.' },
 
     { id:'ce3', tipo:'cena', nombre:'Revuelto de huevos con champiñones y espinaca',
@@ -2302,16 +2303,16 @@ function defaultRecetas() {
         {item:'Cebolla',cantidad:'1 mediana',costo_clp:200,cat:'verduras'},
         {item:'Aceite de oliva',cantidad:'2 cdas',costo_clp:200,cat:'grasas'},
         {item:'Sal, pimienta, ajo en polvo',cantidad:'al gusto',costo_clp:30,cat:'especias'},
-        {item:'Pan integral',cantidad:'5 rebanadas',costo_clp:600,cat:'carbos'},
+        {item:'Pan de masa madre',cantidad:'5 rebanadas',costo_clp:800,cat:'carbos'},
       ],
       pasos:[
         'Saltear cebolla y champiñones 5 min hasta dorar.',
         'Agregar espinaca, 1 min hasta que baje.',
         'Agregar huevos batidos, revolver a fuego bajo.',
-        'Condimentar y servir con pan integral.',
+        'Condimentar y servir con pan de masa madre.',
       ],
-      macros:{proteina_g:28,calorias:360,grasas_g:20,carbos_g:24},
-      costo_total_clp:3680, costo_por_porcion_clp:736,
+      macros:{proteina_g:28,calorias:370,grasas_g:20,carbos_g:26},
+      costo_total_clp:3880, costo_por_porcion_clp:776,
       notas:'Los champiñones expuestos al sol son fuente de vitamina D2. El zinc de los huevos + vitamina D = combo testosterona.' },
 
     { id:'ce4', tipo:'cena', nombre:'Pollo al ajillo con vegetales al vapor',
@@ -2349,17 +2350,17 @@ function defaultRecetas() {
         {item:'Ajo',cantidad:'5 dientes',costo_clp:100,cat:'especias'},
         {item:'Papa',cantidad:'2 medianas',costo_clp:250,cat:'carbos'},
         {item:'Comino, orégano, paprika, sal',cantidad:'al gusto',costo_clp:60,cat:'especias'},
-        {item:'Aceite',cantidad:'2 cdas',costo_clp:150,cat:'grasas'},
+        {item:'Aceite de oliva',cantidad:'2 cdas',costo_clp:200,cat:'grasas'},
       ],
       pasos:[
         'Cortar pollo en presas. Sazonar con sal, comino y paprika.',
-        'Dorar pollo en aceite 5 min por cada lado. Retirar.',
+        'Dorar pollo en aceite de oliva 5 min por cada lado. Retirar.',
         'Sofrito: sofreír cebolla, ajo, pimentón y tomate 5 min.',
         'Agregar pollo, papa en cubos y 1 taza agua. Tapar y cocinar 20 min a fuego bajo.',
         'Cocinar arroz aparte. Dividir en 5 envases.',
       ],
       macros:{proteina_g:38,calorias:470,grasas_g:14,carbos_g:50},
-      costo_total_clp:6560, costo_por_porcion_clp:1312,
+      costo_total_clp:6610, costo_por_porcion_clp:1322,
       notas:'Pollo guisado venezolano clásico. El sofrito concentrado hace que quede seco, no aguado — perfecto para llevar al trabajo.' },
 
     { id:'ce6', tipo:'cena', nombre:'Wok de pollo con fideos y verduras',
@@ -2373,7 +2374,7 @@ function defaultRecetas() {
         {item:'Cebollín',cantidad:'4 tallos',costo_clp:300,cat:'verduras'},
         {item:'Salsa de soya',cantidad:'4 cdas',costo_clp:200,cat:'extras'},
         {item:'Jengibre fresco o en polvo',cantidad:'1 cdita',costo_clp:100,cat:'especias'},
-        {item:'Ajo, aceite',cantidad:'al gusto',costo_clp:150,cat:'especias'},
+        {item:'Ajo, aceite de oliva',cantidad:'al gusto',costo_clp:200,cat:'especias'},
       ],
       pasos:[
         'Cocinar fideos según instrucciones. Reservar.',
@@ -2383,7 +2384,7 @@ function defaultRecetas() {
         'Mezclar bien y dividir en 5 envases.',
       ],
       macros:{proteina_g:36,calorias:510,grasas_g:8,carbos_g:70},
-      costo_total_clp:7150, costo_por_porcion_clp:1430,
+      costo_total_clp:7200, costo_por_porcion_clp:1440,
       notas:'El jengibre reduce DOMS (dolor post-entreno). Wok a fuego alto = más sabor, menos tiempo.' },
 
     // ── SHOTS PRO (evidencia real, absorción correcta) ────────
@@ -6855,14 +6856,36 @@ function _renderPlanSemanal(s, recetas, container) {
   const rDesayuno = recetas.find(r => r.id === plan.desayuno_id);
   const rShot = recetas.find(r => r.id === plan.shot_id);
   const targetProt = s.fisico.target_proteina_g || 145;
-  // Proteína promedio diaria: almuerzo avg + cena avg + desayuno
+  const batidosDia = (plan.batidos_dia !== undefined) ? plan.batidos_dia : 1;
+  const protBatidos = batidosDia * 24;
+  const calBatidos = batidosDia * 120;
+  // Proteína promedio diaria: almuerzo avg + cena avg + desayuno + batidos
   const protAlm = rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r) => s + r.macros.proteina_g, 0) / rAlmuerzos.length) : 0;
   const protCen = rCenas.length ? Math.round(rCenas.reduce((s,r) => s + r.macros.proteina_g, 0) / rCenas.length) : 0;
   const protDes = rDesayuno ? rDesayuno.macros.proteina_g : 0;
-  const protDia = protAlm + protCen + protDes;
-  const calDia = (rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r)=>s+r.macros.calorias,0)/rAlmuerzos.length) : 0) + (rCenas.length ? Math.round(rCenas.reduce((s,r)=>s+r.macros.calorias,0)/rCenas.length) : 0) + (rDesayuno ? rDesayuno.macros.calorias : 0);
+  const protDia = protAlm + protCen + protDes + protBatidos;
+  const calDia = (rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r)=>s+r.macros.calorias,0)/rAlmuerzos.length) : 0) + (rCenas.length ? Math.round(rCenas.reduce((s,r)=>s+r.macros.calorias,0)/rCenas.length) : 0) + (rDesayuno ? rDesayuno.macros.calorias : 0) + calBatidos;
   const protPct = Math.min(100, Math.round(protDia / targetProt * 100));
-  const costSem = rAlmuerzos.reduce((s,r) => s + (r.costo_por_porcion_clp||r.costo_total_clp||0) * (almIds.length===1?5:3), 0) + rCenas.reduce((s,r) => s + (r.costo_por_porcion_clp||r.costo_total_clp||0) * (ceIds.length===1?5:3), 0) + (rDesayuno ? (rDesayuno.costo_total_clp||0) * 5 : 0);
+  const costSem = rAlmuerzos.reduce((s,r) => s + (r.costo_por_porcion_clp||r.costo_total_clp||0) * (almIds.length===1?5:3), 0) + rCenas.reduce((s,r) => s + (r.costo_por_porcion_clp||r.costo_total_clp||0) * (ceIds.length===1?5:3), 0) + (rDesayuno ? (rDesayuno.costo_total_clp||0) * 5 : 0) + batidosDia * 600 * 7;
+  const hasPlan = rAlmuerzos.length || rCenas.length || rDesayuno || rShot;
+  // Warnings de proteína
+  const excessProt = protDia - targetProt;
+  const shortProt = targetProt - protDia;
+  let swapHTML = '';
+  if (hasPlan && shortProt > 20) {
+    const disponibles = recetas.filter(r => (r.tipo==='almuerzo'||r.tipo==='cena') && !almIds.includes(r.id) && !ceIds.includes(r.id)).sort((a,b) => b.macros.proteina_g - a.macros.proteina_g);
+    const recomendada = disponibles[0];
+    const peor = [...rAlmuerzos,...rCenas].sort((a,b)=>a.macros.proteina_g-b.macros.proteina_g)[0];
+    if (recomendada && peor && (recomendada.macros.proteina_g - peor.macros.proteina_g) > 5) {
+      swapHTML = `<div style="padding:8px 10px;background:var(--primary-glow);border-radius:var(--r-sm);margin-top:8px"><div class="text-xs" style="color:var(--primary)">💡 Faltan <strong>${shortProt}g</strong> — cambia <em>${esc(peor.nombre)}</em> por <em>${esc(recomendada.nombre)}</em> (+${recomendada.macros.proteina_g - peor.macros.proteina_g}g prot).</div></div>`;
+    } else if (batidosDia < 2) {
+      swapHTML = `<div style="padding:8px 10px;background:var(--primary-glow);border-radius:var(--r-sm);margin-top:8px"><div class="text-xs" style="color:var(--primary)">💡 Faltan <strong>${shortProt}g</strong> para tu meta. Considera subir a ${batidosDia + 1} batido${batidosDia+1!==1?'s':''} diario${batidosDia+1!==1?'s':''}.</div></div>`;
+    }
+  }
+  let wasteHTML = '';
+  if (hasPlan && excessProt > 25) {
+    wasteHTML = `<div style="padding:8px 10px;background:#fef3c7;border-radius:var(--r-sm);margin-top:8px"><div class="text-xs" style="color:#92400e">⚠️ <strong>${excessProt}g</strong> sobre tu meta — ese exceso no se asimila, se excreta. ${batidosDia > 0 ? 'Considera bajar a ' + (batidosDia-1) + ' batido' + (batidosDia-1!==1?'s':'') + '.' : 'Considera reemplazar una receta por algo más liviano.'}</div></div>`;
+  }
 
   const renderSlotGrupo = (label, recetasArr, tipo, max) => {
     const porciones = recetasArr.length < 2 ? 5 : 3;
@@ -6912,7 +6935,6 @@ function _renderPlanSemanal(s, recetas, container) {
   const semNum = parseInt((weekISO()||'W1').split('W')[1]) || 1;
   const shotRecId = ROTACION_SHOTS[(semNum - 1) % ROTACION_SHOTS.length];
   const shotRec = recetas.find(r => r.id === shotRecId);
-  const hasPlan = rAlmuerzos.length || rCenas.length || rDesayuno || rShot;
   container.innerHTML = `
     <div>
       ${!planEsSemanaActual && hasPlan ? `<div class="banner banner-comeback mb-md" style="background:var(--accent-glow);border-color:var(--accent);color:var(--accent)">Plan de semana anterior. Actualiza tu selección.</div>` : ''}
@@ -6933,11 +6955,20 @@ function _renderPlanSemanal(s, recetas, container) {
         <div class="card mb-md" style="background:var(--bg-2)">
           <div class="text-xs font-semibold text-lo mb-md" style="text-transform:uppercase;letter-spacing:.06em">Estimado diario promedio</div>
           <div class="row-between mb-sm">
+            <span class="text-sm">🥤 Batidos proteína/día</span>
+            <div style="display:flex;gap:4px">
+              ${[0,1,2].map(n => `<button onclick="setBatidosDia(${n})" style="padding:3px 10px;border-radius:var(--r-sm);border:1.5px solid ${batidosDia===n?'var(--primary)':'var(--border-strong)'};background:${batidosDia===n?'var(--primary-glow)':'transparent'};color:${batidosDia===n?'var(--primary)':'var(--text-lo)'};cursor:pointer;font-size:13px;font-weight:${batidosDia===n?'600':'400'}">${n}</button>`).join('')}
+            </div>
+          </div>
+          ${batidosDia > 0 ? `<div class="text-xs text-lo mb-sm" style="text-align:right">+${protBatidos}g prot · +${calBatidos} kcal · ~$${(batidosDia*600*7).toLocaleString('es-CL')}/sem</div>` : ''}
+          <div class="row-between mb-sm">
             <span class="text-sm">Proteína</span>
             <span class="font-semibold text-sm" style="color:${protPct>=80?'var(--success)':protPct>=60?'var(--accent)':'var(--danger)'}">${protDia}g / ${targetProt}g (${protPct}%)</span>
           </div>
           <div class="progress-bar mb-md"><div class="progress-fill" style="width:${protPct}%"></div></div>
-          <div class="row-between mb-sm"><span class="text-sm">Calorías</span><span class="font-semibold text-sm">${calDia} kcal/día</span></div>
+          ${swapHTML}
+          ${wasteHTML}
+          <div class="row-between mb-sm" style="margin-top:${swapHTML||wasteHTML?'12px':'0'}"><span class="text-sm">Calorías</span><span class="font-semibold text-sm">${calDia} kcal/día</span></div>
           <div class="row-between"><span class="text-sm">Costo aprox. semana</span><span class="font-semibold text-sm" style="color:var(--success)">$${costSem.toLocaleString('es-CL')}</span></div>
         </div>
         <button class="btn btn-primary btn-block mb-lg" onclick="generarListaCompras()">Generar lista de compras →</button>
@@ -7018,7 +7049,7 @@ function _renderPlanSemanal(s, recetas, container) {
           <!-- Orden de cocción -->
           <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">Orden de cocción (~2h domingo)</div>
           ${[
-            ['00:00','Poner a hervir el grano que más demora: arroz integral (35 min), quinoa (15 min). Si tienes 2 proteínas: prepara ingredientes de ambas juntos antes de cocinar.'],
+            ['00:00','Poner a hervir el grano que más demora: quinoa (15 min), arroz blanco (18 min). Si tienes 2 proteínas: prepara ingredientes de ambas juntos antes de cocinar.'],
             ['00:05','Precalentar horno a 180°C si hay receta al horno. Cortar y condimentar TODA la proteína de una vez.'],
             ['00:15','Proteína 1 al horno (con foil) O en sartén a fuego fuerte (sellado). Dejar sin tocar.'],
             ['00:20','Empezar proteína 2 en sartén o olla. Simultáneo al horno.'],
@@ -7042,6 +7073,10 @@ function _renderPlanSemanal(s, recetas, container) {
         </div>
       </div>
     </div>`;
+  window.setBatidosDia = function(n) {
+    State.update(st => { st.cocina.plan_semanal.batidos_dia = n; });
+    _renderPlanSemanal(State.get(), recetas, container);
+  };
 }
 
 function _renderListaCompras(s, recetas, container) {
