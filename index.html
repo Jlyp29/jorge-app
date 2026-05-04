@@ -1427,7 +1427,7 @@ const State = (() => {
     },
     cocina: {
       favoritas: [],
-      plan_semanal: { semana: '', almuerzo_ids: [], cena_ids: [], desayuno_id: null, shot_id: 'sh1', batidos_dia: 1 },
+      plan_semanal: { semana: '', almuerzo_ids: [], cena_ids: [], desayuno_ids: [], shot_id: 'sh1', batidos_dia: 1 },
       lista_compras: { items: [], semana: '', generada: null },
     },
   });
@@ -1515,6 +1515,12 @@ const State = (() => {
     }
     if (data.cocina.plan_semanal.shot_id === undefined) data.cocina.plan_semanal.shot_id = 'sh1';
     if (data.cocina.plan_semanal.batidos_dia === undefined) data.cocina.plan_semanal.batidos_dia = 1;
+    // Migrar desayuno_id → desayuno_ids[]
+    if (data.cocina.plan_semanal.desayuno_id !== undefined) {
+      data.cocina.plan_semanal.desayuno_ids = data.cocina.plan_semanal.desayuno_id ? [data.cocina.plan_semanal.desayuno_id] : [];
+      delete data.cocina.plan_semanal.desayuno_id;
+    }
+    if (!Array.isArray(data.cocina.plan_semanal.desayuno_ids)) data.cocina.plan_semanal.desayuno_ids = [];
     if (!data.cocina.lista_compras) data.cocina.lista_compras = defaults().cocina.lista_compras;
     // Recalcular nivel siempre desde total (fuente de verdad)
     if (data.xp && data.xp.total !== undefined) {
@@ -2095,30 +2101,31 @@ function defaultRecetas() {
       costo_total_clp:8350, costo_por_porcion_clp:1670,
       notas:'El clásico. Duración 5 días en refrigerador. El brócoli tiene DIM que ayuda a equilibrar estrógenos.' },
 
-    { id:'al2', tipo:'almuerzo', nombre:'Carne molida con lentejas y verduras',
-      tiempo_min:55, porciones:5, meal_prep:true,
-      tags:['zinc','testosterona','economico'],
+    { id:'al2', tipo:'almuerzo', nombre:'Carne molida criolla con papas',
+      tiempo_min:40, porciones:5, meal_prep:true,
+      tags:['venezolano','zinc','testosterona','facil'],
       ingredientes:[
         {item:'Carne molida (80/20)',cantidad:'600g',costo_clp:4200,cat:'proteinas'},
-        {item:'Lentejas secas',cantidad:'300g (cocidas 600g)',costo_clp:900,cat:'proteinas'},
-        {item:'Zanahoria',cantidad:'2 unidades',costo_clp:300,cat:'verduras'},
+        {item:'Papa',cantidad:'500g',costo_clp:600,cat:'carbos'},
+        {item:'Arroz blanco',cantidad:'200g',costo_clp:600,cat:'carbos'},
         {item:'Cebolla',cantidad:'1 grande',costo_clp:300,cat:'verduras'},
+        {item:'Pimentón rojo',cantidad:'1 unidad',costo_clp:500,cat:'verduras'},
         {item:'Tomate',cantidad:'2 unidades',costo_clp:400,cat:'verduras'},
         {item:'Ajo',cantidad:'4 dientes',costo_clp:100,cat:'especias'},
-        {item:'Comino, pimentón, sal',cantidad:'al gusto',costo_clp:60,cat:'especias'},
+        {item:'Comino, paprika, orégano, sal',cantidad:'al gusto',costo_clp:60,cat:'especias'},
         {item:'Aceite de oliva',cantidad:'2 cdas',costo_clp:200,cat:'grasas'},
-        {item:'Arroz blanco',cantidad:'200g',costo_clp:600,cat:'carbos'},
       ],
       pasos:[
-        'Cocinar lentejas 25 min hasta blandas, reservar.',
-        'Saltear cebolla y ajo 3 min. Agregar zanahoria y tomate.',
-        'Agregar carne molida, romper bien, cocinar 10 min.',
-        'Mezclar lentejas con la carne. Condimentar.',
-        'Cocinar arroz aparte. Dividir en 5 envases.',
+        'Cortar papa en cubos 2cm. Hervir en agua con sal 15 min hasta blanda. Escurrir.',
+        'En sartén grande: saltear cebolla, ajo y pimentón 4 min con aceite de oliva.',
+        'Agregar carne molida, romper bien, dorar 8 min a fuego alto sin mover demasiado.',
+        'Agregar tomate picado, comino, paprika y orégano. Cocinar 5 min.',
+        'Mezclar las papas con la carne. Ajustar sal.',
+        'Cocinar arroz aparte. Dividir en 5 envases: arroz + carne con papas.',
       ],
-      macros:{proteina_g:42,calorias:580,grasas_g:16,carbos_g:62},
-      costo_total_clp:7060, costo_por_porcion_clp:1412,
-      notas:'Carne + lentejas = zinc + hierro + proteína completa. Combo clave para testosterona. Muy económico.' },
+      macros:{proteina_g:38,calorias:530,grasas_g:18,carbos_g:56},
+      costo_total_clp:6960, costo_por_porcion_clp:1392,
+      notas:'El sofrito venezolano (cebolla+ajo+pimentón+tomate) hace toda la diferencia. Carne bien dorada = máximo sabor. Sin legumbres, sin olla de presión. Simple, barato, portable 5 días.' },
 
     { id:'al3', tipo:'almuerzo', nombre:'Atún con pasta al pesto',
       tiempo_min:30, porciones:5, meal_prep:true,
@@ -2142,12 +2149,12 @@ function defaultRecetas() {
       costo_total_clp:7620, costo_por_porcion_clp:1524,
       notas:'Fácil y rápido. Ideal semanas de poco tiempo. El pesto tiene grasas buenas y albahaca antiinflamatoria.' },
 
-    { id:'al4', tipo:'almuerzo', nombre:'Pollo con garbanzos al curry',
-      tiempo_min:55, porciones:5, meal_prep:true,
-      tags:['antiinflamatorio','testosterona','zinc'],
+    { id:'al4', tipo:'almuerzo', nombre:'Pollo al curry cremoso con papa',
+      tiempo_min:40, porciones:5, meal_prep:true,
+      tags:['antiinflamatorio','cremoso','facil'],
       ingredientes:[
         {item:'Pechuga o muslos de pollo (sin piel)',cantidad:'700g',costo_clp:4500,cat:'proteinas'},
-        {item:'Garbanzos cocidos (lata o cocidos)',cantidad:'400g',costo_clp:1200,cat:'proteinas'},
+        {item:'Papa',cantidad:'500g',costo_clp:600,cat:'carbos'},
         {item:'Leche de coco (lata)',cantidad:'400ml',costo_clp:1500,cat:'grasas'},
         {item:'Espinaca',cantidad:'100g',costo_clp:400,cat:'verduras'},
         {item:'Cebolla',cantidad:'1 grande',costo_clp:300,cat:'verduras'},
@@ -2157,15 +2164,16 @@ function defaultRecetas() {
         {item:'Sal, aceite de oliva',cantidad:'al gusto',costo_clp:100,cat:'especias'},
       ],
       pasos:[
-        'Saltear cebolla y ajo 3 min. Agregar curry 1 min.',
-        'Agregar pollo cortado en cubos, dorar 5 min.',
-        'Agregar leche de coco y garbanzos. Cocinar 20 min a fuego medio.',
-        'Agregar espinaca los últimos 3 min.',
+        'Cortar pollo en cubos 3cm. Cortar papa en cubos 2cm.',
+        'Saltear cebolla y ajo 3 min con aceite. Agregar curry 1 min hasta que perfume.',
+        'Agregar pollo, dorar 5 min.',
+        'Agregar leche de coco, papas y ½ taza agua. Tapar y cocinar 20 min a fuego medio.',
+        'Agregar espinaca los últimos 3 min. Ajustar sal.',
         'Servir con arroz. Dividir en 5 envases.',
       ],
-      macros:{proteina_g:43,calorias:610,grasas_g:22,carbos_g:58},
-      costo_total_clp:8900, costo_por_porcion_clp:1780,
-      notas:'Curry cúrcuma = antiinflamatorio potente. Garbanzos + pollo = zinc máximo. Uno de los mejores para testosterona.' },
+      macros:{proteina_g:40,calorias:570,grasas_g:20,carbos_g:54},
+      costo_total_clp:8300, costo_por_porcion_clp:1660,
+      notas:'La papa absorbe la salsa de curry y queda cremosa. Sin legumbres, sin olla de presión. Cúrcuma del curry = antiinflamatorio real. De los mejores platos de batch cooking.' },
 
     { id:'al5', tipo:'almuerzo', nombre:'Arroz con pollo venezolano',
       tiempo_min:55, porciones:5, meal_prep:true,
@@ -2195,53 +2203,54 @@ function defaultRecetas() {
       costo_total_clp:7360, costo_por_porcion_clp:1472,
       notas:'El plato venezolano más clásico. El sofrito base (cebolla+ajo+pimentón+tomate) es la clave del sabor. Portable y aguanta 5 días bien.' },
 
-    { id:'al6', tipo:'almuerzo', nombre:'Bowl de pollo asado con quinoa y pimentón',
-      tiempo_min:55, porciones:5, meal_prep:true,
-      tags:['proteina-completa','energia','antioxidante'],
+    { id:'al6', tipo:'almuerzo', nombre:'Pollo teriyaki con arroz',
+      tiempo_min:30, porciones:5, meal_prep:true,
+      tags:['asiatico','dulce-sabroso','alto-proteina','facil'],
       ingredientes:[
-        {item:'Pechuga de pollo',cantidad:'700g',costo_clp:4800,cat:'proteinas'},
-        {item:'Quinoa',cantidad:'250g',costo_clp:2500,cat:'carbos'},
-        {item:'Pimentón rojo y amarillo',cantidad:'2 unidades',costo_clp:800,cat:'verduras'},
-        {item:'Zucchini',cantidad:'2 unidades',costo_clp:600,cat:'verduras'},
-        {item:'Cebolla morada',cantidad:'1 unidad',costo_clp:300,cat:'verduras'},
-        {item:'Aceite de oliva',cantidad:'3 cdas',costo_clp:300,cat:'grasas'},
-        {item:'Limón, ajo, paprika',cantidad:'al gusto',costo_clp:150,cat:'especias'},
-      ],
-      pasos:[
-        'Cocinar quinoa 15 min (1 parte quinoa, 2 partes agua).',
-        'Cortar verduras y pollo en cubos. Condimentar con ajo, limón, paprika.',
-        'Asar en bandeja horno 180°C por 25-30 min.',
-        'Dividir quinoa y verduras asadas en 5 envases. Poner pollo encima.',
-      ],
-      macros:{proteina_g:44,calorias:560,grasas_g:14,carbos_g:56},
-      costo_total_clp:9450, costo_por_porcion_clp:1890,
-      notas:'Quinoa tiene los 9 aminoácidos esenciales. Vitamina C del pimentón mejora absorción de hierro del pollo.' },
-
-    { id:'al7', tipo:'almuerzo', nombre:'Pabellón criollo fit',
-      tiempo_min:60, porciones:5, meal_prep:true,
-      tags:['venezolano','hierro','zinc','clasico'],
-      ingredientes:[
-        {item:'Carne de res (posta o lomo)',cantidad:'500g',costo_clp:4000,cat:'proteinas'},
-        {item:'Caraotas negras (lata o secas)',cantidad:'400g cocidas',costo_clp:1000,cat:'proteinas'},
-        {item:'Arroz blanco',cantidad:'250g',costo_clp:750,cat:'carbos'},
-        {item:'Plátano maduro',cantidad:'2 unidades',costo_clp:400,cat:'frutas'},
-        {item:'Cebolla',cantidad:'1 grande',costo_clp:300,cat:'verduras'},
-        {item:'Tomate',cantidad:'1 unidad',costo_clp:200,cat:'verduras'},
+        {item:'Pechuga de pollo',cantidad:'750g',costo_clp:5200,cat:'proteinas'},
+        {item:'Arroz blanco',cantidad:'300g',costo_clp:900,cat:'carbos'},
+        {item:'Salsa de soya',cantidad:'5 cdas',costo_clp:250,cat:'extras'},
+        {item:'Miel',cantidad:'2 cdas',costo_clp:200,cat:'extras'},
         {item:'Ajo',cantidad:'4 dientes',costo_clp:100,cat:'especias'},
-        {item:'Comino, orégano, sal, pimienta',cantidad:'al gusto',costo_clp:60,cat:'especias'},
+        {item:'Jengibre fresco o en polvo',cantidad:'1 cdita',costo_clp:80,cat:'especias'},
         {item:'Aceite de oliva',cantidad:'2 cdas',costo_clp:200,cat:'grasas'},
+        {item:'Cebollín o perejil',cantidad:'al gusto',costo_clp:100,cat:'verduras'},
       ],
       pasos:[
-        'Sancochar la carne 30 min en agua con sal hasta que ablande. Escurrir y desmechar (mechar = deshilachar).',
-        'Sofrito: saltear cebolla, ajo y tomate 5 min. Agregar la carne mechada y comino. Cocinar 10 min.',
-        'Calentar caraotas con ajo y un poco del caldo. Si son secas, cocinar 40 min antes.',
-        'Cocinar arroz blanco aparte.',
-        'Cortar plátano maduro en rodajas y dorar en sartén con aceite 2 min por lado.',
-        'Dividir en 5 envases: arroz + carne mechada + caraotas + 2-3 rodajas plátano.',
+        'Salsa teriyaki: mezclar soya + miel + ajo rallado + jengibre en un tazón.',
+        'Cortar pollo en tiras o cubos. Marinar 10 min en la salsa si tienes tiempo.',
+        'Calentar sartén a fuego alto con aceite. Dorar pollo 5-6 min sin mover demasiado.',
+        'Agregar el resto de la salsa, reducir 2 min a fuego alto hasta que quede brillante y espesa.',
+        'Cocinar arroz aparte. Dividir en 5 envases: arroz + pollo + cebollín encima.',
       ],
-      macros:{proteina_g:42,calorias:580,grasas_g:12,carbos_g:72},
-      costo_total_clp:7010, costo_por_porcion_clp:1402,
-      notas:'El plato nacional venezolano. Zinc del res + hierro de las caraotas = combo clave para testosterona y fuerza. Portable perfectamente en envase.' },
+      macros:{proteina_g:44,calorias:510,grasas_g:9,carbos_g:58},
+      costo_total_clp:7030, costo_por_porcion_clp:1406,
+      notas:'El favorito mundial. Salsa teriyaki casera (soya+miel+ajo+jengibre) queda brillante y adictiva. Sin ingredientes raros, en 30 min.' },
+
+    { id:'al7', tipo:'almuerzo', nombre:'Bistec encebollado venezolano',
+      tiempo_min:35, porciones:5, meal_prep:true,
+      tags:['venezolano','zinc','hierro','testosterona','clasico'],
+      ingredientes:[
+        {item:'Bistec de res (lomo o posta)',cantidad:'600g',costo_clp:5000,cat:'proteinas'},
+        {item:'Cebolla morada',cantidad:'3 grandes',costo_clp:600,cat:'verduras'},
+        {item:'Pimentón rojo',cantidad:'1 unidad',costo_clp:500,cat:'verduras'},
+        {item:'Ajo',cantidad:'5 dientes',costo_clp:100,cat:'especias'},
+        {item:'Arroz blanco',cantidad:'300g',costo_clp:900,cat:'carbos'},
+        {item:'Plátano maduro',cantidad:'2 unidades',costo_clp:400,cat:'frutas'},
+        {item:'Sal, comino, orégano, pimienta',cantidad:'al gusto',costo_clp:60,cat:'especias'},
+        {item:'Aceite de oliva',cantidad:'3 cdas',costo_clp:300,cat:'grasas'},
+      ],
+      pasos:[
+        'Cortar bistec en tiras finas 1cm. Sazonar con sal, comino y pimienta.',
+        'Sartén a fuego MUY ALTO con aceite. Sellar el bistec 2-3 min por lado sin mover (dorado = sabor).',
+        'Retirar el bistec. En el mismo sartén: saltear cebolla morada y pimentón 5-6 min hasta caramelizar.',
+        'Agregar ajo, orégano y el bistec de vuelta. Mezclar 2 min más.',
+        'Dorar plátano maduro en rodajas 2 min por lado en sartén separado.',
+        'Cocinar arroz aparte. Dividir en 5 envases: arroz + bistec encebollado + 2 tajadas plátano.',
+      ],
+      macros:{proteina_g:38,calorias:530,grasas_g:14,carbos_g:60},
+      costo_total_clp:7860, costo_por_porcion_clp:1572,
+      notas:'El combo venezolano más icónico. Clave: sartén muy caliente para sellar bien. La cebolla caramelizada + pimentón + tajadas de plátano = irresistible. Sin olla de presión, listo en 35 min.' },
 
     // ── CENAS (5 porciones meal prep, más livianas) ──────────
     { id:'ce1', tipo:'cena', nombre:'Caraotas negras con arroz y plátano',
@@ -6715,13 +6724,12 @@ function renderCocina(tab = 'recetas') {
   window.usarRecetaSemana = (id, tipo) => {
     State.update(st => {
       st.cocina.plan_semanal.semana = weekISO();
-      if (tipo === 'desayuno') {
-        st.cocina.plan_semanal.desayuno_id = st.cocina.plan_semanal.desayuno_id === id ? null : id;
-      } else if (tipo === 'shot') {
+      if (tipo === 'shot') {
         st.cocina.plan_semanal.shot_id = st.cocina.plan_semanal.shot_id === id ? null : id;
       } else {
-        const key = tipo === 'almuerzo' ? 'almuerzo_ids' : 'cena_ids';
-        const arr = st.cocina.plan_semanal[key];
+        const key = tipo === 'almuerzo' ? 'almuerzo_ids' : tipo === 'cena' ? 'cena_ids' : 'desayuno_ids';
+        const arr = st.cocina.plan_semanal[key] || [];
+        st.cocina.plan_semanal[key] = arr;
         const idx = arr.indexOf(id);
         if (idx !== -1) arr.splice(idx, 1);
         else if (arr.length < 2) arr.push(id);
@@ -6738,12 +6746,14 @@ function renderCocina(tab = 'recetas') {
     });
     renderCocina(tab);
   };
-  window.generarListaCompras = () => {
+  window.generarListaCompras = (semanas) => {
     const plan = State.get('cocina.plan_semanal');
+    const sem = semanas || State.get('cocina.lista_compras.semanas_compra') || 1;
     const items = [];
-    const addIngredientes = (recetaId, mult) => {
+    const addIngredientes = (recetaId, multBase) => {
       const r = recetas.find(x => x.id === recetaId);
       if (!r) return;
+      const mult = multBase * sem;
       r.ingredientes.forEach(ing => {
         const key = ing.item.toLowerCase();
         const exist = items.find(i => i.item.toLowerCase() === key);
@@ -6755,11 +6765,19 @@ function renderCocina(tab = 'recetas') {
     (plan.almuerzo_ids || []).forEach(id => addIngredientes(id, nAl === 1 ? 5 : 3));
     const nCe = (plan.cena_ids || []).length;
     (plan.cena_ids || []).forEach(id => addIngredientes(id, nCe === 1 ? 5 : 3));
-    if (plan.desayuno_id) addIngredientes(plan.desayuno_id, 5);
-    if (plan.shot_id) addIngredientes(plan.shot_id, 7); // 7 días
+    const nDes = (plan.desayuno_ids || []).length;
+    (plan.desayuno_ids || []).forEach(id => addIngredientes(id, nDes === 1 ? 5 : 3));
+    if (plan.shot_id) addIngredientes(plan.shot_id, 7); // 7 días/sem
+    // Batidos — agregar whey protein si aplica
+    const batidosDia = plan.batidos_dia || 0;
+    if (batidosDia > 0) {
+      const scoopsSem = batidosDia * 7 * sem;
+      const gTotal = scoopsSem * 30;
+      items.push({ item: 'Whey protein', cantidad: `~${gTotal}g (${scoopsSem} scoops)`, cat: 'proteinas', costo_clp: batidosDia * 600 * 7 * sem, comprado: false });
+    }
     const CATS_ORDER = ['proteinas','verduras','frutas','lacteos','carbos','grasas','especias','extras'];
     items.sort((a, b) => CATS_ORDER.indexOf(a.cat) - CATS_ORDER.indexOf(b.cat));
-    State.update(st => { st.cocina.lista_compras = { items, semana: weekISO(), generada: todayISO() }; });
+    State.update(st => { st.cocina.lista_compras = { items, semana: weekISO(), generada: todayISO(), semanas_compra: sem }; });
     XP.add(20, 'Lista de compras generada');
     renderCocina('compras');
   };
@@ -6785,7 +6803,7 @@ function _renderRecetasList(s, recetas, container) {
     window._cocinaTipo = tipo;
     const filtered = tipo === 'todos' ? recetas : recetas.filter(r => r.tipo === tipo);
     const TIPO_ICON = { desayuno:'🌅', almuerzo:'☀️', cena:'🌙', shot:'⚡' };
-    const TECNICA_MAP = { dr1:'directo',dr2:'sellado',dr3:'sin-cocina',dr4:'sin-cocina',dr5:'sellado', al1:'sellado',al2:'sellado',al3:'directo',al4:'sellado',al5:'sellado',al6:'horno',al7:'sellado', ce1:'sellado',ce2:'sin-cocina',ce3:'sellado',ce4:'sellado',ce5:'sellado',ce6:'wok', sh1:'directo',sh2:'directo',sh3:'directo',sh4:'directo',sh5:'directo',sh6:'directo' };
+    const TECNICA_MAP = { dr1:'directo',dr2:'sellado',dr3:'sin-cocina',dr4:'sin-cocina',dr5:'sellado', al1:'sellado',al2:'sellado',al3:'directo',al4:'sellado',al5:'sellado',al6:'wok',al7:'sellado', ce1:'sellado',ce2:'sin-cocina',ce3:'sellado',ce4:'sellado',ce5:'sellado',ce6:'wok', sh1:'directo',sh2:'directo',sh3:'directo',sh4:'directo',sh5:'directo',sh6:'directo' };
     const TECNICA_LABEL = { sellado:'🔥 Sellado', horno:'🫙 Horno', wok:'⚡ Wok', directo:'🍵 Simple', 'sin-cocina':'❄️ Sin cocina' };
     container.innerHTML = `
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
@@ -6794,7 +6812,7 @@ function _renderRecetasList(s, recetas, container) {
       <div class="stack stack-md">
         ${filtered.map(r => {
           const esFav = favs.includes(r.id);
-          const enPlan = (plan.almuerzo_ids||[]).includes(r.id) || (plan.cena_ids||[]).includes(r.id) || plan.desayuno_id === r.id || plan.shot_id === r.id;
+          const enPlan = (plan.almuerzo_ids||[]).includes(r.id) || (plan.cena_ids||[]).includes(r.id) || (plan.desayuno_ids||[]).includes(r.id) || plan.shot_id === r.id;
           const costoDisplay = r.meal_prep ? `$${(r.costo_por_porcion_clp||0).toLocaleString('es-CL')}/porción` : `$${(r.costo_total_clp||0).toLocaleString('es-CL')}`;
           return `<div class="card" style="${enPlan?'border:1.5px solid var(--primary);':''}">
             <div class="row-between mb-sm">
@@ -6817,8 +6835,7 @@ function _renderRecetasList(s, recetas, container) {
             <div class="text-xs text-lo mb-md" style="font-style:italic">${esc(r.notas||'')}</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-sm btn-ghost" onclick="window._toggleRecetaDetail('${r.id}')">Ver receta</button>
-              ${r.tipo !== 'desayuno' && r.tipo !== 'shot' ? (() => { const key = r.tipo === 'almuerzo' ? 'almuerzo_ids' : 'cena_ids'; const arr = plan[key] || []; const full = arr.length >= 2 && !enPlan; return `<button class="btn btn-sm ${enPlan ? 'btn-primary' : ''}" ${full ? `disabled title="Ya tienes 2 recetas de ${r.tipo}"` : ''} onclick="usarRecetaSemana('${r.id}','${r.tipo}')">${enPlan ? '✓ En el plan' : full ? 'Plan lleno' : 'Usar esta semana'}</button>`; })() : ''}
-              ${r.tipo==='desayuno'?`<button class="btn btn-sm ${plan.desayuno_id===r.id?'btn-primary':''}" onclick="usarRecetaSemana('${r.id}','desayuno')">${plan.desayuno_id===r.id?'✓ Desayuno de semana':'Usar de desayuno'}</button>`:''}
+              ${r.tipo !== 'shot' ? (() => { const key = r.tipo === 'almuerzo' ? 'almuerzo_ids' : r.tipo === 'cena' ? 'cena_ids' : 'desayuno_ids'; const arr = plan[key] || []; const full = arr.length >= 2 && !enPlan; return `<button class="btn btn-sm ${enPlan ? 'btn-primary' : ''}" ${full ? `disabled title="Ya tienes 2 recetas de ${r.tipo}"` : ''} onclick="usarRecetaSemana('${r.id}','${r.tipo}')">${enPlan ? '✓ En el plan' : full ? 'Plan lleno' : 'Usar esta semana'}</button>`; })() : ''}
               ${r.tipo==='shot'?`<button class="btn btn-sm ${plan.shot_id===r.id?'btn-primary':''}" onclick="usarRecetaSemana('${r.id}','shot')">${plan.shot_id===r.id?'⚡ Shot activo':'Usar esta semana'}</button>`:''}
             </div>
             <div id="detail-${r.id}" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
@@ -6853,21 +6870,22 @@ function _renderPlanSemanal(s, recetas, container) {
   const ceIds = plan.cena_ids || [];
   const rAlmuerzos = almIds.map(id => recetas.find(r => r.id === id)).filter(Boolean);
   const rCenas = ceIds.map(id => recetas.find(r => r.id === id)).filter(Boolean);
-  const rDesayuno = recetas.find(r => r.id === plan.desayuno_id);
+  const desIds = plan.desayuno_ids || [];
+  const rDesayunos = desIds.map(id => recetas.find(r => r.id === id)).filter(Boolean);
   const rShot = recetas.find(r => r.id === plan.shot_id);
   const targetProt = s.fisico.target_proteina_g || 145;
   const batidosDia = (plan.batidos_dia !== undefined) ? plan.batidos_dia : 1;
   const protBatidos = batidosDia * 24;
   const calBatidos = batidosDia * 120;
-  // Proteína promedio diaria: almuerzo avg + cena avg + desayuno + batidos
+  // Proteína promedio diaria: almuerzo avg + cena avg + desayuno avg + batidos
   const protAlm = rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r) => s + r.macros.proteina_g, 0) / rAlmuerzos.length) : 0;
   const protCen = rCenas.length ? Math.round(rCenas.reduce((s,r) => s + r.macros.proteina_g, 0) / rCenas.length) : 0;
-  const protDes = rDesayuno ? rDesayuno.macros.proteina_g : 0;
+  const protDes = rDesayunos.length ? Math.round(rDesayunos.reduce((s,r) => s + r.macros.proteina_g, 0) / rDesayunos.length) : 0;
   const protDia = protAlm + protCen + protDes + protBatidos;
-  const calDia = (rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r)=>s+r.macros.calorias,0)/rAlmuerzos.length) : 0) + (rCenas.length ? Math.round(rCenas.reduce((s,r)=>s+r.macros.calorias,0)/rCenas.length) : 0) + (rDesayuno ? rDesayuno.macros.calorias : 0) + calBatidos;
+  const calDia = (rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r)=>s+r.macros.calorias,0)/rAlmuerzos.length) : 0) + (rCenas.length ? Math.round(rCenas.reduce((s,r)=>s+r.macros.calorias,0)/rCenas.length) : 0) + (rDesayunos.length ? Math.round(rDesayunos.reduce((s,r)=>s+r.macros.calorias,0)/rDesayunos.length) : 0) + calBatidos;
   const protPct = Math.min(100, Math.round(protDia / targetProt * 100));
-  const costSem = rAlmuerzos.reduce((s,r) => s + (r.costo_por_porcion_clp||r.costo_total_clp||0) * (almIds.length===1?5:3), 0) + rCenas.reduce((s,r) => s + (r.costo_por_porcion_clp||r.costo_total_clp||0) * (ceIds.length===1?5:3), 0) + (rDesayuno ? (rDesayuno.costo_total_clp||0) * 5 : 0) + batidosDia * 600 * 7;
-  const hasPlan = rAlmuerzos.length || rCenas.length || rDesayuno || rShot;
+  const costSem = rAlmuerzos.reduce((s,r) => s + (r.costo_por_porcion_clp||r.costo_total_clp||0) * (almIds.length===1?5:3), 0) + rCenas.reduce((s,r) => s + (r.costo_por_porcion_clp||r.costo_total_clp||0) * (ceIds.length===1?5:3), 0) + rDesayunos.reduce((s,r) => s + (r.costo_total_clp||0) * (desIds.length===1?5:3), 0) + batidosDia * 600 * 7;
+  const hasPlan = rAlmuerzos.length || rCenas.length || rDesayunos.length || rShot;
   // Warnings de proteína
   const excessProt = protDia - targetProt;
   const shortProt = targetProt - protDia;
@@ -6939,7 +6957,7 @@ function _renderPlanSemanal(s, recetas, container) {
     <div>
       ${!planEsSemanaActual && hasPlan ? `<div class="banner banner-comeback mb-md" style="background:var(--accent-glow);border-color:var(--accent);color:var(--accent)">Plan de semana anterior. Actualiza tu selección.</div>` : ''}
 
-      ${renderSlotSimple('🌅 Desayuno diario (~10 min)', rDesayuno, 'desayuno')}
+      ${renderSlotGrupo('🌅 Desayunos — elige 1 o 2', rDesayunos, 'desayuno', 2)}
       ${renderSlotGrupo('☀️ Almuerzos — meal prep', rAlmuerzos, 'almuerzo', 2)}
       ${renderSlotGrupo('🌙 Cenas — meal prep', rCenas, 'cena', 2)}
 
@@ -7083,7 +7101,7 @@ function _renderListaCompras(s, recetas, container) {
   const lc = s.cocina.lista_compras;
   const plan = s.cocina.plan_semanal;
   if (!lc.items || !lc.items.length) {
-    const tieneplan = (plan.almuerzo_ids||[]).length || (plan.cena_ids||[]).length || plan.desayuno_id || plan.shot_id;
+    const tieneplan = (plan.almuerzo_ids||[]).length || (plan.cena_ids||[]).length || (plan.desayuno_ids||[]).length || plan.shot_id;
     container.innerHTML = `<div class="section" style="text-align:center;padding:40px 0">
       <div style="font-size:40px;margin-bottom:16px">🛒</div>
       <div class="font-semibold mb-sm">Sin lista generada</div>
@@ -7094,6 +7112,7 @@ function _renderListaCompras(s, recetas, container) {
   }
   const CATS_LABEL = { proteinas:'🥩 Carnicería y proteínas', verduras:'🥦 Verduras y frutas', lacteos:'🥛 Lácteos y huevos', carbos:'🍚 Granos, pastas y pan', grasas:'🫒 Aceites y grasas', especias:'🧄 Condimentos y especias', extras:'🛍️ Otros' };
   const CATS_RENDER_ORDER = ['proteinas','verduras','lacteos','carbos','grasas','especias','extras'];
+  const semCompra = lc.semanas_compra || 1;
   const comprados = lc.items.filter(i => i.comprado).length;
   const total = lc.items.length;
   const pct = Math.round(comprados / total * 100);
@@ -7109,13 +7128,19 @@ function _renderListaCompras(s, recetas, container) {
     <div>
       <div class="card mb-md" style="background:var(--bg-2)">
         <div class="row-between mb-sm">
-          <div class="text-sm font-semibold">Semana ${esc(lc.semana||'')}</div>
+          <div class="text-sm font-semibold">Lista ${semCompra > 1 ? semCompra + ' semanas' : 'semanal'}</div>
           <div class="text-sm" style="color:${pct===100?'var(--success)':'var(--text-md)'}">${comprados}/${total} items</div>
         </div>
         <div class="progress-bar mb-sm"><div class="progress-fill" style="width:${pct}%;background:${pct===100?'var(--success)':'var(--primary)'};transition:width .4s"></div></div>
-        <div class="row-between">
+        <div class="row-between mb-sm">
           <div class="text-xs text-lo">Costo estimado total</div>
           <div class="text-sm font-semibold" style="color:var(--success)">~$${costoTotal.toLocaleString('es-CL')}</div>
+        </div>
+        <div class="row-between">
+          <div class="text-xs text-lo">Comprar para</div>
+          <div style="display:flex;gap:4px">
+            ${[1,2,3,4].map(n => `<button onclick="generarListaCompras(${n})" style="padding:3px 9px;border-radius:var(--r-sm);border:1.5px solid ${semCompra===n?'var(--primary)':'var(--border-strong)'};background:${semCompra===n?'var(--primary-glow)':'transparent'};color:${semCompra===n?'var(--primary)':'var(--text-lo)'};cursor:pointer;font-size:12px;font-weight:${semCompra===n?'600':'400'}">${n}sem</button>`).join('')}
+          </div>
         </div>
       </div>
       ${bycatOrdered.map(([cat, items]) => `
