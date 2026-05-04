@@ -6792,7 +6792,6 @@ function renderCocina(tab = 'recetas') {
     const CATS_ORDER = ['proteinas','verduras','frutas','lacteos','carbos','grasas','especias','extras'];
     items.sort((a, b) => CATS_ORDER.indexOf(a.cat) - CATS_ORDER.indexOf(b.cat));
     State.update(st => { st.cocina.lista_compras = { items, semana: weekISO(), generada: todayISO(), semanas_compra: sem }; });
-    XP.add(20, 'Lista de compras generada');
     renderCocina('compras');
   };
   window.toggleItemCompras = (idx) => {
