@@ -203,6 +203,10 @@ p{line-height:var(--lh-relaxed);}
   transition:transform var(--dur-2) var(--ease-bounce);
 }
 .nav-tab.active::after{transform:translateX(-50%) scaleX(1);}
+.tab-row{display:flex;gap:8px;border-bottom:1px solid var(--border);padding-bottom:2px;}
+.tab-btn{background:none;border:none;border-bottom:2px solid transparent;color:var(--text-lo);cursor:pointer;font-size:14px;font-weight:500;padding:8px 12px;transition:color .15s,border-color .15s;margin-bottom:-1px;white-space:nowrap;}
+.tab-btn:hover{color:var(--text-md);}
+.tab-btn.active{color:var(--primary);border-bottom-color:var(--primary);}
 
 /* ═══════════════════════════════════════════════════════════
    CARDS
@@ -1423,7 +1427,7 @@ const State = (() => {
     },
     cocina: {
       favoritas: [],
-      plan_semanal: { semana: '', almuerzo_ids: [], cena_ids: [], desayuno_id: null, incluir_shot: true },
+      plan_semanal: { semana: '', almuerzo_ids: [], cena_ids: [], desayuno_id: null, shot_id: 'sh1' },
       lista_compras: { items: [], semana: '', generada: null },
     },
   });
@@ -1505,7 +1509,11 @@ const State = (() => {
     }
     if (!Array.isArray(data.cocina.plan_semanal.almuerzo_ids)) data.cocina.plan_semanal.almuerzo_ids = [];
     if (!Array.isArray(data.cocina.plan_semanal.cena_ids)) data.cocina.plan_semanal.cena_ids = [];
-    if (data.cocina.plan_semanal.incluir_shot === undefined) data.cocina.plan_semanal.incluir_shot = true;
+    if (data.cocina.plan_semanal.incluir_shot !== undefined) {
+      if (data.cocina.plan_semanal.shot_id === undefined) data.cocina.plan_semanal.shot_id = data.cocina.plan_semanal.incluir_shot ? 'sh1' : null;
+      delete data.cocina.plan_semanal.incluir_shot;
+    }
+    if (data.cocina.plan_semanal.shot_id === undefined) data.cocina.plan_semanal.shot_id = 'sh1';
     if (!data.cocina.lista_compras) data.cocina.lista_compras = defaults().cocina.lista_compras;
     // Recalcular nivel siempre desde total (fuente de verdad)
     if (data.xp && data.xp.total !== undefined) {
@@ -2148,29 +2156,33 @@ function defaultRecetas() {
       costo_total_clp:8880, costo_por_porcion_clp:1776,
       notas:'Curry cúrcuma = antiinflamatorio potente. Garbanzos + pollo = zinc máximo. Uno de los mejores para testosterona.' },
 
-    { id:'al5', tipo:'almuerzo', nombre:'Cazuela de vacuno chilena',
-      tiempo_min:70, porciones:5, meal_prep:true,
-      tags:['clasico-chileno','hierro','zinc'],
+    { id:'al5', tipo:'almuerzo', nombre:'Arroz con pollo venezolano',
+      tiempo_min:55, porciones:5, meal_prep:true,
+      tags:['venezolano','sofrito','clasico'],
       ingredientes:[
-        {item:'Vacuno para cazuela (osobuco o lomo)',cantidad:'600g',costo_clp:5000,cat:'proteinas'},
-        {item:'Papa grande',cantidad:'3 unidades',costo_clp:600,cat:'carbos'},
-        {item:'Zanahoria',cantidad:'2 unidades',costo_clp:300,cat:'verduras'},
-        {item:'Choclo',cantidad:'1 unidad (o 1 tarro)',costo_clp:600,cat:'carbos'},
-        {item:'Zapallo',cantidad:'200g',costo_clp:300,cat:'verduras'},
-        {item:'Arroz',cantidad:'100g',costo_clp:350,cat:'carbos'},
-        {item:'Cebolla, ajo, cilantro',cantidad:'al gusto',costo_clp:300,cat:'especias'},
-        {item:'Sal, comino, orégano',cantidad:'al gusto',costo_clp:60,cat:'especias'},
+        {item:'Pechuga o muslos de pollo',cantidad:'700g',costo_clp:4500,cat:'proteinas'},
+        {item:'Arroz blanco',cantidad:'300g',costo_clp:900,cat:'carbos'},
+        {item:'Cebolla',cantidad:'1 grande',costo_clp:300,cat:'verduras'},
+        {item:'Pimentón rojo',cantidad:'1 unidad',costo_clp:500,cat:'verduras'},
+        {item:'Tomate',cantidad:'2 unidades',costo_clp:400,cat:'verduras'},
+        {item:'Ajo',cantidad:'5 dientes',costo_clp:100,cat:'especias'},
+        {item:'Zanahoria',cantidad:'1 unidad',costo_clp:150,cat:'verduras'},
+        {item:'Caldo de pollo (cubo)',cantidad:'1 cubo',costo_clp:200,cat:'extras'},
+        {item:'Cúrcuma o bijol',cantidad:'1 cdita',costo_clp:50,cat:'especias'},
+        {item:'Comino, orégano, sal, pimienta',cantidad:'al gusto',costo_clp:60,cat:'especias'},
+        {item:'Aceite',cantidad:'2 cdas',costo_clp:150,cat:'grasas'},
       ],
       pasos:[
-        'Dorar carne en olla grande con aceite y cebolla.',
-        'Agregar 1.5L agua, ajo y especias. Hervir 30 min.',
-        'Agregar zanahoria, choclo y zapallo. 15 min más.',
-        'Agregar papa y arroz. Otros 15 min.',
-        'Corregir sal. Servir con cilantro.',
+        'Cortar pollo en trozos. Sazonar con sal, pimienta y comino.',
+        'Dorar pollo en aceite 5 min por lado. Retirar.',
+        'Sofrito: saltear cebolla, ajo, pimentón y tomate 5 min hasta que ablanden.',
+        'Agregar zanahoria, cúrcuma y arroz crudo. Mezclar 2 min.',
+        'Agregar pollo, caldo y 2.5 tazas agua caliente. Cocinar tapado 25 min a fuego bajo.',
+        'Dividir en 5 envases. Queda húmedo pero portable.',
       ],
-      macros:{proteina_g:38,calorias:540,grasas_g:12,carbos_g:68},
-      costo_total_clp:7510, costo_por_porcion_clp:1502,
-      notas:'La cazuela chilena es nutritiva y económica. El colágeno del osobuco ayuda a articulaciones y recuperación muscular.' },
+      macros:{proteina_g:40,calorias:530,grasas_g:11,carbos_g:62},
+      costo_total_clp:7310, costo_por_porcion_clp:1462,
+      notas:'El plato venezolano más clásico. El sofrito base (cebolla+ajo+pimentón+tomate) es la clave del sabor. Portable y aguanta 5 días bien.' },
 
     { id:'al6', tipo:'almuerzo', nombre:'Bowl de pollo asado con quinoa y pimentón',
       tiempo_min:55, porciones:5, meal_prep:true,
@@ -2194,74 +2206,81 @@ function defaultRecetas() {
       costo_total_clp:9450, costo_por_porcion_clp:1890,
       notas:'Quinoa tiene los 9 aminoácidos esenciales. Vitamina C del pimentón mejora absorción de hierro del pollo.' },
 
-    { id:'al7', tipo:'almuerzo', nombre:'Merluza al horno con puré de papa y ensalada',
-      tiempo_min:45, porciones:5, meal_prep:true,
-      tags:['omega3','bajo-grasa','vitamina-d'],
+    { id:'al7', tipo:'almuerzo', nombre:'Pabellón criollo fit',
+      tiempo_min:60, porciones:5, meal_prep:true,
+      tags:['venezolano','hierro','zinc','clasico'],
       ingredientes:[
-        {item:'Filete de merluza',cantidad:'800g (5 filetes)',costo_clp:4500,cat:'proteinas'},
-        {item:'Papa',cantidad:'1kg',costo_clp:700,cat:'carbos'},
-        {item:'Leche descremada',cantidad:'100ml',costo_clp:200,cat:'lacteos'},
-        {item:'Mantequilla',cantidad:'1 cda',costo_clp:200,cat:'grasas'},
-        {item:'Betarraga cocida',cantidad:'200g',costo_clp:400,cat:'verduras'},
-        {item:'Lechuga',cantidad:'1/2 cabeza',costo_clp:500,cat:'verduras'},
-        {item:'Limón, ajo, aceite oliva',cantidad:'al gusto',costo_clp:200,cat:'especias'},
+        {item:'Carne de res (posta o lomo)',cantidad:'500g',costo_clp:4000,cat:'proteinas'},
+        {item:'Caraotas negras (lata o secas)',cantidad:'400g cocidas',costo_clp:1000,cat:'proteinas'},
+        {item:'Arroz blanco',cantidad:'250g',costo_clp:750,cat:'carbos'},
+        {item:'Plátano maduro',cantidad:'2 unidades',costo_clp:400,cat:'frutas'},
+        {item:'Cebolla',cantidad:'1 grande',costo_clp:300,cat:'verduras'},
+        {item:'Tomate',cantidad:'1 unidad',costo_clp:200,cat:'verduras'},
+        {item:'Ajo',cantidad:'4 dientes',costo_clp:100,cat:'especias'},
+        {item:'Comino, orégano, sal, pimienta',cantidad:'al gusto',costo_clp:60,cat:'especias'},
+        {item:'Aceite',cantidad:'2 cdas',costo_clp:150,cat:'grasas'},
       ],
       pasos:[
-        'Precalentar horno 180°C.',
-        'Condimentar filetes con limón, ajo, sal. Hornear 20 min.',
-        'Cocer papas, hacer puré con leche y mantequilla.',
-        'Preparar ensalada de betarraga y lechuga.',
-        'Dividir en 5 envases (ensalada aparte o en la tapa).',
+        'Sancochar la carne 30 min en agua con sal hasta que ablande. Escurrir y desmechar (mechar = deshilachar).',
+        'Sofrito: saltear cebolla, ajo y tomate 5 min. Agregar la carne mechada y comino. Cocinar 10 min.',
+        'Calentar caraotas con ajo y un poco del caldo. Si son secas, cocinar 40 min antes.',
+        'Cocinar arroz blanco aparte.',
+        'Cortar plátano maduro en rodajas y dorar en sartén con aceite 2 min por lado.',
+        'Dividir en 5 envases: arroz + carne mechada + caraotas + 2-3 rodajas plátano.',
       ],
-      macros:{proteina_g:40,calorias:480,grasas_g:10,carbos_g:56},
-      costo_total_clp:6700, costo_por_porcion_clp:1340,
-      notas:'Merluza es el pescado más barato de Chile con omega-3 real. La vitamina D del pescado apoya testosterona y recuperación.' },
+      macros:{proteina_g:42,calorias:580,grasas_g:12,carbos_g:72},
+      costo_total_clp:6960, costo_por_porcion_clp:1392,
+      notas:'El plato nacional venezolano. Zinc del res + hierro de las caraotas = combo clave para testosterona y fuerza. Portable perfectamente en envase.' },
 
     // ── CENAS (5 porciones meal prep, más livianas) ──────────
-    { id:'ce1', tipo:'cena', nombre:'Tortilla española de papa y huevo',
-      tiempo_min:40, porciones:5, meal_prep:true,
-      tags:['economico','facil','saciante'],
+    { id:'ce1', tipo:'cena', nombre:'Caraotas negras con arroz y plátano',
+      tiempo_min:35, porciones:5, meal_prep:true,
+      tags:['venezolano','economico','magnesio','hierro'],
       ingredientes:[
-        {item:'Huevos enteros',cantidad:'8 unidades',costo_clp:950,cat:'proteinas'},
-        {item:'Papa',cantidad:'600g (4 medianas)',costo_clp:500,cat:'carbos'},
-        {item:'Cebolla',cantidad:'1 grande',costo_clp:300,cat:'verduras'},
-        {item:'Aceite de oliva',cantidad:'4 cdas',costo_clp:400,cat:'grasas'},
-        {item:'Sal, pimienta',cantidad:'al gusto',costo_clp:20,cat:'especias'},
-      ],
-      pasos:[
-        'Pelar y cortar papa en rodajas finas. Freír a fuego bajo-medio con cebolla en aceite 15 min.',
-        'Batir huevos con sal. Escurrir exceso de aceite de las papas.',
-        'Mezclar papas con huevos batidos.',
-        'Cocinar en sartén tapada 8 min por lado. Dar vuelta con plato.',
-        'Cortar en 5 porciones.',
-      ],
-      macros:{proteina_g:22,calorias:380,grasas_g:18,carbos_g:38},
-      costo_total_clp:2170, costo_por_porcion_clp:434,
-      notas:'La cena más barata y completa. Comer cena liviana ayuda al sueño y la recuperación nocturna.' },
-
-    { id:'ce2', tipo:'cena', nombre:'Sopa de lentejas con pan integral',
-      tiempo_min:40, porciones:5, meal_prep:true,
-      tags:['economico','magnesio','hierro'],
-      ingredientes:[
-        {item:'Lentejas secas',cantidad:'400g',costo_clp:1200,cat:'proteinas'},
-        {item:'Zanahoria',cantidad:'2 unidades',costo_clp:300,cat:'verduras'},
-        {item:'Apio',cantidad:'2 tallos',costo_clp:200,cat:'verduras'},
-        {item:'Cebolla',cantidad:'1 grande',costo_clp:300,cat:'verduras'},
-        {item:'Tomate',cantidad:'2 unidades',costo_clp:400,cat:'verduras'},
+        {item:'Caraotas negras (lata o secas)',cantidad:'500g cocidas',costo_clp:1200,cat:'proteinas'},
+        {item:'Arroz blanco',cantidad:'200g',costo_clp:600,cat:'carbos'},
+        {item:'Plátano maduro',cantidad:'2 unidades',costo_clp:400,cat:'frutas'},
+        {item:'Cebolla',cantidad:'1 mediana',costo_clp:200,cat:'verduras'},
         {item:'Ajo',cantidad:'3 dientes',costo_clp:80,cat:'especias'},
-        {item:'Comino, pimentón dulce, sal',cantidad:'al gusto',costo_clp:60,cat:'especias'},
-        {item:'Pan integral',cantidad:'5 rebanadas',costo_clp:600,cat:'carbos'},
+        {item:'Pimentón verde',cantidad:'½ unidad',costo_clp:250,cat:'verduras'},
+        {item:'Comino, orégano, sal',cantidad:'al gusto',costo_clp:40,cat:'especias'},
+        {item:'Aceite',cantidad:'2 cdas',costo_clp:150,cat:'grasas'},
       ],
       pasos:[
-        'Remojar lentejas 30 min (opcional, acelera cocción).',
-        'Saltear cebolla, ajo y zanahoria 5 min.',
-        'Agregar tomate, lentejas y 1.5L agua. Condimentar.',
-        'Cocinar 25-30 min hasta lentejas blandas.',
-        'Servir con pan integral.',
+        'Saltear cebolla, ajo y pimentón 4 min. Agregar caraotas y condimentar.',
+        'Cocinar a fuego bajo 10 min. Las caraotas se concentran y quedan cremosas.',
+        'Cocinar arroz aparte.',
+        'Dorar plátano maduro en rodajas con unas gotas de aceite.',
+        'Dividir en 5 envases: arroz + caraotas + plátano.',
       ],
-      macros:{proteina_g:22,calorias:360,grasas_g:4,carbos_g:64},
-      costo_total_clp:3140, costo_por_porcion_clp:628,
-      notas:'La sopa más barata y nutritiva. Magnesio natural que complementa el suplemento. Ideal como cena liviana.' },
+      macros:{proteina_g:20,calorias:390,grasas_g:6,carbos_g:70},
+      costo_total_clp:2920, costo_por_porcion_clp:584,
+      notas:'Cena venezolana clásica. Muy barata, alto en magnesio y hierro vegetal. Cena liviana = mejor sueño. El plátano maduro da el dulce natural.' },
+
+    { id:'ce2', tipo:'cena', nombre:'Ensalada proteica de atún con aguacate',
+      tiempo_min:15, porciones:5, meal_prep:true,
+      tags:['omega3','rapido','portable','sin-cocina'],
+      ingredientes:[
+        {item:'Atún en agua (latas)',cantidad:'4 latas (165g c/u)',costo_clp:2800,cat:'proteinas'},
+        {item:'Palta / aguacate',cantidad:'2 unidades',costo_clp:1200,cat:'grasas'},
+        {item:'Tomate cherry',cantidad:'200g',costo_clp:800,cat:'verduras'},
+        {item:'Pepino',cantidad:'1 unidad',costo_clp:400,cat:'verduras'},
+        {item:'Cebolla morada',cantidad:'½ unidad',costo_clp:150,cat:'verduras'},
+        {item:'Limón',cantidad:'2 unidades',costo_clp:200,cat:'frutas'},
+        {item:'Aceite de oliva',cantidad:'2 cdas',costo_clp:200,cat:'grasas'},
+        {item:'Sal, pimienta, orégano',cantidad:'al gusto',costo_clp:30,cat:'especias'},
+        {item:'Pan integral (opcional)',cantidad:'5 rebanadas',costo_clp:600,cat:'carbos'},
+      ],
+      pasos:[
+        'Escurrir bien el atún.',
+        'Cortar tomates, pepino y cebolla morada en trozos medianos.',
+        'Mezclar atún + vegetales + aceite + limón + condimentos.',
+        'Dividir en 5 envases. Guardar el aguacate entero (cortar al momento de comer para que no se oxide).',
+        'Opcionalmente agregar pan integral al servir.',
+      ],
+      macros:{proteina_g:32,calorias:380,grasas_g:18,carbos_g:20},
+      costo_total_clp:6380, costo_por_porcion_clp:1276,
+      notas:'La cena más portable que existe. Omega-3 del atún + grasas del aguacate = combo testosterona. Guarda el aguacate aparte para cortarlo al momento.' },
 
     { id:'ce3', tipo:'cena', nombre:'Revuelto de huevos con champiñones y espinaca',
       tiempo_min:20, porciones:5, meal_prep:false,
@@ -2308,29 +2327,30 @@ function defaultRecetas() {
       costo_total_clp:5650, costo_por_porcion_clp:1130,
       notas:'Los muslos tienen más zinc y grasas buenas que la pechuga. El ajo aumenta la producción de testosterona medido en estudios.' },
 
-    { id:'ce5', tipo:'cena', nombre:'Estofado de vacuno rápido con arroz',
+    { id:'ce5', tipo:'cena', nombre:'Pollo guisado venezolano con arroz',
       tiempo_min:45, porciones:5, meal_prep:true,
-      tags:['hierro','zinc','saciante'],
+      tags:['venezolano','sofrito','alto-proteina','portable'],
       ingredientes:[
-        {item:'Carne de vacuno (trocitos o posta negra)',cantidad:'500g',costo_clp:4000,cat:'proteinas'},
-        {item:'Papa',cantidad:'3 unidades',costo_clp:400,cat:'carbos'},
-        {item:'Zanahoria',cantidad:'2 unidades',costo_clp:300,cat:'verduras'},
-        {item:'Arvejas congeladas',cantidad:'100g',costo_clp:400,cat:'verduras'},
-        {item:'Cebolla, ajo, tomate',cantidad:'al gusto',costo_clp:500,cat:'verduras'},
+        {item:'Muslos o pechuga de pollo',cantidad:'700g',costo_clp:4200,cat:'proteinas'},
         {item:'Arroz blanco',cantidad:'200g',costo_clp:600,cat:'carbos'},
-        {item:'Caldo de carne (cubo)',cantidad:'1 cubo',costo_clp:200,cat:'extras'},
-        {item:'Sal, comino, orégano',cantidad:'al gusto',costo_clp:60,cat:'especias'},
+        {item:'Cebolla',cantidad:'1 grande',costo_clp:300,cat:'verduras'},
+        {item:'Pimentón rojo',cantidad:'1 unidad',costo_clp:500,cat:'verduras'},
+        {item:'Tomate',cantidad:'2 unidades',costo_clp:400,cat:'verduras'},
+        {item:'Ajo',cantidad:'5 dientes',costo_clp:100,cat:'especias'},
+        {item:'Papa',cantidad:'2 medianas',costo_clp:250,cat:'carbos'},
+        {item:'Comino, orégano, paprika, sal',cantidad:'al gusto',costo_clp:60,cat:'especias'},
+        {item:'Aceite',cantidad:'2 cdas',costo_clp:150,cat:'grasas'},
       ],
       pasos:[
-        'Dorar cebolla y ajo 3 min. Agregar carne y dorar 5 min.',
-        'Agregar tomate, papa y zanahoria. Cubrir con agua + caldo.',
-        'Cocinar 20-25 min hasta papas blandas. Agregar arvejas 5 min antes.',
-        'Cocinar arroz aparte. Servir junto.',
-        'Dividir en 5 envases.',
+        'Cortar pollo en presas. Sazonar con sal, comino y paprika.',
+        'Dorar pollo en aceite 5 min por cada lado. Retirar.',
+        'Sofrito: sofreír cebolla, ajo, pimentón y tomate 5 min.',
+        'Agregar pollo, papa en cubos y 1 taza agua. Tapar y cocinar 20 min a fuego bajo.',
+        'Cocinar arroz aparte. Dividir en 5 envases.',
       ],
-      macros:{proteina_g:35,calorias:500,grasas_g:14,carbos_g:62},
-      costo_total_clp:6460, costo_por_porcion_clp:1292,
-      notas:'La carne de vacuno es la fuente más biodisponible de zinc y hierro para testosterona y fuerza.' },
+      macros:{proteina_g:38,calorias:470,grasas_g:14,carbos_g:50},
+      costo_total_clp:6560, costo_por_porcion_clp:1312,
+      notas:'Pollo guisado venezolano clásico. El sofrito concentrado hace que quede seco, no aguado — perfecto para llevar al trabajo.' },
 
     { id:'ce6', tipo:'cena', nombre:'Wok de pollo con fideos y verduras',
       tiempo_min:30, porciones:5, meal_prep:true,
@@ -2376,6 +2396,88 @@ function defaultRecetas() {
       macros:{proteina_g:0,calorias:12,grasas_g:0,carbos_g:3},
       costo_total_clp:150,
       notas:'La piperina de la pimienta negra aumenta absorción de curcumina hasta 20x (evidencia real). La curcumina reduce inflamación sistémica y apoya el hígado. El limón estimula bilis. Lo que NO hace: no "disuelve grasa hepática" ni "purifica la sangre" — ese lenguaje es marketing. Lo que SÍ hace: reduce inflamación y mejora digestión con consistencia diaria.' },
+
+    { id:'sh2', tipo:'shot', nombre:'Shot de energía matutina',
+      tiempo_min:2, porciones:1, meal_prep:false,
+      tags:['energia','termogenico','metabolismo','diario'],
+      ingredientes:[
+        {item:'Jengibre fresco',cantidad:'1 trozo (1cm)',costo_clp:50,cat:'especias'},
+        {item:'Limón fresco',cantidad:'½ unidad',costo_clp:80,cat:'frutas'},
+        {item:'Miel',cantidad:'1 cdita',costo_clp:80,cat:'extras'},
+        {item:'Pizca de cayena o ají molido',cantidad:'1 pizca',costo_clp:10,cat:'especias'},
+        {item:'Agua caliente',cantidad:'150ml',costo_clp:0,cat:'extras'},
+      ],
+      pasos:[
+        'Rallar el jengibre fresco o machacarlo en una taza.',
+        'Exprimir el limón encima.',
+        'Agregar la miel y la cayena.',
+        'Verter el agua caliente y mezclar bien.',
+        'Tomar en ayunas o antes del entreno.',
+      ],
+      macros:{proteina_g:0,calorias:25,grasas_g:0,carbos_g:6},
+      costo_total_clp:220,
+      notas:'El jengibre activa el metabolismo y reduce el dolor muscular post-entreno (DOMS). La cayena tiene efecto termogénico leve real. La miel evita pico de cortisol matutino. Ideal semanas de entrenamiento.' },
+
+    { id:'sh3', tipo:'shot', nombre:'Shot dorado de recuperación',
+      tiempo_min:3, porciones:1, meal_prep:false,
+      tags:['recuperacion','post-entreno','antiinflamatorio','diario'],
+      ingredientes:[
+        {item:'Cúrcuma en polvo',cantidad:'1 cdita (3g)',costo_clp:60,cat:'especias'},
+        {item:'Canela en polvo',cantidad:'½ cdita',costo_clp:20,cat:'especias'},
+        {item:'Jengibre en polvo',cantidad:'½ cdita',costo_clp:30,cat:'especias'},
+        {item:'Pimienta negra molida',cantidad:'1 pizca',costo_clp:10,cat:'especias'},
+        {item:'Leche descremada o leche de avena',cantidad:'150ml',costo_clp:150,cat:'lacteos'},
+        {item:'Miel',cantidad:'1 cdita',costo_clp:80,cat:'extras'},
+      ],
+      pasos:[
+        'Calentar la leche sin hervir.',
+        'Mezclar todas las especias en la taza.',
+        'Agregar la leche caliente y la miel.',
+        'Revolver bien hasta disolver. Tomar templado.',
+        'Ideal: justo después del entreno o antes de dormir.',
+      ],
+      macros:{proteina_g:5,calorias:90,grasas_g:1,carbos_g:16},
+      costo_total_clp:350,
+      notas:'Golden milk shot. La combinación cúrcuma+pimienta+canela tiene efecto antiinflamatorio probado post-ejercicio. La canela mejora la sensibilidad a la insulina (mejor recuperación glucogénica). Tomar la noche después de entrenar.' },
+
+    { id:'sh4', tipo:'shot', nombre:'Shot digestivo y de absorción',
+      tiempo_min:2, porciones:1, meal_prep:false,
+      tags:['digestion','absorcion','gut-health','diario'],
+      ingredientes:[
+        {item:'Jengibre fresco',cantidad:'1 trozo (1cm)',costo_clp:50,cat:'especias'},
+        {item:'Limón fresco',cantidad:'½ unidad',costo_clp:80,cat:'frutas'},
+        {item:'Menta seca o fresca',cantidad:'5 hojitas',costo_clp:30,cat:'especias'},
+        {item:'Miel',cantidad:'1 cdita',costo_clp:80,cat:'extras'},
+        {item:'Agua caliente',cantidad:'200ml',costo_clp:0,cat:'extras'},
+      ],
+      pasos:[
+        'Poner la menta y el jengibre rallado en la taza.',
+        'Exprimir el limón.',
+        'Verter el agua caliente. Dejar reposar 2 min.',
+        'Agregar miel. Tomar antes de comer o en la mañana.',
+      ],
+      macros:{proteina_g:0,calorias:20,grasas_g:0,carbos_g:5},
+      costo_total_clp:240,
+      notas:'El jengibre estimula la secreción gástrica y mejora el vaciado del estómago. La menta relaja el músculo del intestino. El limón aumenta producción de bilis. Mejor semana cuando comes mucho o tienes pesadez digestiva.' },
+
+    { id:'sh5', tipo:'shot', nombre:'Shot inmune venezolano',
+      tiempo_min:2, porciones:1, meal_prep:false,
+      tags:['inmunidad','antiviral','venezolano','diario'],
+      ingredientes:[
+        {item:'Ajo fresco',cantidad:'1 diente pequeño',costo_clp:20,cat:'especias'},
+        {item:'Limón fresco',cantidad:'½ unidad',costo_clp:80,cat:'frutas'},
+        {item:'Miel',cantidad:'1 cdita',costo_clp:80,cat:'extras'},
+        {item:'Agua caliente',cantidad:'100ml',costo_clp:0,cat:'extras'},
+      ],
+      pasos:[
+        'Machacar el ajo y dejar reposar 5 min (activa la alicina).',
+        'Agregar el jugo del limón y la miel.',
+        'Mezclar con el agua caliente.',
+        'Tomar de un solo trago. Cepillar dientes después.',
+      ],
+      macros:{proteina_g:0,calorias:30,grasas_g:0,carbos_g:8},
+      costo_total_clp:180,
+      notas:'El remedio casero venezolano de toda la vida. La alicina del ajo machacado tiene efecto antiviral y antibacteriano real (evidencia clínica). El limón da vitamina C. Usa en semanas de estrés, falta de sueño o cuando sientas que te vas a enfermar.' },
   ];
 }
 
@@ -6576,12 +6678,14 @@ function renderCocina(tab = 'recetas') {
       st.cocina.plan_semanal.semana = weekISO();
       if (tipo === 'desayuno') {
         st.cocina.plan_semanal.desayuno_id = st.cocina.plan_semanal.desayuno_id === id ? null : id;
+      } else if (tipo === 'shot') {
+        st.cocina.plan_semanal.shot_id = st.cocina.plan_semanal.shot_id === id ? null : id;
       } else {
         const key = tipo === 'almuerzo' ? 'almuerzo_ids' : 'cena_ids';
         const arr = st.cocina.plan_semanal[key];
         const idx = arr.indexOf(id);
-        if (idx !== -1) arr.splice(idx, 1); // toggle off
-        else if (arr.length < 2) arr.push(id); // add if < 2
+        if (idx !== -1) arr.splice(idx, 1);
+        else if (arr.length < 2) arr.push(id);
         else UI.toast('Ya tienes 2 recetas de ' + tipo + '. Quita una primero.', 'warn');
       }
     });
@@ -6589,7 +6693,10 @@ function renderCocina(tab = 'recetas') {
     renderCocina(tab);
   };
   window.toggleShotPlan = () => {
-    State.update(st => { st.cocina.plan_semanal.incluir_shot = !st.cocina.plan_semanal.incluir_shot; });
+    State.update(st => {
+      const p = st.cocina.plan_semanal;
+      p.shot_id = p.shot_id ? null : 'sh1';
+    });
     renderCocina(tab);
   };
   window.generarListaCompras = () => {
@@ -6610,8 +6717,8 @@ function renderCocina(tab = 'recetas') {
     const nCe = (plan.cena_ids || []).length;
     (plan.cena_ids || []).forEach(id => addIngredientes(id, nCe === 1 ? 5 : 3));
     if (plan.desayuno_id) addIngredientes(plan.desayuno_id, 5);
-    if (plan.incluir_shot) addIngredientes('sh1', 7); // 7 días
-    const CATS_ORDER = ['proteinas','lacteos','verduras','frutas','carbos','grasas','especias','extras'];
+    if (plan.shot_id) addIngredientes(plan.shot_id, 7); // 7 días
+    const CATS_ORDER = ['proteinas','verduras','frutas','lacteos','carbos','grasas','especias','extras'];
     items.sort((a, b) => CATS_ORDER.indexOf(a.cat) - CATS_ORDER.indexOf(b.cat));
     State.update(st => { st.cocina.lista_compras = { items, semana: weekISO(), generada: todayISO() }; });
     XP.add(20, 'Lista de compras generada');
@@ -6633,19 +6740,20 @@ function renderCocina(tab = 'recetas') {
 function _renderRecetasList(s, recetas, container) {
   const favs = s.cocina.favoritas || [];
   const plan = s.cocina.plan_semanal;
-  let filtroTipo = 'todos';
+  let filtroTipo = window._cocinaTipo || 'todos';
   const render = (tipo) => {
     filtroTipo = tipo;
+    window._cocinaTipo = tipo;
     const filtered = tipo === 'todos' ? recetas : recetas.filter(r => r.tipo === tipo);
     const TIPO_ICON = { desayuno:'🌅', almuerzo:'☀️', cena:'🌙', shot:'⚡' };
     container.innerHTML = `
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
-        ${['todos','desayuno','almuerzo','cena'].map(t => `<button class="btn btn-sm ${filtroTipo===t?'btn-primary':'btn-ghost'}" onclick="window._filtrarRecetas('${t}')">${t==='todos'?'Todas':t.charAt(0).toUpperCase()+t.slice(1)}</button>`).join('')}
+        ${['todos','desayuno','almuerzo','cena','shot'].map(t => `<button class="btn btn-sm ${filtroTipo===t?'btn-primary':'btn-ghost'}" onclick="window._filtrarRecetas('${t}')">${t==='todos'?'Todas':t==='shot'?'⚡ Shots':t.charAt(0).toUpperCase()+t.slice(1)}</button>`).join('')}
       </div>
       <div class="stack stack-md">
         ${filtered.map(r => {
           const esFav = favs.includes(r.id);
-          const enPlan = (plan.almuerzo_ids||[]).includes(r.id) || (plan.cena_ids||[]).includes(r.id) || plan.desayuno_id === r.id;
+          const enPlan = (plan.almuerzo_ids||[]).includes(r.id) || (plan.cena_ids||[]).includes(r.id) || plan.desayuno_id === r.id || plan.shot_id === r.id;
           const costoDisplay = r.meal_prep ? `$${(r.costo_por_porcion_clp||0).toLocaleString('es-CL')}/porción` : `$${(r.costo_total_clp||0).toLocaleString('es-CL')}`;
           return `<div class="card" style="${enPlan?'border:1.5px solid var(--primary);':''}">
             <div class="row-between mb-sm">
@@ -6669,6 +6777,7 @@ function _renderRecetasList(s, recetas, container) {
               <button class="btn btn-sm btn-ghost" onclick="window._toggleRecetaDetail('${r.id}')">Ver receta</button>
               ${r.tipo !== 'desayuno' && r.tipo !== 'shot' ? (() => { const key = r.tipo === 'almuerzo' ? 'almuerzo_ids' : 'cena_ids'; const arr = plan[key] || []; const full = arr.length >= 2 && !enPlan; return `<button class="btn btn-sm ${enPlan ? 'btn-primary' : ''}" ${full ? `disabled title="Ya tienes 2 recetas de ${r.tipo}"` : ''} onclick="usarRecetaSemana('${r.id}','${r.tipo}')">${enPlan ? '✓ En el plan' : full ? 'Plan lleno' : 'Usar esta semana'}</button>`; })() : ''}
               ${r.tipo==='desayuno'?`<button class="btn btn-sm ${plan.desayuno_id===r.id?'btn-primary':''}" onclick="usarRecetaSemana('${r.id}','desayuno')">${plan.desayuno_id===r.id?'✓ Desayuno de semana':'Usar de desayuno'}</button>`:''}
+              ${r.tipo==='shot'?`<button class="btn btn-sm ${plan.shot_id===r.id?'btn-primary':''}" onclick="usarRecetaSemana('${r.id}','shot')">${plan.shot_id===r.id?'⚡ Shot activo':'Usar esta semana'}</button>`:''}
             </div>
             <div id="detail-${r.id}" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
               <div class="text-xs font-semibold text-lo mb-sm" style="letter-spacing:.06em;text-transform:uppercase">Ingredientes (${r.porciones} ${r.porciones>1?'porciones':'porción'})</div>
@@ -6703,7 +6812,7 @@ function _renderPlanSemanal(s, recetas, container) {
   const rAlmuerzos = almIds.map(id => recetas.find(r => r.id === id)).filter(Boolean);
   const rCenas = ceIds.map(id => recetas.find(r => r.id === id)).filter(Boolean);
   const rDesayuno = recetas.find(r => r.id === plan.desayuno_id);
-  const rShot = recetas.find(r => r.id === 'sh1');
+  const rShot = recetas.find(r => r.id === plan.shot_id);
   const targetProt = s.fisico.target_proteina_g || 145;
   // Proteína promedio diaria: almuerzo avg + cena avg + desayuno
   const protAlm = rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r) => s + r.macros.proteina_g, 0) / rAlmuerzos.length) : 0;
@@ -6749,11 +6858,11 @@ function _renderPlanSemanal(s, recetas, container) {
           </div>
         </div>` : `
         <div class="card" style="border:1.5px dashed var(--border-strong);background:var(--bg-2);padding:12px 14px;text-align:center">
-          <span class="text-sm text-lo">+ Elegir desayuno en </span><button class="btn-link" onclick="renderCocina('recetas')" style="color:var(--primary);background:none;border:none;cursor:pointer;padding:0">Recetas</button>
+          <span class="text-sm text-lo">+ Elegir en </span><button class="btn-link" onclick="window._cocinaTipo='${tipo}';renderCocina('recetas')" style="color:var(--primary);background:none;border:none;cursor:pointer;padding:0">Recetas</button>
         </div>`}
     </div>`;
 
-  const hasPlan = rAlmuerzos.length || rCenas.length || rDesayuno;
+  const hasPlan = rAlmuerzos.length || rCenas.length || rDesayuno || rShot;
   container.innerHTML = `
     <div>
       ${!planEsSemanaActual && hasPlan ? `<div class="banner banner-comeback mb-md" style="background:var(--accent-glow);border-color:var(--accent);color:var(--accent)">Plan de semana anterior. Actualiza tu selección.</div>` : ''}
@@ -6762,18 +6871,7 @@ function _renderPlanSemanal(s, recetas, container) {
       ${renderSlotGrupo('☀️ Almuerzos — meal prep', rAlmuerzos, 'almuerzo', 2)}
       ${renderSlotGrupo('🌙 Cenas — meal prep', rCenas, 'cena', 2)}
 
-      <!-- Shot antiinflamatorio -->
-      <div class="card mb-md" style="background:var(--bg-2);padding:12px 14px">
-        <div class="row-between">
-          <div>
-            <div class="font-semibold text-sm">🧡 Shot antiinflamatorio matutino</div>
-            <div class="text-xs text-lo mt-sm">Cúrcuma + pimienta negra + limón · 2 min · incluye ingredientes en la lista</div>
-          </div>
-          <button onclick="toggleShotPlan()" style="width:44px;height:24px;border-radius:12px;border:none;background:${plan.incluir_shot?'var(--primary)':'var(--bg-3)'};cursor:pointer;transition:background .2s;position:relative;flex-shrink:0">
-            <span style="position:absolute;top:2px;${plan.incluir_shot?'right:2px':'left:2px'};width:20px;height:20px;border-radius:10px;background:#fff;transition:all .2s"></span>
-          </button>
-        </div>
-      </div>
+      ${renderSlotSimple('⚡ Shot semanal (2 min/día)', rShot, 'shot')}
 
       ${hasPlan ? `
         <!-- Resumen macros -->
@@ -6831,7 +6929,7 @@ function _renderListaCompras(s, recetas, container) {
   const lc = s.cocina.lista_compras;
   const plan = s.cocina.plan_semanal;
   if (!lc.items || !lc.items.length) {
-    const tieneplan = (plan.almuerzo_ids||[]).length || (plan.cena_ids||[]).length || plan.desayuno_id;
+    const tieneplan = (plan.almuerzo_ids||[]).length || (plan.cena_ids||[]).length || plan.desayuno_id || plan.shot_id;
     container.innerHTML = `<div class="section" style="text-align:center;padding:40px 0">
       <div style="font-size:40px;margin-bottom:16px">🛒</div>
       <div class="font-semibold mb-sm">Sin lista generada</div>
@@ -6840,13 +6938,19 @@ function _renderListaCompras(s, recetas, container) {
     </div>`;
     return;
   }
-  const CATS_LABEL = { proteinas:'🥩 Proteínas', lacteos:'🥛 Lácteos', verduras:'🥦 Verduras', frutas:'🍌 Frutas', carbos:'🍚 Carbohidratos', grasas:'🫒 Grasas y aceites', especias:'🧄 Especias y condimentos', extras:'🛍️ Otros' };
+  const CATS_LABEL = { proteinas:'🥩 Carnicería y proteínas', verduras:'🥦 Verduras y frutas', lacteos:'🥛 Lácteos y huevos', carbos:'🍚 Granos, pastas y pan', grasas:'🫒 Aceites y grasas', especias:'🧄 Condimentos y especias', extras:'🛍️ Otros' };
+  const CATS_RENDER_ORDER = ['proteinas','verduras','lacteos','carbos','grasas','especias','extras'];
   const comprados = lc.items.filter(i => i.comprado).length;
   const total = lc.items.length;
   const pct = Math.round(comprados / total * 100);
   const costoTotal = lc.items.reduce((sum, i) => sum + (i.costo_clp || 0), 0);
   const bycat = {};
-  lc.items.forEach(item => { if (!bycat[item.cat]) bycat[item.cat] = []; bycat[item.cat].push(item); });
+  lc.items.forEach(item => {
+    const cat = item.cat === 'frutas' ? 'verduras' : (item.cat || 'extras');
+    if (!bycat[cat]) bycat[cat] = [];
+    bycat[cat].push(item);
+  });
+  const bycatOrdered = CATS_RENDER_ORDER.filter(c => bycat[c]).map(c => [c, bycat[c]]);
   container.innerHTML = `
     <div>
       <div class="card mb-md" style="background:var(--bg-2)">
@@ -6860,7 +6964,7 @@ function _renderListaCompras(s, recetas, container) {
           <div class="text-sm font-semibold" style="color:var(--success)">~$${costoTotal.toLocaleString('es-CL')}</div>
         </div>
       </div>
-      ${Object.entries(bycat).map(([cat, items]) => `
+      ${bycatOrdered.map(([cat, items]) => `
         <div class="mb-md">
           <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${CATS_LABEL[cat]||cat}</div>
           ${items.map((item, idx) => {
