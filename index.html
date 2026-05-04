@@ -6746,6 +6746,8 @@ function _renderRecetasList(s, recetas, container) {
     window._cocinaTipo = tipo;
     const filtered = tipo === 'todos' ? recetas : recetas.filter(r => r.tipo === tipo);
     const TIPO_ICON = { desayuno:'🌅', almuerzo:'☀️', cena:'🌙', shot:'⚡' };
+    const TECNICA_MAP = { dr1:'directo',dr2:'sellado',dr3:'sin-cocina',dr4:'sin-cocina',dr5:'sellado', al1:'sellado',al2:'sellado',al3:'directo',al4:'sellado',al5:'sellado',al6:'horno',al7:'sellado', ce1:'sellado',ce2:'sin-cocina',ce3:'sellado',ce4:'sellado',ce5:'sellado',ce6:'wok', sh1:'directo',sh2:'directo',sh3:'directo',sh4:'directo',sh5:'directo' };
+    const TECNICA_LABEL = { sellado:'🔥 Sellado', horno:'🫙 Horno', wok:'⚡ Wok', directo:'🍵 Simple', 'sin-cocina':'❄️ Sin cocina' };
     container.innerHTML = `
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px">
         ${['todos','desayuno','almuerzo','cena','shot'].map(t => `<button class="btn btn-sm ${filtroTipo===t?'btn-primary':'btn-ghost'}" onclick="window._filtrarRecetas('${t}')">${t==='todos'?'Todas':t==='shot'?'⚡ Shots':t.charAt(0).toUpperCase()+t.slice(1)}</button>`).join('')}
@@ -6769,6 +6771,7 @@ function _renderRecetasList(s, recetas, container) {
             <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
               <span class="text-xs" style="background:var(--primary-glow);color:var(--primary);padding:2px 8px;border-radius:var(--r-full)">${r.macros.proteina_g}g prot</span>
               <span class="text-xs" style="background:var(--bg-3);color:var(--text-md);padding:2px 8px;border-radius:var(--r-full)">${r.macros.calorias} kcal</span>
+              ${TECNICA_MAP[r.id]&&r.tipo!=='shot'?`<span class="text-xs" style="background:var(--bg-3);color:var(--accent);padding:2px 8px;border-radius:var(--r-full)">${TECNICA_LABEL[TECNICA_MAP[r.id]]||''}</span>`:''}
               ${r.meal_prep?'<span class="text-xs" style="background:var(--success-glow);color:var(--success);padding:2px 8px;border-radius:var(--r-full)">Meal prep</span>':''}
               ${r.tags.slice(0,2).map(t=>`<span class="text-xs" style="background:var(--bg-3);color:var(--text-lo);padding:2px 8px;border-radius:var(--r-full)">${t}</span>`).join('')}
             </div>
@@ -6852,10 +6855,15 @@ function _renderPlanSemanal(s, recetas, container) {
           <div class="row-between">
             <div>
               <div class="font-semibold text-sm">${esc(receta.nombre)}</div>
-              <div class="text-xs text-lo mt-sm">${receta.macros.proteina_g}g prot · ${receta.tiempo_min} min/día</div>
+              <div class="text-xs text-lo mt-sm">${tipo==='shot'?`${receta.tiempo_min} min/día · ingredientes en lista`:`${receta.macros.proteina_g}g prot · ${receta.tiempo_min} min/día`}</div>
             </div>
             <button onclick="usarRecetaSemana('${receta.id}','${tipo}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:18px;padding:4px">✕</button>
           </div>
+          ${tipo === 'shot' ? `
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+            <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">Preparar cada mañana</div>
+            ${receta.pasos.map((p,i) => `<div style="display:flex;gap:8px;margin-bottom:5px"><span class="text-xs font-semibold" style="color:var(--primary);min-width:18px">${i+1}.</span><span class="text-xs text-md" style="line-height:1.5">${esc(p)}</span></div>`).join('')}
+          </div>` : ''}
         </div>` : `
         <div class="card" style="border:1.5px dashed var(--border-strong);background:var(--bg-2);padding:12px 14px;text-align:center">
           <span class="text-sm text-lo">+ Elegir en </span><button class="btn-link" onclick="window._cocinaTipo='${tipo}';renderCocina('recetas')" style="color:var(--primary);background:none;border:none;cursor:pointer;padding:0">Recetas</button>
@@ -6891,33 +6899,97 @@ function _renderPlanSemanal(s, recetas, container) {
       <!-- Guía de cocina óptima -->
       <div class="card" style="background:var(--bg-2)">
         <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.chevron').style.transform=this.nextElementSibling.style.display==='block'?'rotate(180deg)':'rotate(0)'" style="background:none;border:none;width:100%;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:2px 0">
-          <span class="font-semibold text-sm">⏱️ Guía de cocina óptima (~2h domingo)</span>
+          <span class="font-semibold text-sm">⏱️ Guía de cocina y técnicas</span>
           <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform .2s;flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
-        <div style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
-          <div class="text-xs font-semibold text-lo mb-md" style="text-transform:uppercase;letter-spacing:.06em">Orden de cocción (cocina todo en paralelo)</div>
-          ${[
-            ['00:00','Poner a cocinar lo que más demora: arroz integral (35 min), lentejas (25 min) o quinoa (15 min). Poner a hervir agua.'],
-            ['00:05','Precalentar horno a 180°C si hay pollo o merluza para hornear.'],
-            ['00:10','Cortar toda la proteína (pollo, carne, etc.) y condimentar. Marinar si aplica.'],
-            ['00:20','Meter proteína al horno O empezar en sartén grande. Dejar sin tocar.'],
-            ['00:25','Cortar todas las verduras mientras la proteína se cocina sola.'],
-            ['00:40','Revisar cocción de granos. Comenzar a cocinar verduras.'],
-            ['00:55','Apagar fuego. Todo cocinado. Dejar enfriar 15-20 min con tapa quitada.'],
-            ['01:15','Distribuir en 5 envases por receta. Porciones iguales.'],
-            ['01:30','Limpiar cocina mientras envases enfrían. Cerrar cuando estén a temperatura ambiente.'],
-            ['01:45','Guardar: días 1-2 al frente del refrigerador, días 3-5 al fondo (más frío y dura más).'],
-          ].map(([t, paso]) => `<div style="display:flex;gap:12px;margin-bottom:10px">
-            <span class="text-xs font-semibold" style="color:var(--primary);min-width:44px;padding-top:2px">${t}</span>
-            <span class="text-sm text-md" style="line-height:1.5">${paso}</span>
-          </div>`).join('')}
-          <div style="margin-top:14px;padding:10px 12px;background:var(--primary-glow);border-radius:var(--r-md)">
-            <div class="text-xs font-semibold text-primary mb-sm">Tips para 2 meal preps en paralelo</div>
+        <div style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+
+          <!-- Estrategia clave -->
+          <div style="padding:10px 12px;background:var(--primary-glow);border-radius:var(--r-md);margin-bottom:16px">
+            <div class="text-xs font-semibold text-primary mb-sm">🧠 El principio que lo cambia todo</div>
             <div class="text-xs text-lo" style="line-height:1.6">
-              • Usa horno para una receta y sartén/olla para la otra simultáneamente.<br>
-              • Prepara los ingredientes de ambas recetas juntos antes de empezar a cocinar.<br>
-              • Escribe en los envases el día con marcador de pizarrón.<br>
-              • El shot de cúrcuma se hace cada mañana en 2 min, no necesita prep semanal.
+              No cocines "pollo con arroz". Cocina <strong style="color:var(--text-md)">proteína + técnica + base</strong>.<br><br>
+              <strong style="color:var(--text-md)">Cocina 2 proteínas grandes por semana. Cambia la salsa, cambia el sabor.</strong><br>
+              Ejemplo: Pollo → limón / mostaza / ajo. Carne → wok / tomate / salteado.<br>
+              Mismo alimento, distinto sabor = variedad sin esfuerzo.
+            </div>
+          </div>
+
+          <!-- 4 Técnicas -->
+          <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">4 Técnicas para que TODO quede rico</div>
+          ${[
+            ['🔥','Sellado + jugo (anti seco)','Sartén fuerte → sellas la proteína → bajas fuego → tapas 5–8 min → agregas limón / caldo / salsa al final.','Pollo, carne, chuleta','sellado'],
+            ['🫙','Horno con humedad','Bandeja + proteína + verduras → chorrito aceite + condimentos → tapar con foil los primeros 20 min → destapar 10 min para dorar.','Jugoso SIEMPRE, sin vigilar','horno'],
+            ['⚡','Wok fuego alto','Fuego MÁX → poco aceite → proteína en tiras finas → 5 min → agregar salsa (soya/ajo/jengibre) → vegetales 3 min.','Sabor alto, rápido, nunca seco','wok'],
+            ['🥄','Salsas simples (anti aburrimiento)','Haz 1 salsa al momento de servir. Cambia la salsa, cambia la comida.','Aplica a cualquier técnica','salsa'],
+          ].map(([icon,nombre,desc,aplica,id]) => `
+            <div style="margin-bottom:12px;padding:10px 12px;background:var(--bg-3);border-radius:var(--r-md);border-left:3px solid var(--primary)">
+              <div class="font-semibold text-sm mb-sm">${icon} ${nombre}</div>
+              <div class="text-xs text-md" style="line-height:1.5;margin-bottom:6px">${desc}</div>
+              <div class="text-xs text-lo">→ ${aplica}</div>
+            </div>`).join('')}
+
+          <!-- 4 Salsas -->
+          <div class="text-xs font-semibold text-lo mb-sm mt-md" style="text-transform:uppercase;letter-spacing:.06em">4 Salsas rápidas (2 min cada una)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+            ${[
+              ['Yogurt + limón + ajo','Mezcla 3 cdas yogurt + jugo ½ limón + 1 diente ajo rallado. Servir fría.'],
+              ['Mostaza + miel','2 cdas mostaza + 1 cdita miel + pimienta. Para pollo y carne.'],
+              ['Sofrito venezolano','Cebolla + ajo + tomate + comino salteados 5 min. La base de todo.'],
+              ['Soya + limón + ajo','3 cdas soya + limón + ajo + jengibre. Para wok y salteados.'],
+            ].map(([nombre,desc]) => `
+              <div style="padding:8px 10px;background:var(--bg-3);border-radius:var(--r-md)">
+                <div class="text-xs font-semibold text-md mb-sm">${nombre}</div>
+                <div class="text-xs text-lo" style="line-height:1.4">${desc}</div>
+              </div>`).join('')}
+          </div>
+
+          <!-- Porciones de referencia -->
+          <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">Porciones de referencia</div>
+          <div style="margin-bottom:16px">
+            ${[
+              ['Proteína',''],
+              ['• Pollo / pavo','200g'],
+              ['• Carne res','180–200g'],
+              ['• Pescado','220g'],
+              ['• Atún','1 lata + 1 huevo'],
+              ['• Huevos','2–3 enteros'],
+              ['Carbos',''],
+              ['• Arroz cocido','150g'],
+              ['• Papa','250g'],
+              ['• Quinoa cocida','120g'],
+              ['Grasas',''],
+              ['• Aceite','1 cda'],
+              ['• Aguacate / palta','¼ unidad'],
+            ].map(([item,cant]) => cant ? `
+              <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
+                <span class="text-xs text-md">${item}</span>
+                <span class="text-xs font-semibold text-md">${cant}</span>
+              </div>` : `<div class="text-xs font-semibold text-primary" style="margin-top:8px;margin-bottom:4px">${item}</div>`).join('')}
+          </div>
+
+          <!-- Orden de cocción -->
+          <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">Orden de cocción (~2h domingo)</div>
+          ${[
+            ['00:00','Poner a hervir el grano que más demora: arroz integral (35 min), quinoa (15 min). Si tienes 2 proteínas: prepara ingredientes de ambas juntos antes de cocinar.'],
+            ['00:05','Precalentar horno a 180°C si hay receta al horno. Cortar y condimentar TODA la proteína de una vez.'],
+            ['00:15','Proteína 1 al horno (con foil) O en sartén a fuego fuerte (sellado). Dejar sin tocar.'],
+            ['00:20','Empezar proteína 2 en sartén o olla. Simultáneo al horno.'],
+            ['00:25','Cortar todas las verduras de ambas recetas mientras las proteínas se cocinan solas.'],
+            ['00:40','Revisar cocción de granos. Agregar verduras a las recetas.'],
+            ['00:55','Apagar todo. Dejar enfriar 15-20 min sin tapa.'],
+            ['01:15','Distribuir en 5 envases por receta. Porciones iguales. Etiquetar con marcador.'],
+            ['01:30','Limpiar mientras los envases enfrían. Cerrar cuando estén a temperatura ambiente.'],
+            ['01:45','Guardar: días 1-2 al frente del refrigerador, días 3-5 al fondo (más frío = dura más).'],
+          ].map(([t, paso]) => `<div style="display:flex;gap:12px;margin-bottom:8px">
+            <span class="text-xs font-semibold" style="color:var(--primary);min-width:44px;padding-top:2px">${t}</span>
+            <span class="text-xs text-md" style="line-height:1.5">${paso}</span>
+          </div>`).join('')}
+
+          <div style="margin-top:12px;padding:8px 12px;background:var(--bg-3);border-radius:var(--r-md)">
+            <div class="text-xs text-lo" style="line-height:1.6">
+              ⚡ El shot se hace cada mañana en 2 min — no necesita prep semanal.<br>
+              🥩 Tu error típico no es el alimento, es la técnica. Seco = no sellaste o cocinaste de más.
             </div>
           </div>
         </div>
