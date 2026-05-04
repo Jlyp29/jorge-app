@@ -2111,7 +2111,7 @@ function defaultRecetas() {
       tags:['venezolano','zinc','testosterona','facil'],
       ingredientes:[
         {item:'Carne molida (80/20)',cantidad:'700g',costo_clp:4900,cat:'proteinas'},
-        {item:'Papa',cantidad:'500g',costo_clp:600,cat:'carbos'},
+        {item:'Papa',cantidad:'500g',costo_clp:600,cat:'verduras'},
         {item:'Arroz blanco',cantidad:'200g',costo_clp:600,cat:'carbos'},
         {item:'Cebolla',cantidad:'1 grande',costo_clp:300,cat:'verduras'},
         {item:'Pimentón rojo',cantidad:'1 unidad',costo_clp:500,cat:'verduras'},
@@ -2159,7 +2159,7 @@ function defaultRecetas() {
       tags:['antiinflamatorio','cremoso','facil'],
       ingredientes:[
         {item:'Pechuga o muslos de pollo (sin piel)',cantidad:'700g',costo_clp:4500,cat:'proteinas'},
-        {item:'Papa',cantidad:'500g',costo_clp:600,cat:'carbos'},
+        {item:'Papa',cantidad:'500g',costo_clp:600,cat:'verduras'},
         {item:'Leche de coco (lata)',cantidad:'400ml',costo_clp:1500,cat:'grasas'},
         {item:'Espinaca',cantidad:'100g',costo_clp:400,cat:'verduras'},
         {item:'Cebolla',cantidad:'1 grande',costo_clp:300,cat:'verduras'},
@@ -2346,7 +2346,7 @@ function defaultRecetas() {
         {item:'Limón',cantidad:'1 unidad',costo_clp:150,cat:'extras'},
         {item:'Caldo de pollo (cubo)',cantidad:'½ cubo en ¼ taza agua',costo_clp:100,cat:'extras'},
         {item:'Sal, pimienta, orégano',cantidad:'al gusto',costo_clp:50,cat:'especias'},
-        {item:'Papa pequeña',cantidad:'5 unidades',costo_clp:400,cat:'carbos'},
+        {item:'Papa pequeña',cantidad:'5 unidades',costo_clp:400,cat:'verduras'},
       ],
       pasos:[
         'Dorar ajo laminado en aceite 1-2 min hasta que tome color.',
@@ -2370,7 +2370,7 @@ function defaultRecetas() {
         {item:'Pimentón rojo',cantidad:'1 unidad',costo_clp:500,cat:'verduras'},
         {item:'Tomate',cantidad:'2 unidades',costo_clp:400,cat:'verduras'},
         {item:'Ajo',cantidad:'5 dientes',costo_clp:100,cat:'especias'},
-        {item:'Papa',cantidad:'1 mediana',costo_clp:125,cat:'carbos'},
+        {item:'Papa',cantidad:'1 mediana',costo_clp:125,cat:'verduras'},
         {item:'Comino, orégano, paprika, sal',cantidad:'al gusto',costo_clp:60,cat:'especias'},
         {item:'Aceite de oliva',cantidad:'2 cdas',costo_clp:200,cat:'grasas'},
       ],
@@ -7006,103 +7006,132 @@ function _renderPlanSemanal(s, recetas, container) {
       ` : ''}
 
       <!-- Guía de cocina óptima -->
-      <div class="card" style="background:var(--bg-2)">
-        <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.chevron').style.transform=this.nextElementSibling.style.display==='block'?'rotate(180deg)':'rotate(0)'" style="background:none;border:none;width:100%;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:2px 0">
-          <span class="font-semibold text-sm">⏱️ Guía de cocina y técnicas</span>
-          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform .2s;flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
-        <div style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+      ${(() => {
+        const TMAP = {al1:'sellado',al2:'sellado',al3:'directo',al4:'sellado',al5:'sellado',al6:'wok',al7:'sellado',ce1:'horno',ce2:'sin-cocina',ce3:'horno',ce4:'sellado',ce5:'sellado',ce6:'wok'};
+        const TNOMBRE = {sellado:'🔥 Sellado',horno:'🫙 Horno',wok:'⚡ Wok',directo:'🥄 Directo','sin-cocina':'🥗 Sin cocción'};
+        const TECNICA_DEFS = [
+          {id:'sellado',  icon:'🔥',nombre:'Sellado + jugo (anti seco)',  desc:'Sartén fuerte → sellas la proteína → bajas fuego → tapas 5–8 min → limón / caldo al final.',aplica:'Pollo, carne, bistec'},
+          {id:'horno',    icon:'🫙',nombre:'Horno tapado con humedad',     desc:'Proteína + salsa en fuente → foil los primeros 20 min → destapar 10 min para dorar.',aplica:'Merluza, tortilla, horneados'},
+          {id:'wok',      icon:'⚡',nombre:'Wok fuego alto',               desc:'Fuego MÁX → poco aceite → proteína en tiras → 5 min → salsa soya/ajo/jengibre → vegetales.',aplica:'Pollo teriyaki, wok'},
+          {id:'directo',  icon:'🥄',nombre:'Mezcla directa',               desc:'Mezclar ingredientes cocidos + salsa sin fuego adicional.',aplica:'Pasta al pesto, ensalada atún'},
+          {id:'sin-cocina',icon:'🥗',nombre:'Sin cocción',                 desc:'Todo frío. Combinar ingredientes en frío. El más rápido.',aplica:'Ensaladas, bowls fríos'},
+        ];
+        const recetasPrep = [...rAlmuerzos,...rCenas].filter(r=>r.meal_prep);
+        const tecnicasActivas = [...new Set(recetasPrep.map(r=>TMAP[r.id]).filter(Boolean))];
+        const hayHorno  = tecnicasActivas.includes('horno');
+        const hayArroz  = recetasPrep.some(r=>r.ingredientes.some(i=>i.item.toLowerCase().includes('arroz')));
+        const hayFideos = recetasPrep.some(r=>r.ingredientes.some(i=>i.item.toLowerCase().includes('fideo')));
+        const hayGrano  = hayArroz || hayFideos;
+        const tiempoTotal = recetasPrep.length ? Math.max(...recetasPrep.map(r=>r.tiempo_min)) + 40 : 120;
+        const fmt = m => String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+        const tecnicasFiltradas = hasPlan ? TECNICA_DEFS.filter(t=>tecnicasActivas.includes(t.id)) : TECNICA_DEFS.slice(0,4);
 
-          <!-- Estrategia clave -->
-          <div style="padding:10px 12px;background:var(--primary-glow);border-radius:var(--r-md);margin-bottom:16px">
-            <div class="text-xs font-semibold text-primary mb-sm">🧠 El principio que lo cambia todo</div>
-            <div class="text-xs text-lo" style="line-height:1.6">
-              No cocines "pollo con arroz". Cocina <strong style="color:var(--text-md)">proteína + técnica + base</strong>.<br><br>
-              <strong style="color:var(--text-md)">Cocina 2 proteínas grandes por semana. Cambia la salsa, cambia el sabor.</strong><br>
-              Ejemplo: Pollo → limón / mostaza / ajo. Carne → wok / tomate / salteado.<br>
-              Mismo alimento, distinto sabor = variedad sin esfuerzo.
-            </div>
-          </div>
-
-          <!-- 4 Técnicas -->
-          <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">4 Técnicas para que TODO quede rico</div>
-          ${[
-            ['🔥','Sellado + jugo (anti seco)','Sartén fuerte → sellas la proteína → bajas fuego → tapas 5–8 min → agregas limón / caldo / salsa al final.','Pollo, carne, chuleta','sellado'],
-            ['🫙','Horno con humedad','Bandeja + proteína + verduras → chorrito aceite + condimentos → tapar con foil los primeros 20 min → destapar 10 min para dorar.','Jugoso SIEMPRE, sin vigilar','horno'],
-            ['⚡','Wok fuego alto','Fuego MÁX → poco aceite → proteína en tiras finas → 5 min → agregar salsa (soya/ajo/jengibre) → vegetales 3 min.','Sabor alto, rápido, nunca seco','wok'],
-            ['🥄','Salsas simples (anti aburrimiento)','Haz 1 salsa al momento de servir. Cambia la salsa, cambia la comida.','Aplica a cualquier técnica','salsa'],
-          ].map(([icon,nombre,desc,aplica,id]) => `
-            <div style="margin-bottom:12px;padding:10px 12px;background:var(--bg-3);border-radius:var(--r-md);border-left:3px solid var(--primary)">
-              <div class="font-semibold text-sm mb-sm">${icon} ${nombre}</div>
-              <div class="text-xs text-md" style="line-height:1.5;margin-bottom:6px">${desc}</div>
-              <div class="text-xs text-lo">→ ${aplica}</div>
-            </div>`).join('')}
-
-          <!-- 4 Salsas -->
-          <div class="text-xs font-semibold text-lo mb-sm mt-md" style="text-transform:uppercase;letter-spacing:.06em">4 Salsas rápidas (2 min cada una)</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
-            ${[
-              ['Yogurt + limón + ajo','Mezcla 3 cdas yogurt + jugo ½ limón + 1 diente ajo rallado. Servir fría.'],
-              ['Mostaza + miel','2 cdas mostaza + 1 cdita miel + pimienta. Para pollo y carne.'],
-              ['Sofrito venezolano','Cebolla + ajo + tomate + comino salteados 5 min. La base de todo.'],
-              ['Soya + limón + ajo','3 cdas soya + limón + ajo + jengibre. Para wok y salteados.'],
-            ].map(([nombre,desc]) => `
-              <div style="padding:8px 10px;background:var(--bg-3);border-radius:var(--r-md)">
-                <div class="text-xs font-semibold text-md mb-sm">${nombre}</div>
-                <div class="text-xs text-lo" style="line-height:1.4">${desc}</div>
-              </div>`).join('')}
-          </div>
-
-          <!-- Porciones de referencia -->
-          <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">Porciones de referencia</div>
-          <div style="margin-bottom:16px">
-            ${[
-              ['Proteína',''],
-              ['• Pollo / pavo','200g'],
-              ['• Carne res','180–200g'],
-              ['• Pescado','220g'],
-              ['• Atún','1 lata + 1 huevo'],
-              ['• Huevos','2–3 enteros'],
-              ['Carbos',''],
-              ['• Arroz cocido','150g'],
-              ['• Papa','250g'],
-              ['• Quinoa cocida','120g'],
-              ['Grasas',''],
-              ['• Aceite','1 cda'],
-              ['• Aguacate / palta','¼ unidad'],
-            ].map(([item,cant]) => cant ? `
-              <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border)">
-                <span class="text-xs text-md">${item}</span>
-                <span class="text-xs font-semibold text-md">${cant}</span>
-              </div>` : `<div class="text-xs font-semibold text-primary" style="margin-top:8px;margin-bottom:4px">${item}</div>`).join('')}
-          </div>
-
-          <!-- Orden de cocción -->
-          <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">Orden de cocción (~2h domingo)</div>
-          ${[
-            ['00:00','Poner a hervir el grano que más demora: quinoa (15 min), arroz blanco (18 min). Si tienes 2 proteínas: prepara ingredientes de ambas juntos antes de cocinar.'],
+        // Timeline dinámico
+        const steps = [];
+        if (hasPlan) {
+          steps.push(['00:00', `Preparar ingredientes: pesar, cortar y condimentar para <strong>${recetasPrep.map(r=>esc(r.nombre)).join(' + ')}</strong>.`]);
+          if (hayGrano) steps.push(['00:08', `Poner a hervir: ${[hayArroz&&'arroz blanco (18 min)',hayFideos&&'fideos (según paquete)'].filter(Boolean).join(' + ')}.`]);
+          if (hayHorno) {
+            const hornos = recetasPrep.filter(r=>TMAP[r.id]==='horno');
+            steps.push([hayGrano?'00:12':'00:05', `Precalentar horno 180°C. Fuente para: <strong>${hornos.map(r=>esc(r.nombre)).join(', ')}</strong> → al horno TAPADA con foil ${Math.max(...hornos.map(r=>r.tiempo_min))} min.`]);
+          }
+          const sarten = recetasPrep.filter(r=>['sellado','wok'].includes(TMAP[r.id]));
+          if (sarten.length) {
+            const t1 = hayHorno ? '00:25' : (hayGrano ? '00:15' : '00:05');
+            steps.push([t1, `Sartén${tecnicasActivas.includes('wok')?' / wok':''} para: <strong>${sarten.map(r=>esc(r.nombre)).join(' + ')}</strong>. Fuego alto → sellar → bajar fuego → tapar.`]);
+          }
+          const directas = recetasPrep.filter(r=>['directo','sin-cocina'].includes(TMAP[r.id]||''));
+          if (directas.length) {
+            const td = Math.max(hayHorno?25:0, sarten.length?(hayHorno?35:hayGrano?25:15):0, hayGrano?20:0) + 5;
+            steps.push([fmt(td), `Mezclar en frío: <strong>${directas.map(r=>esc(r.nombre)).join(', ')}</strong>. No necesitan calor — preparar mientras el resto se cocina.`]);
+          }
+          steps.push([fmt(tiempoTotal-30), 'Apagar todo. Dejar enfriar SIN tapa 15–20 min antes de envasar.']);
+          steps.push([fmt(tiempoTotal-15), `Distribuir en envases: ${recetasPrep.map(r=>`<strong>5×</strong> ${esc(r.nombre)}`).join(' · ')}.`]);
+          steps.push([fmt(tiempoTotal),    'Cerrar cuando estén a temperatura ambiente. Días 1–2 al frente del fridge, días 3–5 al fondo.']);
+        } else {
+          steps.push(...[
+            ['00:00','Poner a hervir el grano que más demora: arroz blanco (18 min). Prepara ingredientes de ambas proteínas juntos.'],
             ['00:05','Precalentar horno a 180°C si hay receta al horno. Cortar y condimentar TODA la proteína de una vez.'],
             ['00:15','Proteína 1 al horno (con foil) O en sartén a fuego fuerte (sellado). Dejar sin tocar.'],
             ['00:20','Empezar proteína 2 en sartén o olla. Simultáneo al horno.'],
-            ['00:25','Cortar todas las verduras de ambas recetas mientras las proteínas se cocinan solas.'],
+            ['00:25','Cortar todas las verduras mientras las proteínas se cocinan solas.'],
             ['00:40','Revisar cocción de granos. Agregar verduras a las recetas.'],
             ['00:55','Apagar todo. Dejar enfriar 15-20 min sin tapa.'],
-            ['01:15','Distribuir en 5 envases por receta. Porciones iguales. Etiquetar con marcador.'],
-            ['01:30','Limpiar mientras los envases enfrían. Cerrar cuando estén a temperatura ambiente.'],
-            ['01:45','Guardar: días 1-2 al frente del refrigerador, días 3-5 al fondo (más frío = dura más).'],
-          ].map(([t, paso]) => `<div style="display:flex;gap:12px;margin-bottom:8px">
-            <span class="text-xs font-semibold" style="color:var(--primary);min-width:44px;padding-top:2px">${t}</span>
-            <span class="text-xs text-md" style="line-height:1.5">${paso}</span>
-          </div>`).join('')}
+            ['01:15','Distribuir en 5 envases por receta. Porciones iguales.'],
+            ['01:30','Limpiar mientras los envases enfrían.'],
+            ['01:45','Guardar: días 1-2 al frente del refrigerador, días 3-5 al fondo.'],
+          ]);
+        }
 
-          <div style="margin-top:12px;padding:8px 12px;background:var(--bg-3);border-radius:var(--r-md)">
-            <div class="text-xs text-lo" style="line-height:1.6">
-              ⚡ El shot se hace cada mañana en 2 min — no necesita prep semanal.<br>
-              🥩 Tu error típico no es el alimento, es la técnica. Seco = no sellaste o cocinaste de más.
+        return `
+        <div class="card" style="background:var(--bg-2)">
+          <button onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.chevron').style.transform=this.nextElementSibling.style.display==='block'?'rotate(180deg)':'rotate(0)'" style="background:none;border:none;width:100%;text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:2px 0">
+            <span class="font-semibold text-sm">⏱️ Guía de cocina${hasPlan?' · tu sesión':''}</span>
+            <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="transition:transform .2s;flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+          <div style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:14px">
+
+            ${hasPlan ? `
+            <!-- Resumen sesión -->
+            <div style="padding:10px 12px;background:var(--primary-glow);border-radius:var(--r-md);margin-bottom:16px">
+              <div class="text-xs font-semibold text-primary mb-sm">📋 Tu sesión esta semana</div>
+              ${recetasPrep.map(r=>`
+                <div class="text-xs text-md" style="line-height:1.8">• <strong>${esc(r.nombre)}</strong> <span class="text-lo">— ${TNOMBRE[TMAP[r.id]||'directo']} · ${r.tiempo_min} min</span></div>
+              `).join('')}
+              <div class="text-xs text-lo mt-sm">⏱️ Sesión total estimada: ~${tiempoTotal} min</div>
+            </div>
+            ` : `
+            <!-- Principio genérico -->
+            <div style="padding:10px 12px;background:var(--primary-glow);border-radius:var(--r-md);margin-bottom:16px">
+              <div class="text-xs font-semibold text-primary mb-sm">🧠 El principio que lo cambia todo</div>
+              <div class="text-xs text-lo" style="line-height:1.6">
+                No cocines "pollo con arroz". Cocina <strong style="color:var(--text-md)">proteína + técnica + base</strong>.<br><br>
+                <strong style="color:var(--text-md)">Cocina 2 proteínas por semana. Cambia la salsa, cambia el sabor.</strong><br>
+                Selecciona tus recetas en Plan semana para ver tu guía personalizada.
+              </div>
+            </div>
+            `}
+
+            <!-- Técnicas -->
+            <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${hasPlan?'Técnicas de tu plan':'4 Técnicas para que TODO quede rico'}</div>
+            ${tecnicasFiltradas.map(t=>`
+              <div style="margin-bottom:12px;padding:10px 12px;background:var(--bg-3);border-radius:var(--r-md);border-left:3px solid var(--primary)">
+                <div class="font-semibold text-sm mb-sm">${t.icon} ${t.nombre}</div>
+                <div class="text-xs text-md" style="line-height:1.5;margin-bottom:6px">${t.desc}</div>
+                <div class="text-xs text-lo">→ ${t.aplica}</div>
+              </div>`).join('')}
+
+            <!-- 4 Salsas -->
+            <div class="text-xs font-semibold text-lo mb-sm mt-md" style="text-transform:uppercase;letter-spacing:.06em">4 Salsas rápidas (2 min cada una)</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+              ${[
+                ['Yogurt + limón + ajo','3 cdas yogurt + ½ limón + 1 ajo rallado. Fría.'],
+                ['Mostaza + miel','2 cdas mostaza + 1 cdita miel + pimienta.'],
+                ['Sofrito venezolano','Cebolla + ajo + tomate + comino, 5 min.'],
+                ['Soya + limón + ajo','3 cdas soya + limón + ajo + jengibre.'],
+              ].map(([n,d])=>`
+                <div style="padding:8px 10px;background:var(--bg-3);border-radius:var(--r-md)">
+                  <div class="text-xs font-semibold text-md mb-sm">${n}</div>
+                  <div class="text-xs text-lo" style="line-height:1.4">${d}</div>
+                </div>`).join('')}
+            </div>
+
+            <!-- Timeline -->
+            <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${hasPlan?`Orden de cocción (~${tiempoTotal} min)`:'Orden de cocción (~2h)'}</div>
+            ${steps.map(([t,paso])=>`<div style="display:flex;gap:12px;margin-bottom:8px">
+              <span class="text-xs font-semibold" style="color:var(--primary);min-width:44px;padding-top:2px">${t}</span>
+              <span class="text-xs text-md" style="line-height:1.5">${paso}</span>
+            </div>`).join('')}
+
+            <div style="margin-top:12px;padding:8px 12px;background:var(--bg-3);border-radius:var(--r-md)">
+              <div class="text-xs text-lo" style="line-height:1.6">
+                ⚡ El shot se hace cada mañana en 2 min — no necesita prep semanal.<br>
+                🥩 Tu error típico no es el alimento, es la técnica. Seco = no sellaste o cocinaste de más.
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </div>`;
+      })()}
     </div>`;
   window.setBatidosDia = function(n) {
     State.update(st => { st.cocina.plan_semanal.batidos_dia = n; });
