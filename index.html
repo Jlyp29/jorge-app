@@ -3873,75 +3873,22 @@ function renderSinergy() {
    VISTA: DIARIO
 ═══════════════════════════════════════════════════════════ */
 function renderDiario(sub = 'daily') {
-  const TABS = [['daily','Diario'],['emocional','Emocional'],['pennebaker','Escritura libre'],['bps','Mi mejor yo'],['valores','Valores']];
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="page-full">
       <div class="page-header">
         <h2 class="flex-1">Diario</h2>
       </div>
-      <div style="overflow-x:auto;white-space:nowrap;padding:0 16px 8px;border-bottom:1px solid var(--border);display:flex;gap:8px">
-        ${TABS.map(([key,label])=>`<button class="journal-tab ${sub===key?'active':''}" onclick="renderDiario('${key}')" style="flex-shrink:0">${label}</button>`).join('')}
-      </div>
       <div class="page" style="padding-top:0" id="journal-body"></div>
     </div>`;
-
   const body = document.getElementById('journal-body');
   const s = State.get();
-
-  if (sub === 'daily') renderJournalDaily(body, s);
-  else if (sub === 'emocional') renderJournalEmocional(body, s);
-  else if (sub === 'pennebaker') renderJournalPennebaker(body, s);
-  else if (sub === 'bps') renderJournalBPS(body, s);
-  else if (sub === 'valores') renderJournalValores(body, s);
-  else if (sub === 'gratitud') renderJournalGratitud(body, s);
-
-  window.toggleDiarioExtra = () => {
-    const el = document.getElementById('diario-extra-tabs');
-    if (!el) return;
-    const open = el.style.display === 'flex';
-    el.style.display = open ? 'none' : 'flex';
-    const btn = document.getElementById('diario-mas-btn');
-    if (btn) btn.textContent = open ? 'Más ＋' : 'Más ✕';
-  };
+  renderJournalDaily(body, s);
 }
 
 function renderJournalDaily(body, s) {
   const hora = new Date().getHours();
   const esMañana = hora < 13;
-  const yesterday = (() => { const d = new Date(); d.setDate(d.getDate()-1); return dateStr(d); })();
-  const yFailed = s.habits.some(h => !h.completions.includes(yesterday));
-  const bestStreak = Math.max(...s.habits.map(h => calcLiveStreak(h.completions||[], h.freeze_completions||[])), 0);
-  const adh7 = (() => {
-    const dias = Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-i);return dateStr(d);});
-    const done = s.habits.reduce((acc,h)=>acc+dias.filter(d=>h.completions.includes(d)).length,0);
-    return s.habits.length > 0 ? Math.round(done/(7*s.habits.length)*100) : 0;
-  })();
-
-  // Pool de prompts contextuales — rotan por día de la semana + datos
-  const PROMPTS_MAÑANA = [
-    '¿Qué tiene que pasar hoy para que sea un buen día?',
-    '¿Qué es lo más importante que no puedes dejar sin hacer hoy?',
-    '¿Cuál es el primer paso real hacia tu meta de esta semana?',
-    '¿Qué hábito de hoy va a mover la aguja más?',
-    '¿Hay algo que postergaste ayer que hoy sí vas a hacer?',
-    '¿Cómo quieres sentirte esta noche al cerrar el día?',
-    '¿Qué cosa concreta de Sinergy puedes avanzar en las próximas 2 horas?',
-  ];
-  const PROMPTS_NOCHE = [
-    '¿Qué fue lo mejor que pasó hoy? ¿Y qué lo hizo posible?',
-    '¿Qué harías diferente si pudieras repetir el día?',
-    '¿Cumpliste lo que te propusiste esta mañana?',
-    '¿Qué aprendiste hoy, aunque sea algo pequeño?',
-    '¿Hubo un momento en que actuaste desde el miedo o desde la claridad?',
-    '¿Qué te acerca a tu mejor versión y qué te alejó hoy?',
-    yFailed ? '¿Qué pasó realmente ayer? No el juicio, los hechos.' : '¿Avanzaste o evitaste algo importante hoy?',
-    bestStreak > 14 ? `${bestStreak} días seguidos. ¿Qué cambió en vos desde que empezaste?` : '¿Qué te está frenando de ser más consistente?',
-    adh7 < 50 ? '¿Qué está pasando que no podes sostener los hábitos esta semana?' : '¿Qué está funcionando esta semana que vale la pena repetir?',
-  ];
-  const pool = esMañana ? PROMPTS_MAÑANA : PROMPTS_NOCHE;
-  const prompt = pool[new Date().getDay() % pool.length];
-
   const todayEntry = s.journal.find(j => j.fecha === today() && j.tipo === 'daily');
 
   // Trend emocional últimos 14 días
@@ -3969,29 +3916,44 @@ function renderJournalDaily(body, s) {
     </div>` : '';
 
   body.innerHTML = `
-    <div class="card mb-md card-primary" style="margin-top:12px">
-      <p class="text-xs text-lo font-semibold uppercase mb-sm">${esMañana ? '☀️ Check-in de mañana' : '🌙 Reflexión de noche'}</p>
-      <p class="text-sm" style="line-height:var(--lh-relaxed);font-style:italic">"${esc(prompt)}"</p>
+    <div class="section" style="margin-top:12px">
+      <p class="text-xs text-lo font-semibold uppercase mb-md">${esMañana ? '☀️ Mañana' : '🌙 Noche'}</p>
+      <form id="daily-form" onsubmit="saveDailyJournal(event)">
+        ${esMañana ? `
+        <div class="field mb-md">
+          <label>¿Qué quiero que pase hoy?</label>
+          <textarea class="input" name="respuesta" rows="3" placeholder="Escribe libremente...">${esc(todayEntry?.payload?.respuesta||'')}</textarea>
+        </div>
+        <div class="field mb-md">
+          <label>¿Qué está bajo mi control ahora mismo?</label>
+          <textarea class="input" name="control" rows="2" placeholder="Solo lo que depende de mí...">${esc(todayEntry?.payload?.control||'')}</textarea>
+        </div>
+        <div class="field mb-md">
+          <label>Una acción. Sí o sí.</label>
+          <input class="input" name="compromiso" placeholder="Hoy sí hago..." value="${esc(todayEntry?.payload?.compromiso||'')}">
+        </div>` : `
+        <div class="field mb-md">
+          <label>¿Qué pasó realmente hoy?</label>
+          <textarea class="input" name="respuesta" rows="3" placeholder="Los hechos, sin juicio...">${esc(todayEntry?.payload?.respuesta||'')}</textarea>
+        </div>
+        <div class="field mb-md">
+          <label>¿Qué dependía de mí y qué no?</label>
+          <textarea class="input" name="control" rows="2" placeholder="Separa lo tuyo de lo externo...">${esc(todayEntry?.payload?.control||'')}</textarea>
+        </div>
+        <div class="field mb-md">
+          <label>¿Qué ajusto mañana?</label>
+          <input class="input" name="ajuste" placeholder="Un cambio concreto..." value="${esc(todayEntry?.payload?.ajuste||'')}">
+        </div>
+        <div class="field mb-md">
+          <label>¿Cómo estuvo el día? (1–10)</label>
+          <input class="input num" name="estado" type="number" min="1" max="10" placeholder="7" value="${todayEntry?.payload?.estado||''}">
+        </div>`}
+        <button type="submit" class="btn btn-primary btn-block">Guardar</button>
+      </form>
+      <div style="margin-top:10px;text-align:center">
+        <button class="btn btn-ghost btn-sm" onclick="startPennebaker()" style="font-size:12px;color:var(--text-lo)">Escritura libre (Pennebaker)</button>
+      </div>
     </div>
-    <form id="daily-form" onsubmit="saveDailyJournal(event)">
-      <div class="field mb-md">
-        <textarea class="input" name="respuesta" rows="5" placeholder="Escribe aquí...">${esc(todayEntry?.payload?.respuesta||'')}</textarea>
-      </div>
-      ${esMañana ? `
-      <div class="field mb-md">
-        <label>¿A qué hábito te comprometés hoy? (opcional)</label>
-        <input class="input" name="compromiso" placeholder="Hoy sí hago..." value="${esc(todayEntry?.payload?.compromiso||'')}">
-      </div>` : `
-      <div class="field mb-md">
-        <label>¿Cómo estuvo el día? (1–10)</label>
-        <input class="input num" name="estado" type="number" min="1" max="10" placeholder="7" value="${todayEntry?.payload?.estado||''}">
-      </div>
-      <div class="field mb-md">
-        <label>3 cosas buenas de hoy (separadas por coma)</label>
-        <input class="input" name="gratitud" placeholder="Ej: entrené, avancé en Sinergy, dormí bien" value="${esc(todayEntry?.payload?.gratitud||'')}">
-      </div>`}
-      <button type="submit" class="btn btn-primary btn-block">Guardar ${esMañana?'intención':'reflexión'}</button>
-    </form>
 
     ${trendHTML}
 
@@ -4014,12 +3976,33 @@ function renderJournalDaily(body, s) {
     State.update(st => {
       const idx = st.journal.findIndex(j => j.fecha===todayISO() && j.tipo==='daily');
       const entry = { id: idx>=0 ? st.journal[idx].id : Date.now().toString(), fecha:todayISO(), tipo:'daily',
-        payload:{ respuesta:d.get('respuesta'), estado:d.get('estado')||null, compromiso:d.get('compromiso')||null, gratitud:d.get('gratitud')||null }, tags:[] };
+        payload:{ respuesta:d.get('respuesta')||null, control:d.get('control')||null, compromiso:d.get('compromiso')||null, ajuste:d.get('ajuste')||null, estado:d.get('estado')||null }, tags:[] };
       if (idx>=0) st.journal[idx] = entry; else st.journal.unshift(entry);
     });
     if (isNew) XP.add(10,'Diario daily');
     UI.toast(isNew ? 'Guardado. +10 XP' : 'Actualizado.','success');
     renderDiario('daily');
+  };
+
+  window.startPennebaker = () => {
+    const prev = s.journal.find(j => j.fecha===today() && j.tipo==='pennebaker');
+    UI.modal({
+      title: 'Escritura libre',
+      body: `<p class="text-sm text-lo mb-md" style="line-height:var(--lh-relaxed)">Escribe sin parar 15–20 minutos sobre algo que te pesa. No importa la gramática. No hay juicio.</p>
+        <textarea class="input" id="pb-text" rows="8" placeholder="Escribe lo que sea...">${esc(prev?.payload?.texto||'')}</textarea>`,
+      actions: `<button class="btn btn-primary" onclick="savePennebaker()">Guardar</button>`
+    });
+    window.savePennebaker = () => {
+      const texto = document.getElementById('pb-text')?.value||'';
+      if (!texto.trim()) return;
+      State.update(st => {
+        const idx = st.journal.findIndex(j => j.fecha===todayISO() && j.tipo==='pennebaker');
+        const entry = { id: idx>=0 ? st.journal[idx].id : Date.now().toString(), fecha:todayISO(), tipo:'pennebaker', payload:{ texto }, tags:[] };
+        if (idx>=0) st.journal[idx] = entry; else st.journal.unshift(entry);
+      });
+      UI.toast('Guardado.','success');
+      document.getElementById('modal-overlay')?.remove();
+    };
   };
 }
 
