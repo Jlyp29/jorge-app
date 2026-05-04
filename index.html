@@ -1186,6 +1186,15 @@ const clamp = (v,mn,mx) => Math.min(mx, Math.max(mn, v));
 const randItem = arr => arr[Math.floor(Math.random() * arr.length)];
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+function diasDesdeUltimaActividad(s) {
+  const allDates = s.habits.flatMap(h => h.completions || []);
+  if (!allDates.length) return 0;
+  const lastDate = allDates.slice().sort().pop();
+  const lastTs = new Date(lastDate + 'T00:00:00').getTime();
+  const todayTs = new Date(today() + 'T00:00:00').getTime();
+  return Math.floor((todayTs - lastTs) / 86400000);
+}
+
 // Calcula la racha real desde las completions. freezes son días de pausa: no rompen
 // la racha pero tampoco suman al contador (estadísticas honestas).
 function calcLiveStreak(completions, freezes = []) {
@@ -2340,6 +2349,7 @@ function renderHoy() {
   // Comeback check
   const yStr = (() => { const d = new Date(); d.setDate(d.getDate()-1); return dateStr(d); })();
   const hayComeback = s.xp.comeback_pendiente && !s.habits.every(h => h.completions.includes(yStr));
+  const diasFuera = diasDesdeUltimaActividad(s);
 
   // Fresh start check
   const hoy = new Date();
@@ -2407,7 +2417,10 @@ function renderHoy() {
       <!-- Banners contextuales -->
       ${hayComeback ? `
         <div class="banner banner-comeback">
-          Ayer se pasó. Hoy está aquí. Eso es el sistema funcionando. <strong>+100 XP Comeback.</strong>
+          ${diasFuera >= 3
+            ? `Llevas ${diasFuera} días. El sistema sigue aquí. Vuelve con un hábito. <strong>+100 XP Comeback.</strong>`
+            : `Ayer se pasó. Hoy está aquí. Eso es el sistema funcionando. <strong>+100 XP Comeback.</strong>`
+          }
         </div>` : ''}
       ${esFreshStart && !hayComeback ? `
         <div class="banner banner-fresh">
@@ -4199,11 +4212,11 @@ function renderYo() {
       </div>` : `<div class="section"><button class="btn btn-secondary btn-block" onclick="openMedicionModal()">+ Registrar medición física</button></div>`}
 
       <!-- XP Chart -->
-      ${xp.history.length >= 7 ? `<div class="section">
-        <div class="section-title">XP últimas semanas</div>
+      ${xp.history.length > 0 ? `<div class="section">
+        <div class="section-title">XP últimos 30 días</div>
         <div class="card">
           <div class="chart-container">
-            <canvas id="xp-chart" role="img" aria-label="Gráfico de XP acumulado en las últimas semanas"></canvas>
+            <canvas id="xp-chart" role="img" aria-label="Gráfico de XP ganado por día en los últimos 30 días"></canvas>
           </div>
           <p class="text-xs text-lo mt-sm" id="xp-chart-summary" aria-live="polite"></p>
         </div>
@@ -4280,26 +4293,43 @@ function renderYo() {
       </div>
     </div>`;
 
-  // Draw XP chart
-  if (xp.history.length >= 7) {
-    const last14 = [...xp.history].reverse().slice(-14);
-    const labels = last14.map(e => formatDate(e.fecha));
-    let running = 0;
-    const data = last14.map(e => { running += e.delta; return running; });
+  // Draw XP bar chart — 30 días calendario, una barra por día
+  if (xp.history.length > 0) {
+    const xpByDay = {};
+    xp.history.forEach(e => {
+      const d = (e.fecha || '').slice(0, 10);
+      if (d) xpByDay[d] = (xpByDay[d] || 0) + (e.delta || 0);
+    });
+    const labels = [], data = [], bgColors = [];
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const ds = dateStr(d);
+      const val = Math.max(0, xpByDay[ds] || 0);
+      labels.push(formatDate(ds));
+      data.push(val);
+      bgColors.push(val > 0 ? 'rgba(20,184,166,.75)' : 'rgba(107,115,128,.18)');
+    }
     const ctx = document.getElementById('xp-chart');
     if (ctx) {
       const ch = new Chart(ctx, {
-        type:'line',
-        data:{ labels, datasets:[{ data, borderColor:'#14B8A6', backgroundColor:'rgba(20,184,166,.1)', tension:.4, fill:true, pointRadius:3 }] },
-        options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ x:{ticks:{color:'#6B7380',maxTicksLimit:6}}, y:{ticks:{color:'#6B7380'}} } }
+        type: 'bar',
+        data: { labels, datasets: [{ data, backgroundColor: bgColors, borderRadius: 3, borderSkipped: false }] },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: { ticks: { color:'#6B7380', maxTicksLimit:6, maxRotation:0 }, grid:{ display:false } },
+            y: { ticks: { color:'#6B7380' }, grid:{ color:'rgba(255,255,255,.04)' }, beginAtZero:true }
+          }
+        }
       });
       Router.registerChart('xp', ch);
-      // Text summary for accessibility
+      const activeDays = data.filter(v => v > 0).length;
+      const total30 = data.reduce((s, v) => s + v, 0);
       const summary = document.getElementById('xp-chart-summary');
-      if (summary && data.length >= 2) {
-        const delta = data[data.length-1] - data[0];
-        summary.textContent = `Ganaste ${delta > 0 ? '+' : ''}${delta} XP en los últimos ${data.length} días. Total acumulado: ${data[data.length-1]} XP.`;
-      }
+      if (summary) summary.textContent = activeDays > 0
+        ? `${activeDays} días activos en los últimos 30. +${total30} XP en ese período.`
+        : 'Sin actividad en los últimos 30 días.';
     }
   }
 
@@ -6245,10 +6275,53 @@ const App = (() => {
     }
   }
 
+  function checkInactivity() {
+    const s = State.get();
+    if (!s.onboarding_done || s.settings.fase < 1) return;
+    const diasFuera = diasDesdeUltimaActividad(s);
+    if (diasFuera < 3) return;
+    const hoy = today();
+    if (s.settings.last_inactivity_prompt === hoy) return;
+    State.update(st => { st.settings.last_inactivity_prompt = hoy; });
+
+    // Hábito más vale recuperar (mayor longestStreak, desempate por total de completions)
+    const best = s.habits.reduce((b, h) => {
+      if (!b) return h;
+      const bScore = (b.longestStreak||0)*1000 + (b.completions?.length||0);
+      const hScore = (h.longestStreak||0)*1000 + (h.completions?.length||0);
+      return hScore > bScore ? h : b;
+    }, null);
+
+    const habitLine = best ? `
+      <div class="card" style="background:var(--bg-2);padding:12px 14px;margin-top:12px;border-radius:var(--r-md);text-align:left">
+        <div class="text-xs text-lo font-semibold uppercase mb-sm" style="letter-spacing:.06em">Empieza por aquí</div>
+        <div class="font-semibold text-sm">${esc(best.nombre)}</div>
+        <div class="text-xs text-lo mt-sm">${esc(best.version_tiny || '')}</div>
+        ${best.longestStreak > 0 ? `<div class="text-xs text-primary mt-sm">Tu récord: ${best.longestStreak} días seguidos</div>` : ''}
+      </div>` : '';
+
+    UI.modal({
+      title: `Llevas ${diasFuera} días fuera.`,
+      center: true,
+      body: `<div style="text-align:center">
+        <p class="text-sm" style="color:var(--text-md);line-height:var(--lh-relaxed)">
+          El sistema no te juzga. No importa cuántos días pasaron.<br>Lo único que importa es lo que haces ahora.
+        </p>
+        ${habitLine}
+        <p class="text-xs text-lo" style="margin-top:12px">Un hábito. Hoy. Eso es todo.</p>
+      </div>`,
+      actions: [
+        { label: 'Volver ahora', cls: 'btn-primary btn-block', action: () => Router.navigate('hoy') },
+        { label: 'Solo esta semana fue difícil', cls: 'btn-secondary btn-block', action: () => {} },
+      ],
+    });
+  }
+
   function init() {
     State.load();
     XP.checkMonthReset();
     checkDailyComebackFlag();
+    checkInactivity();
     applyTheme(State.get('settings.theme') || 'dark');
     registerRoutes();
     Router.init();
