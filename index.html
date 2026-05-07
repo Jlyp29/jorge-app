@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
@@ -3031,187 +3031,133 @@ function renderHoy() {
   const nombre = s.profile.nombre || '';
   const hora = new Date().getHours();
   const saludo = hora < 12 ? 'Buenos días' : hora < 19 ? 'Buenas tardes' : 'Buenas noches';
-  const fase = s.settings.fase;
 
-  // Days in system
-  const faseStart = s.settings.fase_start || todayISO();
-  const diasSistema = Math.floor((Date.now() - new Date(faseStart+'T00:00:00').getTime()) / 86400000) + 1;
-
-  // XP
-  const xpData = s.xp;
   XP.checkMonthReset();
 
-  // Comeback check
-  const yStr = (() => { const d = new Date(); d.setDate(d.getDate()-1); return dateStr(d); })();
-  const hayComeback = s.xp.comeback_pendiente && !s.habits.every(h => h.completions.includes(yStr));
+  // Comeback
+  const hayComeback = s.xp.comeback_pendiente;
   const diasFuera = diasDesdeUltimaActividad(s);
 
-  // Fresh start check
-  const hoy = new Date();
-  const esLunes = hoy.getDay() === 1;
-  const esDomingo = hoy.getDay() === 0;
-  const esPrimero = hoy.getDate() === 1;
-  const esFreshStart = esLunes || esPrimero;
+  // Core habits: Deep Work, Entreno, Sueño
+  const CORE_IDS = ['h2','h3','h1'];
+  const coreHabits = CORE_IDS.map(id => s.habits.find(h => h.id === id)).filter(Boolean);
+  const secondaryHabits = s.habits.filter(h => !CORE_IDS.includes(h.id));
+  const secondaryPending = secondaryHabits.filter(h => !h.completions.includes(today())).length;
 
-  // Revisión semanal pendiente
-  const semanaActual = weekISO();
-  const revisionHecha = (s.revisiones_semanales || []).some(r => r.semana_iso === semanaActual);
-  const mostrarRevision = (esDomingo || esLunes) && !revisionHecha && diasSistema >= 7;
+  // Water
+  const hoy = todayISO();
+  const vasosHoy = (s.fisico.agua || {})[hoy] || 0;
 
-  // Revisión mensual pendiente
-  const mostrarRevisionMes = debeRevisarMes(s);
-
-  // Today completions
-  const todayCompletions = s.habits.map(h => h.completions.includes(today()));
-  const allDoneToday = todayCompletions.every(Boolean);
-
-  // Orden lógico mañana → noche: cama, vitaminas, suplementos mañana, deep work, entreno, omega, lectura, magnesio, sueño
-  const HABIT_PRIORITY = ['h5','h6','h7','h2','h3','h8','h4','h9','h1'];
-  const sortedHabits = [...s.habits].sort((a, b) => {
-    const aDone = a.completions.includes(today());
-    const bDone = b.completions.includes(today());
-    if (aDone !== bDone) return aDone ? 1 : -1;
-    const ai = HABIT_PRIORITY.indexOf(a.id); const bi = HABIT_PRIORITY.indexOf(b.id);
-    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-  });
-
-  // Weekly completion rate (last 7 days)
-  const weekDays = Array.from({length:7},(_,i) => { const d = new Date(); d.setDate(d.getDate()-i); return dateStr(d); });
-  const weekChecks = weekDays.reduce((sum, d) => sum + s.habits.filter(h => h.completions.includes(d)).length, 0);
-  const weekMax = 7 * s.habits.length;
-  const weekPct = weekMax > 0 ? Math.round(weekChecks / weekMax * 100) : 0;
-
-  // Monday summary: best streak (live, no desde currentStreak almacenado)
-  const maxStreakHabit = s.habits.reduce((best, h) => {
-    const ls = calcLiveStreak(h.completions || [], h.freeze_completions || []);
-    const bs = best ? calcLiveStreak(best.completions || [], best.freeze_completions || []) : 0;
-    return ls > bs ? h : best;
-  }, null);
-  const maxStreakVal = maxStreakHabit ? calcLiveStreak(maxStreakHabit.completions || [], maxStreakHabit.freeze_completions || []) : 0;
-
-  // Progress XP today
-  const { pct, current, needed } = XP.getProgress();
-  const nivel = xpData.nivel;
-  const levelName = XP.getLevelName(nivel);
+  // Quick daily check
+  const quickHoy = (s.journal || []).find(j => j.fecha === today() && j.tipo === 'quick');
 
   const app = document.getElementById('app');
   app.innerHTML = `
     <div class="page">
       <!-- Header -->
-      <div class="row-between mb-md" style="padding-top:8px">
-        <div>
-          <p class="text-xs text-lo font-semibold uppercase" style="letter-spacing:.08em">${new Date().toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'})}</p>
-          <h2>${esc(saludo)}${nombre ? `, ${esc(nombre)}` : ''}.</h2>
-          <p class="text-sm text-lo">Día ${diasSistema} del sistema.</p>
-        </div>
-        <button class="btn btn-icon btn-ghost" onclick="Router.navigate('crisis')" aria-label="Protocolo de emergencia" title="Me siento ansioso">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-        </button>
+      <div class="mb-lg" style="padding-top:8px">
+        <p class="text-xs text-lo font-semibold uppercase" style="letter-spacing:.08em">${new Date().toLocaleDateString('es-CL',{weekday:'long',day:'numeric',month:'long'})}</p>
+        <h2>${esc(saludo)}${nombre ? `, ${esc(nombre)}` : ''}.</h2>
       </div>
 
-      <!-- Banner contextual — un solo banner por prioridad: crisis > revMes > revSemanal > comeback > freshStart -->
-      ${(() => {
-        if (s.settings.modo_crisis) return `
-          <div class="banner banner-crisis">
-            Modo pausa activo. Tómate el tiempo que necesitas. <a href="#" onclick="toggleCrisisMode(false)">Retomar</a>
-          </div>`;
-        if (mostrarRevisionMes) return `
-          <div class="card mb-md" style="border:1.5px solid var(--accent);background:color-mix(in srgb,var(--accent) 8%,transparent);padding:14px 16px">
-            <div class="row-between">
-              <div>
-                <div class="font-semibold text-sm">📊 Revisión mensual · 5 años</div>
-                <div class="text-xs text-lo mt-sm">Actualiza tu progreso · Grasa, ingresos, Sinergy · +75 XP</div>
-              </div>
-              <button class="btn btn-sm" style="background:var(--accent);color:#fff;white-space:nowrap" onclick="openRevisionMensual()">Registrar →</button>
-            </div>
-          </div>`;
-        if (mostrarRevision) return `
-          <div class="card mb-md" style="border:1.5px solid var(--primary);background:var(--primary-glow);padding:14px 16px">
-            <div class="row-between">
-              <div>
-                <div class="font-semibold text-sm">📋 Revisión de la semana</div>
-                <div class="text-xs text-lo mt-sm">5 minutos · Cierra la semana · +50 XP</div>
-              </div>
-              <button class="btn btn-primary btn-sm" onclick="openRevisionSemanal()">Revisar →</button>
-            </div>
-          </div>`;
-        if (hayComeback) return `
-          <div class="banner banner-comeback">
-            ${diasFuera >= 3
-              ? `Llevas ${diasFuera} días. El sistema sigue aquí. Vuelve con un hábito. <strong>+100 XP Comeback.</strong>`
-              : `Ayer se pasó. Hoy está aquí. Eso es el sistema funcionando. <strong>+100 XP Comeback.</strong>`
-            }
-          </div>`;
-        if (esFreshStart) return `
-          <div class="banner banner-fresh">
-            ${esLunes
-              ? `Lunes · XP ×1.5 hoy.${maxStreakVal > 1 ? ` Mejor racha: <strong>${maxStreakVal} días</strong> de ${esc(maxStreakHabit.nombre)}.` : ' A construir.'}`
-              : `Primero de mes · XP ×1.5 hoy. ${weekPct >= 70 ? 'La semana pasada fue sólida.' : 'Esta semana puede ser diferente.'}`
-            }
-          </div>`;
-        return '';
-      })()}
+      <!-- Banner: solo comeback o crisis -->
+      ${s.settings.modo_crisis ? `
+        <div class="banner banner-crisis mb-md">
+          Modo pausa activo. Tómate el tiempo que necesitas.
+          <a href="#" onclick="toggleCrisisMode(false);return false" style="margin-left:8px">Retomar</a>
+        </div>` :
+      hayComeback ? `
+        <div class="banner banner-comeback mb-md">
+          ${diasFuera >= 3
+            ? `Llevas ${diasFuera} días. El sistema sigue aquí. Vuelve con un hábito. <strong>+100 XP Comeback.</strong>`
+            : `Ayer se pasó. Hoy está aquí. Eso es el sistema funcionando. <strong>+100 XP Comeback.</strong>`}
+        </div>` : ''}
 
-      <!-- XP / Nivel -->
-      <div class="card card-primary mb-lg">
+      <!-- Hábitos core -->
+      <div class="stack stack-md mb-lg" id="habits-list">
+        ${coreHabits.map(h => renderHabitCard(h, h.completions.includes(today()), 0)).join('')}
+      </div>
+
+      <!-- Hábitos secundarios colapsados -->
+      ${secondaryHabits.length ? `
+      <details class="mb-lg">
+        <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border);color:var(--text-lo);font-size:var(--fs-sm)">
+          <span>Otros hábitos${secondaryPending > 0 ? ` · ${secondaryPending} pendientes` : ' · todos listos ✓'}</span>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </summary>
+        <div class="stack stack-md mt-md" id="habits-secondary">
+          ${secondaryHabits.map(h => renderHabitCard(h, h.completions.includes(today()), 0)).join('')}
+        </div>
+      </details>` : ''}
+
+      <!-- Agua -->
+      <div class="card mb-lg">
         <div class="row-between mb-sm">
-          <div>
-            <div class="xp-counter num" id="xp-display">${xpData.total.toLocaleString('es-CL')}</div>
-            <div class="xp-label">XP TOTAL</div>
-          </div>
-          <div class="text-right">
-            <div class="level-badge">Nv. ${nivel} · ${esc(levelName)}</div>
-            <div class="text-xs text-primary font-semibold mt-sm">${needed - current} XP para nivel ${nivel+1}</div>
-          </div>
+          <span class="text-sm font-semibold">Agua</span>
+          <span class="text-sm ${vasosHoy >= 8 ? 'font-semibold' : 'text-lo'}">${vasosHoy}/8 vasos</span>
         </div>
-        <div class="progress-bar" style="height:8px"><div class="progress-fill" style="width:${pct}%;transition:width 1s var(--ease-standard)"></div></div>
-        <div class="row-between mt-sm">
-          <div class="text-xs text-lo">Semana: ${weekPct}% · ${weekChecks}/${weekMax} checks</div>
-          <div class="text-xs text-lo">${xpData.freezes_disponibles}/4 🧊</div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:6px">
-          <div class="progress-bar" style="flex:1;height:4px;background:var(--bg-3)"><div style="height:4px;background:var(--success);width:${weekPct}%;border-radius:var(--r-full);transition:width 1s var(--ease-standard)"></div></div>
-          <div class="freeze-dots" title="${xpData.freezes_disponibles} de 4" aria-label="${xpData.freezes_disponibles} protecciones disponibles">
-            ${Array.from({length:4},(_,i) =>
-              `<div class="freeze-dot ${i < xpData.freezes_disponibles ? 'available' : 'used'}" aria-hidden="true"></div>`
-            ).join('')}
-          </div>
+        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+          ${Array.from({length:8}, (_,i) => `
+            <button onclick="toggleVasoHoy(${i+1})" aria-label="Vaso ${i+1}" style="
+              aspect-ratio:1;border-radius:12px;border:2px solid ${i < vasosHoy ? 'var(--primary)' : 'var(--border)'};
+              background:${i < vasosHoy ? 'var(--primary-alpha)' : 'transparent'};
+              font-size:22px;display:flex;align-items:center;justify-content:center;cursor:pointer;
+              transition:all var(--dur-2) var(--ease-standard)">
+              ${i < vasosHoy ? '💧' : '○'}
+            </button>`).join('')}
         </div>
       </div>
 
-      <!-- Hábitos núcleo -->
-      <div class="section">
-        <div class="section-title">Hábitos núcleo</div>
-        <div class="stack stack-md" id="habits-list">
-          ${sortedHabits.map(h => renderHabitCard(h, h.completions.includes(today()), 0)).join('')}
-        </div>
+      <!-- Check rápido -->
+      <div class="card mb-lg">
+        <div class="text-sm font-semibold mb-sm">¿Qué moviste hoy?</div>
+        ${quickHoy ? `
+          <p class="text-sm text-md">${esc(quickHoy.payload.texto)}</p>
+          <button class="btn btn-ghost btn-sm mt-sm" onclick="editarCheckRapido()">Editar</button>
+        ` : `
+          <div style="display:flex;gap:8px">
+            <input id="quick-check-input" class="input" style="flex:1" placeholder="Trabajo, cuerpo, relaciones… una línea" maxlength="200"
+              onkeydown="if(event.key==='Enter'){guardarCheckRapido();event.preventDefault()}">
+            <button class="btn btn-primary btn-sm" onclick="guardarCheckRapido()">→</button>
+          </div>
+        `}
       </div>
 
-      <!-- Identidad + crisis -->
-      <div class="section" style="display:flex;flex-direction:column;gap:10px">
-        <div class="card card-identity cursor-pointer" onclick="Router.navigate('yo')" style="padding:14px 16px" role="button" aria-label="Ver perfil">
-          <p class="text-sm font-semibold text-identity">${esc(s.profile.identidad || 'Soy alguien que construye.')}</p>
-          ${s.profile.porque ? `<p class="text-xs text-md mt-sm">${esc(s.profile.porque.slice(0,120))}${s.profile.porque.length>120?'...':''}</p>` : ''}
-        </div>
-        <button class="btn btn-ghost btn-block" onclick="Router.navigate('crisis')" style="border:1px solid var(--border);color:var(--text-lo)" aria-label="Abrir modo de apoyo emocional">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          Me siento mal o ansioso
-        </button>
-      </div>
+      <!-- Crisis -->
+      <button class="btn btn-ghost btn-block" onclick="Router.navigate('crisis')"
+        style="border:1px solid var(--border);color:var(--text-lo);margin-bottom:24px">
+        Me siento mal o ansioso
+      </button>
     </div>`;
 
-  // Comeback: el banner se muestra, pero el XP se otorga en el primer toggleHabit (ver abajo)
+  window.toggleVasoHoy = (n) => {
+    const h = todayISO();
+    State.update(st => {
+      if (!st.fisico.agua) st.fisico.agua = {};
+      st.fisico.agua[h] = (st.fisico.agua[h] === n) ? n - 1 : n;
+    });
+    renderHoy();
+  };
 
-  // Small wins toggle
-  window.toggleSmallWins = () => {
-    const body = document.getElementById('sw-body');
-    const toggle = document.getElementById('sw-toggle');
-    const chevron = document.getElementById('sw-chevron');
-    if (!body) return;
-    const open = !body.classList.contains('hidden');
-    body.classList.toggle('hidden', open);
-    if (toggle) toggle.setAttribute('aria-expanded', String(!open));
-    if (chevron) chevron.style.transform = open ? '' : 'rotate(180deg)';
+  window.guardarCheckRapido = () => {
+    const input = document.getElementById('quick-check-input');
+    const texto = input?.value.trim();
+    if (!texto) return;
+    State.update(st => {
+      st.journal = st.journal.filter(j => !(j.fecha === todayISO() && j.tipo === 'quick'));
+      st.journal.unshift({ id: Date.now().toString(), fecha: todayISO(), tipo: 'quick', payload: { texto } });
+    });
+    renderHoy();
+  };
+
+  window.editarCheckRapido = () => {
+    State.update(st => { st.journal = st.journal.filter(j => !(j.fecha === todayISO() && j.tipo === 'quick')); });
+    renderHoy();
+  };
+
+  window.toggleCrisisMode = (active) => {
+    State.update(st => { st.settings.modo_crisis = active; });
+    renderHoy();
   };
 
   wireHabitChecks();
@@ -3219,8 +3165,6 @@ function renderHoy() {
   window.openRevisionSemanal = () => {
     const s = State.get();
     const semana = weekISO();
-
-    // Calcular datos reales de la semana
     const dias7 = Array.from({length:7},(_,i) => { const d = new Date(); d.setDate(d.getDate()-i); return dateStr(d); });
     const checks = dias7.reduce((sum,d) => sum + s.habits.filter(h => h.completions.includes(d)).length, 0);
     const maxChecks = 7 * s.habits.length;
@@ -3228,9 +3172,7 @@ function renderHoy() {
     const xpSemana = s.xp.history.filter(e => dias7.includes(e.fecha?.slice(0,10))).reduce((sum,e) => sum + (e.delta||0), 0);
     const outputsSemana = s.sinergy.outputs_log.filter(o => dias7.includes(o.fecha)).length;
     const entrenSemana = s.fisico.sesiones.filter(e => dias7.includes(e.fecha)).length;
-
     const emojiAdh = adh >= 80 ? '🟢' : adh >= 50 ? '🟡' : '🔴';
-
     UI.modal({
       title: '📋 Revisión de la semana',
       body: `
@@ -3244,22 +3186,10 @@ function renderHoy() {
           </div>
         </div>
         <div class="stack stack-md">
-          <div class="field">
-            <label>¿Qué funcionó esta semana?</label>
-            <textarea id="rev-funciono" class="input" rows="2" placeholder="Un hábito, una decisión, algo concreto..."></textarea>
-          </div>
-          <div class="field">
-            <label>¿Qué no funcionó?</label>
-            <textarea id="rev-no-funciono" class="input" rows="2" placeholder="Sin juicio, solo los hechos..."></textarea>
-          </div>
-          <div class="field">
-            <label>Una cosa concreta que cambia esta semana</label>
-            <textarea id="rev-cambia" class="input" rows="2" placeholder="Específico y pequeño. Ej: Acostarme a las 22:30 en vez de 23:30"></textarea>
-          </div>
-          <div class="field">
-            <label>¿Cómo fue la semana en general? (1-10)</label>
-            <input id="rev-estado" class="input" type="number" min="1" max="10" placeholder="7">
-          </div>
+          <div class="field"><label>¿Qué funcionó esta semana?</label><textarea id="rev-funciono" class="input" rows="2" placeholder="Un hábito, una decisión, algo concreto..."></textarea></div>
+          <div class="field"><label>¿Qué no funcionó?</label><textarea id="rev-no-funciono" class="input" rows="2" placeholder="Sin juicio, solo los hechos..."></textarea></div>
+          <div class="field"><label>Una cosa concreta que cambia esta semana</label><textarea id="rev-cambia" class="input" rows="2" placeholder="Específico y pequeño. Ej: Acostarme a las 22:30 en vez de 23:30"></textarea></div>
+          <div class="field"><label>¿Cómo fue la semana en general? (1-10)</label><input id="rev-estado" class="input" type="number" min="1" max="10" placeholder="7"></div>
         </div>`,
       actions: [
         { label: 'Cerrar la semana · +50 XP', action: () => {
@@ -3271,12 +3201,7 @@ function renderHoy() {
           const isNewRevSem = !s.revisiones_semanales.some(r => r.semana_iso === semana);
           State.update(st => {
             const idx = st.revisiones_semanales.findIndex(r => r.semana_iso === semana);
-            const entry = {
-              id: idx >= 0 ? st.revisiones_semanales[idx].id : Date.now().toString(),
-              semana_iso: semana, fecha: todayISO(),
-              adherencia_pct: adh, xp_ganado: xpSemana, sinergy_outputs: outputsSemana, entrenos: entrenSemana,
-              estado_general: estado, que_funciono: funciono, que_no_funciono: noFunciono, que_cambia: cambia,
-            };
+            const entry = { id: idx >= 0 ? st.revisiones_semanales[idx].id : Date.now().toString(), semana_iso: semana, fecha: todayISO(), adherencia_pct: adh, xp_ganado: xpSemana, sinergy_outputs: outputsSemana, entrenos: entrenSemana, estado_general: estado, que_funciono: funciono, que_no_funciono: noFunciono, que_cambia: cambia };
             if (idx >= 0) st.revisiones_semanales[idx] = entry;
             else st.revisiones_semanales.unshift(entry);
           });
@@ -3369,21 +3294,13 @@ function wireHabitChecks() {
     if (_xpEffect) XP.add(_xpEffect.delta, _xpEffect.reason, _xpEffect.opts);
     if (_comebackXP) XP.add(100, 'Comeback — volviste al otro día', { animate: true });
 
-    // Milestone toasts usando racha calculada en tiempo real
+    // Milestone toasts — solo en hitos reales (14, 30, 66 días)
     if (_streakAfterMark > 0) {
       const cs = _streakAfterMark;
       const hn = _habitNameAfterMark;
-      if (cs === 3) {
-        UI.toast(`3 días seguidos de ${hn}. El hábito está despertando.`, 'success', 3500);
-      } else if (cs === 7) {
-        UI.confetti(30);
-        UI.toast(`🔥 ¡Semana perfecta de ${hn}! 7 días seguidos.`, 'success', 4500);
-      } else if (cs === 14) {
+      if (cs === 14) {
         UI.confetti(40);
         UI.toast(`💪 14 días de ${hn}. Dos semanas sólidas.`, 'success', 4500);
-      } else if (cs === 21) {
-        UI.confetti(60);
-        UI.toast(`⭐ 21 días de ${hn}. "${_identityTagAfterMark.replace('Soy alguien que ','').replace('Soy alguien con ','')}" — ya lo eres.`, 'success', 5000);
       } else if (cs === 30) {
         UI.confetti(60);
         UI.toast(`🏆 30 días de ${hn}. Un mes entero. Eres de los que cumplen.`, 'success', 5000);
@@ -3404,20 +3321,15 @@ function wireHabitChecks() {
       check.setAttribute('aria-pressed','true');
       UI.haptic([15]);
       UI.playSound();
-      const COPY = ['Un voto por quien quieres ser.','Eso suma.','Constructor.','Así se hace.','Tu sistema está funcionando.','Uno más. Sigue.'];
       const s2 = State.get();
-      const allDone = s2.habits.every(h2 => h2.completions.includes(today()));
-      if (allDone) {
-        const ALL_COPY = ['¡Día completo! Los 3. Eso es el sistema.','Tres de tres. Ninguno te gana hoy.','Los 3 hechos. El día fue tuyo.','Día perfecto. Eso se acumula.'];
+      const CORE_DONE = ['h1','h2','h3'];
+      const allCoreDone = s2.habits.filter(h2 => CORE_DONE.includes(h2.id)).every(h2 => h2.completions.includes(today()));
+      if (allCoreDone) {
+        const ALL_COPY = ['Tres de tres. El día fue tuyo.','Los 3 hechos. Eso se acumula.','Día completo. Así funciona el sistema.'];
         setTimeout(() => UI.confetti(55), 200);
         UI.haptic([20,30,20,30,60]);
         UI.toast(randItem(ALL_COPY),'success',4000);
-      } else {
-        UI.toast(randItem(COPY),'success',2500);
       }
-      // refresh XP display
-      const xpEl = document.getElementById('xp-display');
-      if (xpEl) animateCount(xpEl, parseInt(xpEl.textContent.replace(/\D/g,'')||'0'), State.get('xp.total'));
     } else {
       check.classList.remove('done');
       card.classList.remove('done');
@@ -4982,6 +4894,7 @@ function renderYo() {
         <div class="stack stack-sm">
           ${[
             ['habitos','Mis hábitos y rachas','✅'],
+            ['diario','Diario y reflexión','📓'],
             ['protocolos','Protocolos de bienestar','🧠'],
             ['partner','Tu persona de apoyo','🤝'],
             ['experimentos','Experimentos','🔬'],
@@ -7321,8 +7234,7 @@ function _renderListaCompras(s, recetas, container) {
 }
 
 function renderNav() {
-  const fase = State.get('settings.fase');
-  if (fase === 0 || !State.get('onboarding_done')) return;
+  if (!State.get('onboarding_done')) return;
   let nav = document.querySelector('.bottom-nav');
   if (nav) return;
   nav = document.createElement('nav');
@@ -7330,11 +7242,10 @@ function renderNav() {
   nav.setAttribute('aria-label','Navegación principal');
   nav.innerHTML = [
     ['hoy','Hoy',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`],
-    ['cuerpo','Cuerpo',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6.5 6.5h11M6.5 17.5h11M4 10h4M16 10h4M4 14h4M16 14h4M8 10v4M16 10v4"/></svg>`],
-    ['resultados','Resultados',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`],
-    ['diario','Diario',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`],
-    ['yo','Yo',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`],
     ['cocina','Cocina',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="18" y1="2" x2="18" y2="22"/><path d="M22 8.5c0 2.5-2 4-4 4"/><path d="M6 2v4c0 1.7 1.3 3 3 3s3-1.3 3-3V2"/><line x1="9" y1="9" x2="9" y2="22"/></svg>`],
+    ['resultados','Resultados',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>`],
+    ['cuerpo','Cuerpo',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6.5 6.5h11M6.5 17.5h11M4 10h4M16 10h4M4 14h4M16 14h4M8 10v4M16 10v4"/></svg>`],
+    ['yo','Yo',`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`],
   ].map(([route, label, icon]) =>
     `<button class="nav-tab" data-route="${route}" aria-label="Ir a ${label}" onclick="Router.navigate('${route}')">
       ${icon}<span aria-hidden="true">${label}</span>
@@ -7381,61 +7292,28 @@ const Notifs = (() => {
     // 🌅 Buenos días
     at(8, 0, 'MI SISTEMA', `Buenos días${nombre}. Arranca con tus hábitos tiny.`, 'buenos-dias');
 
-    // 💊 Vitaminas — después del desayuno
-    at(9, 0, 'Vitaminas', '¿Ya las tomaste después del desayuno?', 'vitaminas');
-
-    // 💧 Agua — 8 vasos distribuidos cada ~2h (9:30 a 21:30)
-    const aguaHoras = [9,30, 11,30, 13,30, 15,30, 17,0, 18,30, 20,0, 21,30];
-    for (let i = 0; i < aguaHoras.length; i += 2) {
-      const vaso = i / 2 + 1;
-      at(aguaHoras[i], aguaHoras[i+1], '💧 Agua', `Vaso ${vaso} de 8. Registralo en la app.`, `agua-${vaso}`);
-    }
-
-    // 📓 Diario — reflexión nocturna (21:00, solo si no hay entrada de noche hoy)
+    // 🏋️ Entreno — 19:00 si h3 no está marcado (recordatorio, no alarma)
     {
-      const t = new Date(); t.setHours(21, 0, 0, 0);
+      const t = new Date(); t.setHours(19, 0, 0, 0);
       const ms = t.getTime() - Date.now();
       if (ms > 0) setTimeout(() => {
-        const hoyEntry = State.get().journal.find(j => j.fecha === today() && j.tipo === 'daily');
-        if (!hoyEntry?.payload?.estado) {
-          try { new Notification('📓 Reflexión del día', { body: '¿Qué pasó hoy? 3 preguntas, 2 minutos.', icon:'./icon-192.png', tag:'diario-noche' }); } catch(e) {}
+        const h3 = State.get().habits.find(h => h.id === 'h3');
+        if (h3 && !h3.completions.includes(today())) {
+          try { new Notification('🏋️ Entrenamiento', { body: '¿Ya entrenaste? La versión tiny cuenta igual — 2 min de activación.', icon:'./icon-192.png', tag:'entreno-19h' }); } catch(e) {}
         }
       }, Math.min(ms, 2147483647));
-    }
-
-    // 😴 Dormir — 22:00 si no completaste todos los hábitos
-    {
-      const t = new Date(); t.setHours(22, 0, 0, 0);
-      const ms = t.getTime() - Date.now();
-      if (ms > 0) setTimeout(() => {
-        const allDone = State.get().habits.every(h => h.completions.includes(today()));
-        if (!allDone) {
-          try { new Notification('😴 Hora de dormir', { body: 'Las 22:00. Cierra el día y ve a la cama.', icon:'./icon-192.png', tag:'bedtime' }); } catch(e) {}
-        }
-      }, Math.min(ms, 2147483647));
-    }
-
-    // 🏋️ Entrenamiento mañana L/M/X — 5:45 despertador + check 8:30 si no lo registraste
-    {
-      const dia = new Date().getDay(); // 0=dom, 1=lun, 2=mar, 3=mie
-      if ([1, 2, 3].includes(dia)) {
-        at(5, 45, '🏋️ Hora de entrenar', 'Son las 5:45. Levántate. Entreno 6:00–7:00.', 'entreno-545');
-        const tCheck = new Date(); tCheck.setHours(8, 30, 0, 0);
-        const msCheck = tCheck.getTime() - Date.now();
-        if (msCheck > 0) setTimeout(() => {
-          const h3 = State.get().habits.find(h => h.id === 'h3');
-          if (h3 && !h3.completions.includes(today())) {
-            try { new Notification('🏋️ ¿Ya entrenaste?', { body: 'No hay registro. Si fue tiny, cuenta igual — márcalo.', icon:'./icon-192.png', tag:'entreno-check' }); } catch(e) {}
-          }
-        }, Math.min(msCheck, 2147483647));
-      }
     }
 
     // 🔄 Comeback — mañana 8am si fallaste hoy
     {
       const t = new Date(); t.setDate(t.getDate()+1); t.setHours(8, 0, 0, 0);
       const ms = t.getTime() - Date.now();
-      const fallaste = s.habits.some(h => { const d = new Date(); d.setDate(d.getDate()-1); return !h.completions.includes(dateStr(d)); });
+      const coreIds = ['h1','h2','h3'];
+      const fallaste = s.habits.some(h => {
+        if (!coreIds.includes(h.id)) return false;
+        const d = new Date(); d.setDate(d.getDate()-1);
+        return !h.completions.includes(dateStr(d));
+      });
       if (fallaste && ms > 0) setTimeout(() => {
         try { new Notification('MI SISTEMA', { body: 'Ayer se pasó. Hoy está aquí. Versión mínima cuenta.', icon:'./icon-192.png', tag:'comeback' }); } catch(e) {}
       }, Math.min(ms, 2147483647));
@@ -7456,7 +7334,7 @@ const App = (() => {
   function registerRoutes() {
     Router.register('onboarding', () => renderOnboarding());
     Router.register('fase0', () => renderFase0());
-    Router.register('hoy', () => { if (State.get('settings.fase') === 0) { Router.navigate('fase0', false); return; } renderNav(); renderHoy(); });
+    Router.register('hoy', () => { renderNav(); renderHoy(); });
     Router.register('habitos', () => { renderNav(); renderHabitos(); });
     Router.register('cuerpo', () => { renderNav(); renderCuerpo(); });
     Router.register('resultados', () => { renderNav(); renderResultados(); });
