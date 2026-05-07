@@ -1421,8 +1421,22 @@ const State = (() => {
     revisiones_semanales:[],
     revisiones_mensuales:[],
     finanzas: {
-      meta_ahorro_pct: 20,
-      gastos_fijos: [],
+      meta_ahorro_pct: 18,
+      ingreso_fijo_clp: 1937500,
+      ahorro_target_clp: 350000,
+      gastos_fijos: [
+        { nombre: 'Arriendo', monto_clp: 450000 },
+        { nombre: 'Cuota teléfono (Hebert)', monto_clp: 123724 },
+        { nombre: 'Entel', monto_clp: 5000 },
+        { nombre: 'Suscripciones digitales', monto_clp: 15000 },
+        { nombre: 'Botellón agua', monto_clp: 1650 },
+      ],
+      presupuesto: [
+        { id: 'alimentacion', nombre: 'Alimentación', icono: '🍽️', limite_clp: 200000 },
+        { id: 'transporte',   nombre: 'Transporte',   icono: '🚌', limite_clp: 50000 },
+        { id: 'personal',     nombre: 'Personal',     icono: '👤', limite_clp: 180000 },
+        { id: 'hogar',        nombre: 'Hogar / varios', icono: '🏠', limite_clp: 35000 },
+      ],
       mensual: [],
     },
     cocina: {
@@ -1494,7 +1508,19 @@ const State = (() => {
     if (!data.finanzas) data.finanzas = defaults().finanzas;
     if (!data.finanzas.gastos_fijos) data.finanzas.gastos_fijos = [];
     if (!data.finanzas.mensual) data.finanzas.mensual = [];
-    if (data.finanzas.meta_ahorro_pct === undefined) data.finanzas.meta_ahorro_pct = 20;
+    if (data.finanzas.meta_ahorro_pct === undefined) data.finanzas.meta_ahorro_pct = 18;
+    if (data.finanzas.ingreso_fijo_clp === undefined) data.finanzas.ingreso_fijo_clp = defaults().finanzas.ingreso_fijo_clp;
+    if (data.finanzas.ahorro_target_clp === undefined) data.finanzas.ahorro_target_clp = defaults().finanzas.ahorro_target_clp;
+    if (!data.finanzas.presupuesto) data.finanzas.presupuesto = defaults().finanzas.presupuesto;
+    if (data.finanzas.gastos_fijos.length === 0) data.finanzas.gastos_fijos = defaults().finanzas.gastos_fijos;
+    data.finanzas.mensual = (data.finanzas.mensual || []).map(m => {
+      if (!m.categorias) {
+        const cats = {};
+        (data.finanzas.presupuesto || []).forEach(p => { cats[p.id] = 0; });
+        m.categorias = cats;
+      }
+      return m;
+    });
     if (!data.cocina) data.cocina = defaults().cocina;
     if (!data.cocina.favoritas) data.cocina.favoritas = [];
     if (!data.cocina.plan_semanal) data.cocina.plan_semanal = defaults().cocina.plan_semanal;
@@ -3048,6 +3074,10 @@ function renderHoy() {
   const hoy = todayISO();
   const vasosHoy = (s.fisico.agua || {})[hoy] || 0;
 
+  // Sleep
+  const suenoHoy = (s.sueño || []).find(d => d.fecha === hoy);
+  const horasSueno = suenoHoy ? suenoHoy.horas : 0;
+
   // Quick daily check
   const quickHoy = (s.journal || []).find(j => j.fecha === today() && j.tipo === 'quick');
 
@@ -3108,6 +3138,21 @@ function renderHoy() {
         </div>
       </div>
 
+      <!-- Sueño -->
+      <div class="card mb-lg">
+        <div class="row-between mb-sm">
+          <span class="text-sm font-semibold">Sueño</span>
+          <span class="text-sm ${horasSueno ? (horasSueno >= 7 ? 'font-semibold' : 'text-lo') : 'text-lo'}">${horasSueno ? horasSueno + 'h' : '—'}</span>
+        </div>
+        <div style="display:flex;gap:8px">
+          ${[5,6,7,8,9,10].map(h => `<button onclick="guardarSuenoHoy(${h})" style="
+            flex:1;padding:8px 4px;border-radius:10px;border:2px solid ${horasSueno === h ? 'var(--primary)' : 'var(--border)'};
+            background:${horasSueno === h ? 'var(--primary-alpha)' : 'transparent'};
+            font-size:var(--fs-sm);font-weight:${horasSueno === h ? '600' : '400'};
+            color:${horasSueno === h ? 'var(--primary)' : 'var(--text-md)'};cursor:pointer">${h}h</button>`).join('')}
+        </div>
+      </div>
+
       <!-- Check rápido -->
       <div class="card mb-lg">
         <div class="text-sm font-semibold mb-sm">¿Qué moviste hoy?</div>
@@ -3152,6 +3197,16 @@ function renderHoy() {
 
   window.editarCheckRapido = () => {
     State.update(st => { st.journal = st.journal.filter(j => !(j.fecha === todayISO() && j.tipo === 'quick')); });
+    renderHoy();
+  };
+
+  window.guardarSuenoHoy = (horas) => {
+    const hoy = todayISO();
+    State.update(st => {
+      if (!st.sueño) st.sueño = [];
+      st.sueño = st.sueño.filter(d => d.fecha !== hoy);
+      st.sueño.unshift({ fecha: hoy, horas });
+    });
     renderHoy();
   };
 
