@@ -57,3 +57,57 @@ self.addEventListener('fetch', e => {
     )
   );
 });
+
+/* ── Notificaciones ────────────────────────────────────────
+   El SW guarda los timers en memoria. Mientras el SW esté
+   activo (PWA instalada o Chrome con app en background)
+   las notificaciones llegan aunque el tab esté cerrado.
+──────────────────────────────────────────────────────────── */
+const _timers = new Map(); // tag → timeoutId
+
+self.addEventListener('message', e => {
+  if (!e.data) return;
+
+  if (e.data.type === 'SCHEDULE_NOTIFS') {
+    // Cancelar timers anteriores para evitar duplicados
+    _timers.forEach(id => clearTimeout(id));
+    _timers.clear();
+
+    (e.data.notifs || []).forEach(n => {
+      const ms = n.fireAt - Date.now();
+      if (ms <= 0 || ms > 25 * 60 * 60 * 1000) return; // ignorar pasados o más de 25h
+      const id = setTimeout(() => {
+        self.registration.showNotification(n.title, {
+          body: n.body,
+          icon: './icon-192.png',
+          badge: './icon-192.png',
+          tag: n.tag,
+          renotify: false,
+        });
+        _timers.delete(n.tag);
+      }, Math.min(ms, 2147483647));
+      _timers.set(n.tag, id);
+    });
+  }
+
+  if (e.data.type === 'SHOW_NOW') {
+    self.registration.showNotification(e.data.title, {
+      body: e.data.body,
+      icon: './icon-192.png',
+      badge: './icon-192.png',
+      ...(e.data.opts || {}),
+    });
+  }
+});
+
+// Abrir la app al tocar una notificación
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then(cs => {
+      const open = cs.find(c => c.url.includes(self.location.origin));
+      if (open) return open.focus();
+      return clients.openWindow('./');
+    })
+  );
+});

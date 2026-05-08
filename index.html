@@ -6875,7 +6875,7 @@ function renderCocina(tab = 'recetas') {
   </div>`;
 
   const body = document.getElementById('cocina-body');
-  const TECNICA_MAP = { dr1:'directo',dr2:'sellado',dr3:'horno',dr4:'sin-cocina',dr5:'directo',dr6:'sellado',dr7:'sellado',dr8:'sin-cocina',dr9:'sellado',dr10:'directo', al1:'sellado',al2:'sellado',al3:'directo',al4:'directo',al5:'horno',al6:'sellado',al7:'sellado',al8:'wok',al9:'sellado',al10:'sellado', ce1:'horno',ce2:'horno',ce3:'sellado',ce4:'sellado',ce5:'sellado',ce6:'directo',ce7:'wok',ce8:'sin-cocina',ce9:'sellado',ce10:'sellado', sh1:'directo',sh2:'directo',sh3:'directo',sh4:'directo',sh5:'directo',sh6:'directo' };
+  const TECNICA_MAP = { dr1:'directo',dr2:'sellado',dr3:'horno',dr4:'sin-cocina',dr5:'directo',dr6:'sellado',dr7:'sellado',dr8:'sin-cocina',dr9:'sellado',dr10:'directo', al1:'sellado',al2:'sellado',al3:'directo',al4:'directo',al5:'horno',al6:'sellado',al7:'sellado',al8:'wok',al9:'sellado',al10:'sellado', ce1:'horno',ce2:'horno',ce3:'sellado',ce4:'sellado',ce5:'sellado',ce6:'sellado',ce7:'wok',ce8:'sin-cocina',ce9:'sellado',ce10:'sellado', sh1:'directo',sh2:'directo',sh3:'directo',sh4:'directo',sh5:'directo',sh6:'directo' };
   if (tab === 'recetas') _renderRecetasList(s, recetas, body, TECNICA_MAP);
   else if (tab === 'plan') _renderPlanSemanal(s, recetas, body, TECNICA_MAP);
   else if (tab === 'compras') _renderListaCompras(s, recetas, body);
@@ -6929,12 +6929,13 @@ function renderCocina(tab = 'recetas') {
         else { items.push({ item: ing.item, cantidad: ing.cantidad + (mult > 1 ? ` ×${mult}` : ''), cat: ing.cat, costo_clp: ing.costo_clp * mult, comprado: false }); }
       });
     };
-    // Almuerzos y cenas: batch de 5 porciones — comprar 1 batch por receta × sem
-    (plan.almuerzo_ids || []).forEach(id => addIngredientes(id, 1));
-    (plan.cena_ids || []).forEach(id => addIngredientes(id, 1));
-    // Desayunos: 1 porción — necesitan ×5/semana (o ×3 si son 2 desayunos alternados)
-    const nDes = (plan.desayuno_ids || []).length;
-    (plan.desayuno_ids || []).forEach(id => addIngredientes(id, nDes === 1 ? 5 : 3));
+    // Cada receta = 1 porción/día. 7 días/sem → 1 receta×7, 2 recetas→×4+×3
+    (plan.almuerzo_ids || []).forEach((id, i) =>
+      addIngredientes(id, plan.almuerzo_ids.length === 1 ? 7 : (i === 0 ? 4 : 3)));
+    (plan.cena_ids || []).forEach((id, i) =>
+      addIngredientes(id, plan.cena_ids.length === 1 ? 7 : (i === 0 ? 4 : 3)));
+    (plan.desayuno_ids || []).forEach((id, i) =>
+      addIngredientes(id, plan.desayuno_ids.length === 1 ? 7 : (i === 0 ? 4 : 3)));
     if (plan.shot_id) addIngredientes(plan.shot_id, 7); // 7 días/sem
     // Batidos — agregar whey protein si aplica
     const batidosDia = plan.batidos_dia || 0;
@@ -6979,7 +6980,7 @@ function _renderRecetasList(s, recetas, container, TECNICA_MAP) {
         ${filtered.map(r => {
           const esFav = favs.includes(r.id);
           const enPlan = (plan.almuerzo_ids||[]).includes(r.id) || (plan.cena_ids||[]).includes(r.id) || (plan.desayuno_ids||[]).includes(r.id) || plan.shot_id === r.id;
-          const costoDisplay = r.meal_prep ? `$${(r.costo_por_porcion_clp||0).toLocaleString('es-CL')}/porción` : `$${(r.costo_total_clp||0).toLocaleString('es-CL')}`;
+          const costoDisplay = `$${(r.costo_total_clp||0).toLocaleString('es-CL')}/día`;
           return `<div class="card" style="${enPlan?'border:1.5px solid var(--primary);':''}">
             <div class="row-between mb-sm">
               <div style="display:flex;align-items:center;gap:8px">
@@ -6996,7 +6997,7 @@ function _renderRecetasList(s, recetas, container, TECNICA_MAP) {
               <span class="text-xs" style="background:var(--bg-3);color:var(--text-md);padding:2px 8px;border-radius:var(--r-full)">${r.macros.calorias} kcal</span>
               ${TECNICA_MAP[r.id]&&r.tipo!=='shot'?`<span class="text-xs" style="background:var(--bg-3);color:var(--accent);padding:2px 8px;border-radius:var(--r-full)">${TECNICA_LABEL[TECNICA_MAP[r.id]]||''}</span>`:''}
               ${r.meal_prep?'<span class="text-xs" style="background:var(--success-glow);color:var(--success);padding:2px 8px;border-radius:var(--r-full)">Meal prep</span>':''}
-              ${(() => { if(r.tipo==='shot') return ''; const c=r.meal_prep?(r.costo_por_porcion_clp||0):(r.costo_total_clp||0); if(c>0&&c<800) return '<span class="text-xs" style="background:var(--success-glow);color:var(--success);padding:2px 8px;border-radius:var(--r-full)">💚 Eco</span>'; if(c>=2500) return '<span class="text-xs" style="background:var(--accent-glow);color:var(--accent);padding:2px 8px;border-radius:var(--r-full)">💛 Premium</span>'; return ''; })()}
+              ${(() => { if(r.tipo==='shot') return ''; const c=r.costo_total_clp||0; if(c>0&&c<800) return '<span class="text-xs" style="background:var(--success-glow);color:var(--success);padding:2px 8px;border-radius:var(--r-full)">💚 Eco</span>'; if(c>=2500) return '<span class="text-xs" style="background:var(--accent-glow);color:var(--accent);padding:2px 8px;border-radius:var(--r-full)">💛 Premium</span>'; return ''; })()}
               ${(() => { if(enPlan||r.tipo==='shot'||r.tipo==='desayuno') return ''; const tR=TECNICA_MAP[r.id]; if(!tR||tR==='directo') return ''; const planIds=[...(plan.almuerzo_ids||[]),...(plan.cena_ids||[])]; const comp=planIds.filter(id=>TECNICA_MAP[id]===tR); if(comp.length===0) return ''; const nom=comp.map(id=>recetas.find(x=>x.id===id)?.nombre?.split(' ')[0]).filter(Boolean).join('+'); return `<span class="text-xs" style="background:var(--primary-glow);color:var(--primary);padding:2px 8px;border-radius:var(--r-full)">🔄 Batch con ${nom}</span>`; })()}
               ${r.tags.slice(0,2).map(t=>`<span class="text-xs" style="background:var(--bg-3);color:var(--text-lo);padding:2px 8px;border-radius:var(--r-full)">${t}</span>`).join('')}
             </div>
@@ -7052,7 +7053,11 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
   const protDia = protAlm + protCen + protDes + protBatidos;
   const calDia = (rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r)=>s+r.macros.calorias,0)/rAlmuerzos.length) : 0) + (rCenas.length ? Math.round(rCenas.reduce((s,r)=>s+r.macros.calorias,0)/rCenas.length) : 0) + (rDesayunos.length ? Math.round(rDesayunos.reduce((s,r)=>s+r.macros.calorias,0)/rDesayunos.length) : 0) + calBatidos;
   const protPct = Math.min(100, Math.round(protDia / targetProt * 100));
-  const costSem = rAlmuerzos.reduce((s,r) => s + (r.costo_por_porcion_clp||r.costo_total_clp||0) * (almIds.length===1?5:3), 0) + rCenas.reduce((s,r) => s + (r.costo_por_porcion_clp||r.costo_total_clp||0) * (ceIds.length===1?5:3), 0) + rDesayunos.reduce((s,r) => s + (r.costo_total_clp||0) * (desIds.length===1?5:3), 0) + batidosDia * 600 * 7;
+  const multFn = (ids, i) => ids.length === 1 ? 7 : (i === 0 ? 4 : 3);
+  const costAlm  = rAlmuerzos.reduce((s,r,i) => s + (r.costo_total_clp||0) * multFn(almIds,i), 0);
+  const costCen  = rCenas.reduce((s,r,i)    => s + (r.costo_total_clp||0) * multFn(ceIds,i), 0);
+  const costDes  = rDesayunos.reduce((s,r,i) => s + (r.costo_total_clp||0) * multFn(desIds,i), 0);
+  const costSem  = costAlm + costCen + costDes + batidosDia * 600 * 7;
   const costWhey       = batidosDia * 600 * 7;
   const costSemSinWhey = costSem - costWhey;
   const presupuesto    = s.fisico.presupuesto_comida_semanal || 50000;
@@ -7080,25 +7085,28 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
   let budgetHTML = '';
   if (hasPlan && overBudget) {
     const allPlan = [...rAlmuerzos,...rCenas,...rDesayunos];
-    const msCara = allPlan.map(r => ({ r, c: r.costo_por_porcion_clp || r.costo_total_clp || 0 })).sort((a,b) => b.c - a.c)[0];
+    const msCara = allPlan.map(r => ({ r, c: r.costo_total_clp || 0 })).sort((a,b) => b.c - a.c)[0];
     const alternativa = msCara
-      ? recetas.filter(rx => rx.tipo === msCara.r.tipo && !almIds.includes(rx.id) && !ceIds.includes(rx.id) && !desIds.includes(rx.id) && (rx.costo_por_porcion_clp||rx.costo_total_clp||0) < msCara.c).sort((a,b) => (a.costo_por_porcion_clp||a.costo_total_clp||0) - (b.costo_por_porcion_clp||b.costo_total_clp||0))[0]
+      ? recetas.filter(rx => rx.tipo === msCara.r.tipo && !almIds.includes(rx.id) && !ceIds.includes(rx.id) && !desIds.includes(rx.id) && (rx.costo_total_clp||0) < msCara.c).sort((a,b) => (a.costo_total_clp||0) - (b.costo_total_clp||0))[0]
       : null;
-    const mult = msCara?.r.tipo==='desayuno'?(desIds.length===1?5:3):msCara?.r.tipo==='almuerzo'?(almIds.length===1?5:3):(ceIds.length===1?5:3);
-    const ahorro = alternativa && msCara ? (msCara.c - (alternativa.costo_por_porcion_clp||alternativa.costo_total_clp||0)) * mult : 0;
+    const mIdx = allPlan.indexOf(msCara?.r);
+    const mIds = msCara?.r.tipo==='desayuno'?desIds:msCara?.r.tipo==='almuerzo'?almIds:ceIds;
+    const mult = msCara ? multFn(mIds, mIdx) : 1;
+    const ahorro = alternativa && msCara ? (msCara.c - (alternativa.costo_total_clp||0)) * mult : 0;
     budgetHTML = `<div style="padding:8px 10px;background:#fef3c7;border-radius:var(--r-sm);margin-top:8px"><div class="text-xs" style="color:#92400e">💸 Sobre presupuesto <strong>$${(costSemSinWhey-presupuesto).toLocaleString('es-CL')}</strong>${alternativa&&ahorro>0?` — cambia <em>${esc(msCara.r.nombre)}</em> por <em>${esc(alternativa.nombre)}</em> (~$${ahorro.toLocaleString('es-CL')} menos/sem)`:' — considera una combinación más económica.'}</div></div>`;
   }
 
   const renderSlotGrupo = (label, recetasArr, tipo, max) => {
-    const porciones = recetasArr.length < 2 ? 5 : 3;
+    const diasSem = recetasArr.length < 2 ? 7 : [4,3];
+    const diasLabel = Array.isArray(diasSem) ? diasSem.join('+') : diasSem;
     return `<div class="mb-md">
-      <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${label} <span style="font-weight:400;color:var(--text-lo)">(hasta ${max}, ${porciones} porciones c/u)</span></div>
+      <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${label} <span style="font-weight:400;color:var(--text-lo)">(hasta ${max}, ${diasLabel} días/sem c/u)</span></div>
       ${recetasArr.map(r => `
         <div class="card mb-sm" style="border:1.5px solid var(--primary);padding:12px 14px">
           <div class="row-between">
             <div>
               <div class="font-semibold text-sm">${esc(r.nombre)}</div>
-              <div class="text-xs text-lo mt-sm">${r.macros.proteina_g}g prot · ${r.macros.calorias} kcal · $${((r.costo_por_porcion_clp||r.costo_total_clp)||0).toLocaleString('es-CL')}/porción</div>
+              <div class="text-xs text-lo mt-sm">${r.macros.proteina_g}g prot · ${r.macros.calorias} kcal · $${(r.costo_total_clp||0).toLocaleString('es-CL')}/día</div>
             </div>
             <button onclick="usarRecetaSemana('${r.id}','${tipo}')" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:18px;padding:4px" aria-label="Quitar">✕</button>
           </div>
@@ -7464,55 +7472,105 @@ function applyTheme(t) {
    NOTIFICATIONS
 ═══════════════════════════════════════════════════════════ */
 const Notifs = (() => {
-  // Programa una notificación a una hora fija de hoy. Si ya pasó, no hace nada.
-  function at(hh, mm, title, body, tag) {
-    const t = new Date(); t.setHours(hh, mm, 0, 0);
-    const ms = t.getTime() - Date.now();
-    if (ms <= 0) return;
-    setTimeout(() => {
-      try { new Notification(title, { body, icon:'./icon-192.png', badge:'./icon-192.png', tag }); } catch(e) {}
-    }, Math.min(ms, 2147483647));
+  // Evalúa el estado actual y construye la lista de notificaciones pendientes para hoy.
+  // Las condiciones se evalúan EN ESTE MOMENTO — el SW las dispara a su hora sin volver a chequear.
+  function buildSchedule(s) {
+    const notifs = [];
+    const nombre = s.profile.nombre ? `, ${s.profile.nombre}` : '';
+    const todayStr = today();
+    const coreIds = ['h1','h2','h3'];
+
+    function addAt(hh, mm, title, body, tag) {
+      const t = new Date(); t.setHours(hh, mm, 0, 0);
+      const ms = t.getTime() - Date.now();
+      if (ms > 0) notifs.push({ fireAt: t.getTime(), title, body, tag });
+    }
+
+    // ☀️ 08:00 — Buenos días
+    addAt(8, 0, 'MI SISTEMA', `Buenos días${nombre}. Arranca con tus hábitos tiny.`, 'buenos-dias');
+
+    // 💧 13:00 — Agua mediodía (solo si llevas menos de 4 vasos)
+    {
+      const vasos = s.fisico?.agua?.[todayStr] || 0;
+      if (vasos < 4) {
+        addAt(13, 0, '💧 Agua', `Llevas ${vasos} vaso${vasos === 1 ? '' : 's'}. Meta: 8. A mitad del día, mitad del camino.`, 'agua-mediodia');
+      }
+    }
+
+    // 🏋️ 19:00 — Entreno (solo si h3 no está marcado)
+    {
+      const h3 = s.habits.find(h => h.id === 'h3');
+      if (h3 && !h3.completions.includes(todayStr)) {
+        addAt(19, 0, '🏋️ Entrenamiento', '¿Ya entrenaste? La versión tiny cuenta igual — 2 min de activación.', 'entreno-19h');
+      }
+    }
+
+    // 💊 20:00 — Magnesio noche (solo si h9 no está marcado)
+    {
+      const h9 = s.habits.find(h => h.id === 'h9');
+      if (h9 && !h9.completions.includes(todayStr)) {
+        addAt(20, 0, '💊 Suplementos', 'Magnesio antes de dormir. Últimos 5 minutos del hábito de hoy.', 'suplementos-noche');
+      }
+    }
+
+    // 💧 20:30 — Agua noche (solo si llevas menos de 6 vasos)
+    {
+      const vasos = s.fisico?.agua?.[todayStr] || 0;
+      if (vasos < 6) {
+        addAt(20, 30, '💧 Agua', `Terminás el día con ${vasos} vasos. Tómate 2 más antes de cerrar la noche.`, 'agua-noche');
+      }
+    }
+
+    // 🔄 Mañana 08:00 — Comeback (si fallaste algún hábito core ayer)
+    {
+      const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(8, 0, 0, 0);
+      const ms = t.getTime() - Date.now();
+      if (ms > 0) {
+        const d = new Date(); d.setDate(d.getDate() - 1);
+        const ayer = dateStr(d);
+        const fallaste = s.habits.some(h => coreIds.includes(h.id) && !h.completions.includes(ayer));
+        if (fallaste) notifs.push({ fireAt: t.getTime(), title: 'MI SISTEMA', body: 'Ayer se pasó. Hoy está aquí. Versión mínima cuenta.', tag: 'comeback' });
+      }
+    }
+
+    return notifs;
   }
 
-  function schedule() {
+  // Envía el schedule al Service Worker para que dispare con la app cerrada.
+  // Fallback al hilo principal si el SW no está disponible.
+  async function schedule() {
     const s = State.get();
     if (!s.settings.notificaciones_activas) return;
     if (!('Notification' in window) || Notification.permission !== 'granted') return;
-    const nombre = s.profile.nombre ? `, ${s.profile.nombre}` : '';
 
-    // 🌅 Buenos días
-    at(8, 0, 'MI SISTEMA', `Buenos días${nombre}. Arranca con tus hábitos tiny.`, 'buenos-dias');
+    const notifs = buildSchedule(s);
 
-    // 🏋️ Entreno — 19:00 si h3 no está marcado (recordatorio, no alarma)
-    {
-      const t = new Date(); t.setHours(19, 0, 0, 0);
-      const ms = t.getTime() - Date.now();
-      if (ms > 0) setTimeout(() => {
-        const h3 = State.get().habits.find(h => h.id === 'h3');
-        if (h3 && !h3.completions.includes(today())) {
-          try { new Notification('🏋️ Entrenamiento', { body: '¿Ya entrenaste? La versión tiny cuenta igual — 2 min de activación.', icon:'./icon-192.png', tag:'entreno-19h' }); } catch(e) {}
+    if ('serviceWorker' in navigator) {
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const target = reg.active || reg.waiting || reg.installing;
+        if (target) {
+          target.postMessage({ type: 'SCHEDULE_NOTIFS', notifs });
+          return;
         }
-      }, Math.min(ms, 2147483647));
+      } catch(e) {}
     }
 
-    // 🔄 Comeback — mañana 8am si fallaste hoy
-    {
-      const t = new Date(); t.setDate(t.getDate()+1); t.setHours(8, 0, 0, 0);
-      const ms = t.getTime() - Date.now();
-      const coreIds = ['h1','h2','h3'];
-      const fallaste = s.habits.some(h => {
-        if (!coreIds.includes(h.id)) return false;
-        const d = new Date(); d.setDate(d.getDate()-1);
-        return !h.completions.includes(dateStr(d));
-      });
-      if (fallaste && ms > 0) setTimeout(() => {
-        try { new Notification('MI SISTEMA', { body: 'Ayer se pasó. Hoy está aquí. Versión mínima cuenta.', icon:'./icon-192.png', tag:'comeback' }); } catch(e) {}
+    // Fallback: main thread (solo funciona con el tab abierto)
+    notifs.forEach(n => {
+      const ms = n.fireAt - Date.now();
+      if (ms > 0) setTimeout(() => {
+        try { new Notification(n.title, { body: n.body, icon:'./icon-192.png', badge:'./icon-192.png', tag: n.tag }); } catch(e) {}
       }, Math.min(ms, 2147483647));
-    }
+    });
   }
 
   function send(title, body, opts = {}) {
-    try { new Notification(title, { body, icon:'./icon-192.png', badge:'./icon-192.png', ...opts }); } catch(e) {}
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'SHOW_NOW', title, body, opts });
+    } else {
+      try { new Notification(title, { body, icon:'./icon-192.png', badge:'./icon-192.png', ...opts }); } catch(e) {}
+    }
   }
 
   return { schedule, send };
