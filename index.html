@@ -6204,7 +6204,7 @@ function _renderResultadosResumen(body) {
       <div class="card mb-sm" style="padding:14px 16px">
         <div class="row-between mb-sm">
           <span class="font-semibold text-sm">Finanzas personales</span>
-          <button class="btn btn-ghost btn-sm" onclick="renderResultados('finanzas')">Ver detalle →</button>
+          <button class="btn btn-ghost btn-sm" onclick="Router.navigate('finanzas')">Gestionar →</button>
         </div>
         <div class="grid-2" style="gap:8px;margin-bottom:8px">
           <div style="background:var(--bg-2);border-radius:var(--r-md);padding:10px">
@@ -6480,7 +6480,7 @@ function _renderResultadosFinanzas(body) {
         }).join('')}
       </div>
 
-      <button class="btn btn-primary btn-block mt-md" onclick="Router.navigate('finanzas')">Ver detalle completo →</button>
+      <button class="btn btn-primary btn-block mt-md" onclick="Router.navigate('finanzas')">Gestionar plan →</button>
     </div>`;
 }
 
@@ -7530,7 +7530,8 @@ const App = (() => {
     Router.register('cuerpo', () => { renderNav(); renderCuerpo(); });
     Router.register('resultados', () => { renderNav(); renderResultados(); });
     Router.register('sinergy', () => { renderNav(); renderResultados('sinergy'); });
-    Router.register('finanzas', () => { renderNav(); renderResultados('finanzas'); });
+    Router.register('finanzas', () => { renderNav(); renderFinanzas(); });
+    Router.register('finanzas-resumen', () => { renderNav(); renderResultados('finanzas'); });
     Router.register('diario', () => { renderNav(); renderDiario(); });
     Router.register('yo', () => { renderNav(); renderYo(); });
     Router.register('protocolos', () => { renderNav(); renderProtocolos(); });
