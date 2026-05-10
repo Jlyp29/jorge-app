@@ -2045,7 +2045,7 @@ function defaultRecetas() {
       pasos:['Cocinar avena con leche a fuego medio 5 min revolviendo.','Apagar, agregar canela y miel. Mezclar bien.','Encima: plátano en rodajas y mantequilla de maní.','Para llevar: guardar el plátano aparte.'],
       macros:{proteina_g:18,calorias:490,grasas_g:16,carbos_g:68},
       costo_total_clp:690,
-      notas:'Batch: prepara 5 el domingo, escala ×5. Dura 5 días en el fridge.' },
+      notas:'Batch: prepara 5 el domingo, escala ×5. Dura 5 días en el fridge. Tip proteína: añade 2 huevos duros encima (+12g prot, +$120).' },
 
     { id:'dr2', tipo:'desayuno', nombre:'Tortilla Proteica de Espinaca y Queso',
       tiempo_min:8, porciones:1, meal_prep:true,
@@ -2184,14 +2184,15 @@ function defaultRecetas() {
       ingredientes:[
         {item:'Avena tradicional',cantidad:'80g',costo_clp:120,cat:'carbos'},
         {item:'Leche descremada',cantidad:'200ml',costo_clp:200,cat:'lacteos'},
+        {item:'Yogur griego natural',cantidad:'100g',costo_clp:400,cat:'lacteos'},
         {item:'Frutillas frescas',cantidad:'100g',costo_clp:250,cat:'frutas'},
         {item:'Cacao en polvo puro',cantidad:'1 cda',costo_clp:60,cat:'extras'},
         {item:'Miel',cantidad:'1 cdita',costo_clp:50,cat:'extras'},
       ],
-      pasos:['Cocinar avena con leche a fuego medio 5 min revolviendo.','Agregar cacao y miel. Mezclar bien.','Servir con frutillas cortadas encima.','También funciona como overnight oats: preparar la noche anterior.'],
-      macros:{proteina_g:12,calorias:420,grasas_g:6,carbos_g:72},
-      costo_total_clp:680,
-      notas:'Batch: prepara 5 el domingo, escala ×5. El cacao puro aporta antioxidantes sin azúcar extra.' },
+      pasos:['Cocinar avena con leche a fuego medio 5 min revolviendo.','Agregar cacao y miel. Mezclar bien.','Servir con yogur griego encima y frutillas cortadas.','También funciona como overnight oats: preparar la noche anterior.'],
+      macros:{proteina_g:24,calorias:510,grasas_g:8,carbos_g:74},
+      costo_total_clp:1080,
+      notas:'Batch: prepara 5 el domingo, escala ×5. El yogur griego duplica la proteína del desayuno — crítico para alcanzar 175g/día. El cacao puro aporta antioxidantes sin azúcar extra.' },
 
     // ── ALMUERZOS ────────────────────────────────────────────
     { id:'al1', tipo:'almuerzo', nombre:'Pollo Clásico con Arroz Blanco y Brócoli',
@@ -2206,7 +2207,7 @@ function defaultRecetas() {
         {item:'Aceite de oliva',cantidad:'1 cda',costo_clp:80,cat:'grasas'},
         {item:'Orégano, pimentón ahumado, sal',cantidad:'al gusto',costo_clp:50,cat:'especias'},
       ],
-      pasos:['Marinar pollo con limón, ajo, aceite y especias 15 min.','Cocer arroz: doble de agua, 18-20 min.','Cocinar pollo a la plancha 5-6 min por lado.','Cocer brócoli al vapor 5 min (que quede crujiente).','Tupper: arroz + pollo en trozos + brócoli. Exprimir limón al servir.'],
+      pasos:['Marinar pollo con limón, ajo, aceite y especias 15 min.','Cocer arroz: doble de agua, 18-20 min.','Cocinar pollo a la plancha 5-6 min por lado.','Cocer brócoli al vapor 8-10 min hasta que esté bien tierno (cocido completo, más fácil de digerir).','Tupper: arroz + pollo en trozos + brócoli. Exprimir limón al servir.'],
       macros:{proteina_g:58,calorias:680,grasas_g:14,carbos_g:72},
       costo_total_clp:2200,
       notas:'Batch: prepara 5 el domingo, escala ×5. Cambia la marinada cada semana para variar.' },
@@ -2223,7 +2224,7 @@ function defaultRecetas() {
         {item:'Ajo + jengibre rallado',cantidad:'2 dientes + ½ cdita',costo_clp:80,cat:'especias'},
         {item:'Aceite vegetal',cantidad:'1 cda',costo_clp:80,cat:'grasas'},
       ],
-      pasos:['Mezclar soya + miel + ajo + jengibre = salsa teriyaki.','Marinar pollo 10 min.','Cocinar pollo en sartén a fuego fuerte 5 min por lado.','Agregar salsa restante y caramelizar 2 min.','Cocer arroz y brócoli por separado.','Bowl: arroz + pollo bañado en salsa + brócoli.'],
+      pasos:['Mezclar soya + miel + ajo + jengibre = salsa teriyaki.','Marinar pollo 10 min.','Cocinar pollo en sartén a fuego fuerte 5 min por lado.','Agregar salsa restante y caramelizar 2 min.','Cocer arroz por separado. Cocer brócoli al vapor 8-10 min hasta que esté bien tierno.','Bowl: arroz + pollo bañado en salsa + brócoli.'],
       macros:{proteina_g:50,calorias:580,grasas_g:12,carbos_g:58},
       costo_total_clp:1880,
       notas:'Batch: prepara 5 el domingo, escala ×5. Haz el doble de salsa teriyaki — guárdala en frasco (dura 2 semanas).' },
@@ -2263,7 +2264,7 @@ function defaultRecetas() {
       pasos:['Remojar lentejas 2h (o usar rojas sin remojo, 15 min).','Cocer lentejas con agua, sal y comino 20-25 min.','Sofrito: aceite + cebolla + ajo + pimentón + tomate, 8 min.','Mezclar lentejas con sofrito. Cocer arroz por separado.','Tupper: arroz + lentejas + huevo duro partido.'],
       macros:{proteina_g:38,calorias:660,grasas_g:8,carbos_g:104},
       costo_total_clp:1330,
-      notas:'Batch: prepara 5 el domingo, escala ×5. Las lentejas son la fuente proteica más económica del plan.' },
+      notas:'Batch: prepara 5 el domingo, escala ×5. Las lentejas son la fuente proteica más económica del plan. Anti-hinchazón: remojar las lentejas 6-8h antes o usar lentejas rojas (sin remojo, 20% menos gases). Si tienes mucha sensibilidad a las legumbres, cámbiala por al11 o al12 esas semanas.' },
 
     { id:'al5', tipo:'almuerzo', nombre:'Salmón al Horno con Puré de Camote',
       tiempo_min:30, porciones:1, meal_prep:true,
@@ -2372,6 +2373,64 @@ function defaultRecetas() {
       costo_total_clp:2760,
       notas:'Batch: prepara 5 el domingo, escala ×5. El camote asado también sirve de snack. Añade ¼ palta si quieres más grasas saludables.' },
 
+    { id:'al11', tipo:'almuerzo', nombre:'McPollo Horneado',
+      tiempo_min:25, porciones:1, meal_prep:true,
+      tags:['clasico','alto-proteina','sin-legumbres'],
+      ingredientes:[
+        {item:'Pechuga de pollo',cantidad:'200g',costo_clp:1000,cat:'proteinas'},
+        {item:'Pan de molde',cantidad:'2 rebanadas',costo_clp:200,cat:'carbos'},
+        {item:'Lechuga',cantidad:'2 hojas',costo_clp:100,cat:'verduras'},
+        {item:'Tomate',cantidad:'1 unidad',costo_clp:200,cat:'verduras'},
+        {item:'Pepino',cantidad:'¼ unidad',costo_clp:100,cat:'verduras'},
+        {item:'Mayonesa light',cantidad:'1 cda',costo_clp:150,cat:'grasas'},
+        {item:'Mostaza',cantidad:'1 cdita',costo_clp:50,cat:'extras'},
+        {item:'Ajo en polvo, paprika, sal',cantidad:'al gusto',costo_clp:50,cat:'especias'},
+        {item:'Aceite vegetal',cantidad:'1 cdita',costo_clp:50,cat:'grasas'},
+      ],
+      pasos:['Sazona el pollo con ajo en polvo, paprika y sal.','Hornea a 200°C por 20-22 min o fríe en airfryer hasta dorar.','Tostar el pan ligeramente.','Arma la hamburguesa: pan + mayo + mostaza + lechuga + pollo + tomate + pepino.'],
+      macros:{proteina_g:46,calorias:480,grasas_g:14,carbos_g:38},
+      costo_total_clp:1900,
+      notas:'Batch: prepara 5 pechugas el domingo, escala ×5. Recalentar en microondas 2 min, armar al momento. Sabor McPollo pero sin frituras.' },
+
+    { id:'al12', nombre:'Bowl Chipotle Casero',
+      tipo:'almuerzo', tiempo_min:20, porciones:1, meal_prep:true,
+      tags:['mexicano','alto-proteina','sin-legumbres'],
+      ingredientes:[
+        {item:'Pechuga de pollo en tiras',cantidad:'200g',costo_clp:1000,cat:'proteinas'},
+        {item:'Arroz blanco',cantidad:'65g seco',costo_clp:120,cat:'carbos'},
+        {item:'Maíz desgranado',cantidad:'4 cdas',costo_clp:200,cat:'verduras'},
+        {item:'Pimentón rojo',cantidad:'½ unidad',costo_clp:250,cat:'verduras'},
+        {item:'Cebolla morada',cantidad:'¼ unidad',costo_clp:100,cat:'verduras'},
+        {item:'Tomate',cantidad:'1 unidad',costo_clp:200,cat:'verduras'},
+        {item:'Palta',cantidad:'½ unidad',costo_clp:400,cat:'grasas'},
+        {item:'Limón',cantidad:'½ unidad',costo_clp:80,cat:'extras'},
+        {item:'Chipotle en polvo, comino, sal',cantidad:'al gusto',costo_clp:80,cat:'especias'},
+        {item:'Aceite vegetal',cantidad:'1 cda',costo_clp:80,cat:'grasas'},
+      ],
+      pasos:['Cocina el arroz.','Saltea el pollo con chipotle, comino, ajo y sal hasta dorar.','Saltea pimentón y cebolla morada 3 min.','Arma el bowl: arroz, pollo, pimentón, maíz, tomate, palta y limón.'],
+      macros:{proteina_g:46,calorias:620,grasas_g:18,carbos_g:62},
+      costo_total_clp:2510,
+      notas:'Batch: prepara 5 el domingo, escala ×5. Sin porotos — maíz da el volumen sin hinchazón. Guarda la palta aparte para que no se oxide.' },
+
+    { id:'al13', nombre:'Quesadilla Proteica de Pollo',
+      tipo:'almuerzo', tiempo_min:15, porciones:1, meal_prep:false,
+      tags:['rapido','mexicano','alto-proteina'],
+      ingredientes:[
+        {item:'Pechuga de pollo cocida',cantidad:'180g',costo_clp:900,cat:'proteinas'},
+        {item:'Tortillas de harina grandes',cantidad:'2 unidades',costo_clp:300,cat:'carbos'},
+        {item:'Queso gauda rallado',cantidad:'40g',costo_clp:400,cat:'lacteos'},
+        {item:'Pimentón',cantidad:'½ unidad',costo_clp:250,cat:'verduras'},
+        {item:'Cebolla',cantidad:'¼ unidad',costo_clp:80,cat:'verduras'},
+        {item:'Tomate',cantidad:'1 unidad',costo_clp:200,cat:'verduras'},
+        {item:'Yogur griego o crema agria',cantidad:'2 cdas',costo_clp:150,cat:'lacteos'},
+        {item:'Ajo en polvo, paprika',cantidad:'al gusto',costo_clp:50,cat:'especias'},
+        {item:'Aceite vegetal',cantidad:'1 cdita',costo_clp:50,cat:'grasas'},
+      ],
+      pasos:['Saltea pimentón y cebolla 3 min.','Mezcla con el pollo desmenuzado y especias.','Rellena la tortilla con queso + mezcla de pollo. Doblar.','Sella en sartén 2-3 min por lado hasta que dore.','Sirve con yogur griego o crema agria y tomate fresco.'],
+      macros:{proteina_g:52,calorias:560,grasas_g:18,carbos_g:42},
+      costo_total_clp:2380,
+      notas:'Preparar al momento — el queso funde mejor con pollo del meal prep ya cocinado. Rápida para días con poco tiempo.' },
+
     // ── CENAS ────────────────────────────────────────────────
     { id:'ce1', tipo:'cena', nombre:'Pollo Mediterráneo con Batata y Verduras',
       tiempo_min:35, porciones:1, meal_prep:true,
@@ -2402,7 +2461,7 @@ function defaultRecetas() {
         {item:'Aceite de oliva',cantidad:'1 cda',costo_clp:80,cat:'grasas'},
         {item:'Eneldo seco, sal, pimienta',cantidad:'al gusto',costo_clp:30,cat:'especias'},
       ],
-      pasos:['Cocer arroz con doble de agua y sal, 18-20 min.','Cocer brócoli al vapor 5 min (que quede crujiente).','Armar papillote: papel aluminio + aceite + ajo + limón en rodajas + salmón + eneldo + sal.','Cerrar bien el papillote. Hornear 18-20 min a 200°C.','Tupper: arroz + brócoli + salmón con sus jugos.'],
+      pasos:['Cocer arroz con doble de agua y sal, 18-20 min.','Cocer brócoli al vapor 8-10 min hasta que esté bien tierno (más fácil de digerir).','Armar papillote: papel aluminio + aceite + ajo + limón en rodajas + salmón + eneldo + sal.','Cerrar bien el papillote. Hornear 18-20 min a 200°C.','Tupper: arroz + brócoli + salmón con sus jugos.'],
       macros:{proteina_g:48,calorias:620,grasas_g:24,carbos_g:48},
       costo_total_clp:3130,
       notas:'Batch: prepara 5 el domingo, escala ×5. El papillote mantiene el salmón jugoso al recalentar.' },
@@ -2425,12 +2484,12 @@ function defaultRecetas() {
       costo_total_clp:2525,
       notas:'Batch: prepara 5 el domingo, escala ×5. La salsa mejora con el reposo — el de mañana está mejor.' },
 
-    { id:'ce4', tipo:'cena', nombre:'Tacos de Carne con Porotos Negros',
+    { id:'ce4', tipo:'cena', nombre:'Tacos de Carne con Maíz y Palta',
       tiempo_min:20, porciones:1, meal_prep:true,
       tags:['tex-mex','sabroso','hierro'],
       ingredientes:[
         {item:'Carne molida magra',cantidad:'180g',costo_clp:1440,cat:'proteinas'},
-        {item:'Porotos negros cocidos',cantidad:'100g',costo_clp:200,cat:'proteinas'},
+        {item:'Maíz desgranado',cantidad:'4 cdas (60g)',costo_clp:200,cat:'verduras'},
         {item:'Tortillas de maíz',cantidad:'3 unidades',costo_clp:200,cat:'carbos'},
         {item:'Tomates',cantidad:'2 unidades',costo_clp:300,cat:'verduras'},
         {item:'Cebolla',cantidad:'¼ unidad',costo_clp:40,cat:'verduras'},
@@ -2439,10 +2498,10 @@ function defaultRecetas() {
         {item:'Palta',cantidad:'¼ unidad',costo_clp:200,cat:'grasas'},
         {item:'Comino, ají, ajo, sal',cantidad:'al gusto',costo_clp:160,cat:'especias'},
       ],
-      pasos:['Saltear carne molida con ajo, comino, ají y sal. Dorar 6-8 min.','Agregar porotos escurridos. Calentar 2 min.','Pico de gallo: tomate + cebolla + cilantro + jugo limón + sal.','Calentar tortillas en sartén seca 30 seg por lado.','Armar tacos: tortilla + carne-poroto + pico de gallo + palta.'],
-      macros:{proteina_g:46,calorias:650,grasas_g:22,carbos_g:62},
+      pasos:['Saltear carne molida con ajo, comino, ají y sal. Dorar 6-8 min.','Agregar maíz desgranado. Calentar 2 min.','Pico de gallo: tomate + cebolla + cilantro + jugo limón + sal.','Calentar tortillas en sartén seca 30 seg por lado.','Armar tacos: tortilla + carne + maíz + pico de gallo + palta.'],
+      macros:{proteina_g:46,calorias:640,grasas_g:22,carbos_g:58},
       costo_total_clp:2740,
-      notas:'Batch: prepara 5 el domingo, escala ×5. Cocina 500g porotos crudos = 5 porciones. La mezcla carne-poroto aguanta 4 días.' },
+      notas:'Batch: prepara 5 el domingo, escala ×5. Reemplazamos los porotos negros por maíz — mismo volumen y textura, sin hinchazón por legumbres. La mezcla carne-maíz aguanta 4 días.' },
 
     { id:'ce5', tipo:'cena', nombre:'Revuelto Proteico de Champiñones y Espinaca',
       tiempo_min:12, porciones:1, meal_prep:false,
@@ -2537,17 +2596,35 @@ function defaultRecetas() {
       tiempo_min:20, porciones:1, meal_prep:true,
       tags:['clasico','economico','vegetariano'],
       ingredientes:[
-        {item:'Huevos enteros',cantidad:'4 unidades',costo_clp:600,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'5 unidades',costo_clp:750,cat:'proteinas'},
         {item:'Papas medianas',cantidad:'2 unidades',costo_clp:400,cat:'verduras'},
         {item:'Cebolla',cantidad:'½ unidad',costo_clp:80,cat:'verduras'},
         {item:'Aceite de oliva',cantidad:'1 cda',costo_clp:80,cat:'grasas'},
         {item:'Lechuga + pepino + tomate + zanahoria',cantidad:'al gusto',costo_clp:300,cat:'verduras'},
         {item:'Aceite oliva + vinagre + sal + orégano',cantidad:'al gusto',costo_clp:50,cat:'especias'},
       ],
-      pasos:['Pelar y cortar papas en láminas finas. Cocer en microondas 6 min con aceite y sal.','Sofreír cebolla hasta dorar ligeramente.','Batir huevos con sal y pimienta. Mezclar con papas y cebolla.','En sartén antiadherente con aceite: verter mezcla. Fuego medio 4-5 min.','Dar vuelta con un plato. Cocinar 3 min más.','Servir con ensalada fresca aderezada.'],
-      macros:{proteina_g:32,calorias:580,grasas_g:26,carbos_g:50},
-      costo_total_clp:1510,
-      notas:'Batch: prepara 5 el domingo, escala ×5. La tortilla fría está igual de rica. Ensalada siempre fresca.' },
+      pasos:['Pelar y cortar papas en láminas finas. Cocer en microondas 6 min con aceite y sal.','Sofreír cebolla hasta dorar ligeramente.','Batir los 5 huevos con sal y pimienta. Mezclar con papas y cebolla.','En sartén antiadherente con aceite: verter mezcla. Fuego medio 4-5 min.','Dar vuelta con un plato. Cocinar 3 min más.','Servir con ensalada fresca aderezada.'],
+      macros:{proteina_g:38,calorias:650,grasas_g:30,carbos_g:50},
+      costo_total_clp:1660,
+      notas:'Batch: prepara 5 el domingo, escala ×5. La tortilla fría está igual de rica. El quinto huevo entero sube la proteína sin separar claras. Ensalada siempre fresca.' },
+
+    { id:'ce11', nombre:'Burger de Camote',
+      tipo:'cena', tiempo_min:25, porciones:1, meal_prep:true,
+      tags:['clasico','alto-proteina','sin-legumbres'],
+      ingredientes:[
+        {item:'Carne molida magra',cantidad:'180g',costo_clp:1440,cat:'proteinas'},
+        {item:'Camote mediano',cantidad:'1 unidad (200g)',costo_clp:400,cat:'carbos'},
+        {item:'Lechuga',cantidad:'2 hojas',costo_clp:100,cat:'verduras'},
+        {item:'Tomate',cantidad:'1 unidad',costo_clp:200,cat:'verduras'},
+        {item:'Cebolla morada',cantidad:'¼ unidad',costo_clp:80,cat:'verduras'},
+        {item:'Mostaza',cantidad:'1 cda',costo_clp:50,cat:'extras'},
+        {item:'Sal, pimienta, ajo en polvo',cantidad:'al gusto',costo_clp:50,cat:'especias'},
+        {item:'Aceite vegetal',cantidad:'1 cdita',costo_clp:50,cat:'grasas'},
+      ],
+      pasos:['Hornear el camote en rodajas gruesas (1cm) a 200°C 20 min, o en sartén 5 min por lado.','Mezclar la carne con sal, pimienta y ajo en polvo. Formar hamburguesa.','Cocinar a la plancha a fuego fuerte 3-4 min por lado.','Armar con rodajas de camote como "pan", lechuga, tomate, cebolla y mostaza.'],
+      macros:{proteina_g:44,calorias:510,grasas_g:14,carbos_g:40},
+      costo_total_clp:2370,
+      notas:'Batch: prepara 5 hamburguesas el domingo. El camote reemplaza el pan — más nutrientes, sin gluten, no infla. La hamburguesa de camote queda sorprendentemente bien.' },
 
     // ── SHOTS PRO (evidencia real, absorción correcta) ────────
     { id:'sh1', tipo:'shot', nombre:'Shot antiinflamatorio REAL',
@@ -2629,7 +2706,7 @@ function defaultRecetas() {
       ],
       macros:{proteina_g:0,calorias:20,grasas_g:0,carbos_g:5},
       costo_total_clp:230,
-      notas:'El más impactante para déficit calórico. Psyllium = fibra soluble que retrasa vaciado gástrico = menos hambre real. Impacta más tu adherencia al déficit que todos los otros shots juntos. Compra psyllium husk PURO (no Metamucil azucarado). Nota: buscar en farmacias o tiendas naturistas.' },
+      notas:'El más impactante para déficit calórico. Psyllium = fibra soluble que retrasa vaciado gástrico = menos hambre real. Compra psyllium husk PURO (no Metamucil azucarado) en farmacias o tiendas naturistas. Alternativa si no encuentras: 2 cditas de chía en 250ml agua fría — misma función, esperar 5 min antes de tomar.' },
 
     { id:'sh5', tipo:'shot', nombre:'Shot inmune funcional',
       tiempo_min:3, porciones:1, meal_prep:false,
@@ -2670,7 +2747,7 @@ function defaultRecetas() {
       ],
       macros:{proteina_g:0,calorias:10,grasas_g:0,carbos_g:2},
       costo_total_clp:200,
-      notas:'Uno de los pocos ingredientes naturales con evidencia clínica sólida para náuseas (estudios en quimioterapia, mareo por movimiento, náuseas post-operatorias). Dosis real = ~1-2g gingeroles. Este shot llega a esa dosis. También funciona mascar jengibre crudo directamente.' },
+      notas:'Evidencia clínica sólida para náuseas (quimioterapia, mareo por movimiento, náuseas post-operatorias). Úsalo solo en situaciones específicas: mareo, malestar estomacal, resaca. No es de rotación diaria — para eso está sh2. También funciona mascar jengibre crudo directamente.' },
   ];
 }
 
@@ -6875,7 +6952,7 @@ function renderCocina(tab = 'recetas') {
   </div>`;
 
   const body = document.getElementById('cocina-body');
-  const TECNICA_MAP = { dr1:'directo',dr2:'sellado',dr3:'horno',dr4:'sin-cocina',dr5:'directo',dr6:'sellado',dr7:'sellado',dr8:'sin-cocina',dr9:'sellado',dr10:'directo', al1:'sellado',al2:'sellado',al3:'directo',al4:'directo',al5:'horno',al6:'sellado',al7:'sellado',al8:'wok',al9:'sellado',al10:'sellado', ce1:'horno',ce2:'horno',ce3:'sellado',ce4:'sellado',ce5:'sellado',ce6:'sellado',ce7:'wok',ce8:'sin-cocina',ce9:'sellado',ce10:'sellado', sh1:'directo',sh2:'directo',sh3:'directo',sh4:'directo',sh5:'directo',sh6:'directo' };
+  const TECNICA_MAP = { dr1:'directo',dr2:'sellado',dr3:'horno',dr4:'sin-cocina',dr5:'directo',dr6:'sellado',dr7:'sellado',dr8:'sin-cocina',dr9:'sellado',dr10:'directo', al1:'sellado',al2:'sellado',al3:'directo',al4:'directo',al5:'horno',al6:'sellado',al7:'sellado',al8:'wok',al9:'sellado',al10:'sellado', al11:'horno',al12:'sellado',al13:'sellado', ce1:'horno',ce2:'horno',ce3:'sellado',ce4:'sellado',ce5:'sellado',ce6:'sellado',ce7:'wok',ce8:'sin-cocina',ce9:'sellado',ce10:'sellado',ce11:'sellado', sh1:'directo',sh2:'directo',sh3:'directo',sh4:'directo',sh5:'directo',sh6:'directo' };
   if (tab === 'recetas') _renderRecetasList(s, recetas, body, TECNICA_MAP);
   else if (tab === 'plan') _renderPlanSemanal(s, recetas, body, TECNICA_MAP);
   else if (tab === 'compras') _renderListaCompras(s, recetas, body);
@@ -6914,6 +6991,116 @@ function renderCocina(tab = 'recetas') {
     });
     renderCocina(tab);
   };
+  window.exportarPlanSemanal = () => {
+    const s = State.get();
+    const plan = s.cocina?.plan_semanal || {};
+    const hoy = todayISO();
+    const semana = typeof weekISO === 'function' ? weekISO() : hoy.slice(0,7);
+    const d = new Date(); d.setHours(0,0,0,0);
+    const dia = d.getDay() || 7;
+    const lunes = new Date(d); lunes.setDate(d.getDate() - dia + 1);
+    const lunesStr = lunes.toISOString().slice(0,10);
+    const prof = s.profile || {};
+    const fisico = s.fisico || {};
+    const meds = (fisico.mediciones || []).filter(m => m?.fecha);
+    const med = meds.length ? meds[meds.length - 1] : null;
+    const peso       = med?.peso_kg    ?? prof.peso_kg    ?? '—';
+    const grasaPct   = med?.grasa_pct  ?? prof.grasa_pct  ?? '—';
+    const visceral   = med?.visceral   ?? '—';
+    const altura     = prof.altura_cm  ?? '—';
+    const targetProt = fisico.target_proteina_g          || 175;
+    const presupuesto= fisico.presupuesto_comida_semanal || 50000;
+    const tFuerza    = fisico.target_sesiones_fuerza_sem || 4;
+    const tCardio    = fisico.target_cardio_z2_sem       || 3;
+    const sesionesSem = (fisico.sesiones || []).filter(x => x?.fecha >= lunesStr && x?.fecha <= hoy);
+    const fuerzaSem   = sesionesSem.filter(x => x.tipo === 'fuerza').length;
+    const cardioSem   = sesionesSem.filter(x => ['cardio','cardio_z2'].includes(x.tipo)).length;
+    let aguaHoy = 0;
+    if (fisico.agua && typeof fisico.agua === 'object' && !Array.isArray(fisico.agua)) aguaHoy = fisico.agua[hoy] ?? 0;
+    const habits  = s.habits || [];
+    const compHoy = habits.filter(h => (h.completions||[]).includes(hoy)).length;
+    const multFn  = (ids, i) => ids.length === 1 ? 7 : (i === 0 ? 4 : 3);
+    const getR    = id => recetas.find(r => r.id === id);
+    const desIds  = plan.desayuno_ids || [];
+    const almIds  = plan.almuerzo_ids || [];
+    const ceIds   = plan.cena_ids    || [];
+    let totalProtDia = 0;
+    [...desIds, ...almIds, ...ceIds].forEach(id => { const r = getR(id); if (r) totalProtDia += r.macros?.proteina_g || 0; });
+    const lines = [];
+    const sec    = t => { lines.push(''); lines.push(`=== ${t} ===`); };
+    const subsec = t => { lines.push(''); lines.push(`--- ${t} ---`); };
+    lines.push('=== CONTEXTO — MI SISTEMA ===');
+    lines.push(`Fecha: ${hoy} | Semana: ${semana}`);
+    subsec('PERFIL FÍSICO');
+    if (prof.nombre) lines.push(`Persona: ${prof.nombre}`);
+    lines.push(`Altura: ${altura} cm | Peso actual: ${peso} kg`);
+    if (grasaPct !== '—') {
+      lines.push(`Grasa corporal: ${grasaPct}% | Grasa visceral: ${visceral}${Number(visceral) >= 10 ? ' ⚠️ ALTO' : ''}`);
+      if (Number(visceral) >= 10) lines.push('  → Prioridad: reducir grasa visceral (inflamación crónica)');
+    }
+    if (med?.fecha) lines.push(`Última medición: ${med.fecha}`);
+    subsec('OBJETIVOS');
+    lines.push(`Proteína meta: ${targetProt}g/día | Plan actual: ~${totalProtDia}g/día`);
+    lines.push(`Presupuesto: $${(presupuesto/1000).toFixed(0)}k CLP/sem`);
+    lines.push(`Meta fuerza: ${tFuerza}/sem | Meta cardio Z2: ${tCardio}/sem`);
+    subsec('ESTADO ESTA SEMANA');
+    lines.push(`Hábitos hoy: ${compHoy}/${habits.length} | Fuerza: ${fuerzaSem}/${tFuerza} | Cardio: ${cardioSem}/${tCardio} | Agua: ${aguaHoy}/8`);
+    const printGrupo = (ids, label) => {
+      if (!ids.length) return;
+      subsec(label);
+      ids.forEach((id, i) => {
+        const r = getR(id); if (!r) return;
+        const dias = multFn(ids, i);
+        lines.push(`• ${r.nombre} — ${dias} días/sem`);
+        lines.push(`  Proteína: ${r.macros?.proteina_g||0}g | Kcal: ${r.macros?.calorias||0} | $${(r.costo_total_clp||0).toLocaleString('es-CL')}/día`);
+        lines.push('  Ingredientes (1 porción):');
+        (r.ingredientes||[]).forEach(ing => lines.push(`    - ${ing.item}`));
+        lines.push('  Pasos:');
+        (r.pasos||[]).forEach((p,pi) => lines.push(`    ${pi+1}. ${p}`));
+      });
+    };
+    sec('PLAN DE COMIDAS — ' + semana);
+    lines.push('Porciones = 1 persona/día. Cantidades = 1 día.');
+    printGrupo(desIds, 'DESAYUNOS');
+    printGrupo(almIds, 'ALMUERZOS');
+    printGrupo(ceIds,  'CENAS');
+    if (plan.shot_id) {
+      const sh = getR(plan.shot_id);
+      if (sh) { subsec('SHOT SEMANAL'); lines.push(`• ${sh.nombre}`); (sh.ingredientes||[]).forEach(ing => lines.push(`    - ${ing.item}`)); }
+    }
+    sec('ESTRATEGIA QUINCENA — 2 SEMANAS');
+    lines.push('Compro para 2 semanas. El domingo cocino todo para semana 1.');
+    lines.push('Ese mismo domingo congelo proteínas CRUDAS para semana 2 → semana 2 es 40% más rápida.');
+    lines.push('');
+    lines.push('Proteínas a congelar el domingo (para semana 2):');
+    [...almIds, ...ceIds].forEach(id => {
+      const r = getR(id); if (!r) return;
+      const prots = (r.ingredientes||[]).filter(ing => (ing.categoria||ing.cat) === 'proteinas');
+      if (!prots.length) return;
+      const ids2 = almIds.includes(id) ? almIds : ceIds;
+      const dias = multFn(ids2, ids2.indexOf(id));
+      prots.forEach(p => lines.push(`  → ${r.nombre}: ${p.item} × ${dias} porciones — bolsa hermética, etiquetar`));
+    });
+    lines.push('Descongelar en nevera 12-24h antes de cocinar.');
+    sec('PIDE A LA IA');
+    lines.push('1. "Organízame el meal prep del domingo en orden óptimo, paralelo cuando sea posible"');
+    lines.push('2. "¿Mi plan cubre los ' + targetProt + 'g de proteína diaria?"');
+    lines.push('3. "Lista de compras para 2 semanas con cantidades exactas"');
+    const txt = lines.join('\n');
+    const prev = document.getElementById('_exportModal');
+    if (prev) prev.remove();
+    const modal = document.createElement('div');
+    modal.id = '_exportModal';
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;display:flex;align-items:flex-end;justify-content:center;padding:0;';
+    modal.innerHTML = `<div style="background:var(--bg,#fff);border-radius:16px 16px 0 0;padding:20px 20px 28px;width:100%;max-width:620px;max-height:82vh;display:flex;flex-direction:column;gap:12px;box-sizing:border-box;"><div style="display:flex;justify-content:space-between;align-items:center;"><strong style="font-size:1.05rem;">📋 Exportar para IA</strong><button onclick="document.getElementById('_exportModal').remove()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;line-height:1;">✕</button></div><p style="font-size:.82rem;color:var(--text-2,#666);margin:0;line-height:1.4;">Copia y pega a Claude o ChatGPT. Incluye tu perfil, plan completo y estrategia de quincena con proteínas a congelar. Siempre refleja tu estado más reciente.</p><textarea id="_exportTxt" style="flex:1;min-height:220px;font-size:.74rem;font-family:monospace;padding:10px;border-radius:10px;border:1px solid var(--border,#ddd);resize:none;background:var(--bg2,#f8f8f8);" readonly></textarea><button id="_exportCopyBtn" style="padding:13px;border-radius:12px;border:none;background:var(--accent,#4f46e5);color:#fff;font-weight:600;cursor:pointer;font-size:1rem;">📋 Copiar todo</button></div>`;
+    document.body.appendChild(modal);
+    document.getElementById('_exportTxt').value = txt;
+    document.getElementById('_exportCopyBtn').addEventListener('click', function() {
+      navigator.clipboard.writeText(txt).then(() => { this.textContent = '✓ Copiado!'; setTimeout(() => { this.textContent = '📋 Copiar todo'; }, 2500); });
+    });
+    modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
+  };
+
   window.generarListaCompras = (semanas) => {
     const plan = State.get('cocina.plan_semanal');
     const sem = semanas || State.get('cocina.lista_compras.semanas_compra') || 1;
@@ -7192,7 +7379,8 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
             ${costWhey > 0 ? `<div class="row-between"><span class="text-xs text-lo">Whey protein (aparte)</span><span class="text-xs text-lo">~$${costWhey.toLocaleString('es-CL')}/sem</span></div>` : ''}
           </div>
         </div>
-        <button class="btn btn-primary btn-block mb-lg" onclick="generarListaCompras()">Generar lista de compras →</button>
+        <button class="btn btn-primary btn-block mb-sm" onclick="generarListaCompras()">Generar lista de compras →</button>
+        <button class="btn btn-secondary btn-block mb-lg" onclick="exportarPlanSemanal()">📋 Exportar contexto para IA</button>
       ` : ''}
 
       <!-- Card sesión batch -->
