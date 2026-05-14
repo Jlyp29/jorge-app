@@ -2800,6 +2800,7 @@ function defaultRecetas() {
       pasos:['Picar todo a cuchillo (no procesador — queda mejor textura).','Mezclar en frasco.','Reposar mínimo 1 hora antes de usar.','Mejora con los días.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
       costo_total_clp:0,
+      aplica_a:['ce4'],
       notas:'Dura 2 semanas en frasco con aceite cubriendo. Usos: bistec (ce4), pollo, papas, huevos, tostadas. La salsa más versátil del sistema.' },
 
     { id:'sa2', tipo:'salsa', nombre:'Salsa Criolla',
@@ -2817,6 +2818,7 @@ function defaultRecetas() {
       pasos:['Cortar todo en cubos parejos pequeños.','Mezclar con limón, aceite y sal.','Reposar 15 min antes de servir.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
       costo_total_clp:0,
+      aplica_a:['al2','ce9'],
       notas:'Dura 4 días en nevera. Usos: tacos (al2, ce9), pollo, huevos, carnes, bowls. La más usada del sistema.' },
 
     { id:'sa3', tipo:'salsa', nombre:'Salsa de Yogur con Hierbas',
@@ -2833,6 +2835,7 @@ function defaultRecetas() {
       pasos:['Mezclar todo.','Refrigerar 30 min antes de usar.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
       costo_total_clp:0,
+      aplica_a:['al8','ce1'],
       notas:'Dura 5 días en nevera. Usos: wraps (al8), pollo, hamburguesas (ce1), vegetales, tacos, dip. Con pepino rallado = tzatziki.' },
 
     { id:'sa4', tipo:'salsa', nombre:'Salsa de Tomate Casera',
@@ -2848,6 +2851,7 @@ function defaultRecetas() {
       pasos:['Sofreír cebolla y ajo 5 min.','Agregar tomate y especias.','Simmer 25 min hasta espesar.','Enfriar y guardar en frascos.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
       costo_total_clp:0,
+      aplica_a:['al10','ce10','ce3','al7'],
       notas:'Dura 1 semana nevera o 2 meses congelada. Usos: pizza (al10, ce10), albóndigas (ce3), pasta (al7), huevos. Prepara doble el domingo.' },
 
     { id:'sa5', tipo:'salsa', nombre:'Salsa Teriyaki Casera',
@@ -2864,6 +2868,7 @@ function defaultRecetas() {
       pasos:['Mezclar todo excepto maicena en olla.','Calentar a fuego medio 5 min.','Agregar maicena disuelta, revolver hasta espesar.','Enfriar y guardar en frasco.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
       costo_total_clp:0,
+      aplica_a:['al1','ce6','ce2','al9'],
       notas:'Dura 3 semanas en frasco. Usos: pollo teriyaki (al1), stir-fry (ce6), salmón (ce2), arroz frito (al9). Prepara siempre doble.' },
 
     { id:'sa6', tipo:'salsa', nombre:'Aderezo César Light',
@@ -2882,6 +2887,7 @@ function defaultRecetas() {
       pasos:['Mezclar todo hasta cremoso.','Refrigerar.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
       costo_total_clp:0,
+      aplica_a:[],
       notas:'Dura 5 días en nevera. Usos: ensalada césar, pollo, vegetales. Las anchoas son la clave del sabor umami — sin ellas es salsa de yogur con queso.' },
 
     { id:'sa7', tipo:'salsa', nombre:'Salsa Picante de Yogur Chipotle',
@@ -2897,6 +2903,7 @@ function defaultRecetas() {
       pasos:['Mezclar todo.','Reposar 30 min.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
       costo_total_clp:0,
+      aplica_a:['al2','al3','ce9','al8','ce1'],
       notas:'Dura 5 días. Usos: tacos (al2, ce9), bowls mexicanos (al3), wraps (al8), hamburguesas (ce1). Ajustar picante al gusto.' },
   ];
 }
@@ -7563,6 +7570,61 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
         </div>`;
       })() : ''}
 
+      <!-- Salsas y Snacks de la semana -->
+      ${hasPlan ? (() => {
+        const todosIds = [...almIds, ...ceIds, ...desIds];
+        const salsasSemana = recetas.filter(r => r.tipo === 'salsa' && r.aplica_a && r.aplica_a.some(id => todosIds.includes(id)));
+        const snacksSorted = recetas.filter(r => r.tipo === 'snack').sort((a,b) => b.macros.proteina_g - a.macros.proteina_g);
+        let snacksSugeridos = [];
+        if (shortProt > 0) {
+          let acum = 0;
+          for (const sn of snacksSorted) {
+            if (snacksSugeridos.length >= 2) break;
+            snacksSugeridos.push(sn);
+            acum += sn.macros.proteina_g;
+            if (acum >= shortProt) break;
+          }
+        } else {
+          snacksSugeridos = [...snacksSorted].reverse().slice(0, 2);
+        }
+        const protSnacks = snacksSugeridos.reduce((s,r) => s + r.macros.proteina_g, 0);
+        const calSnacks  = snacksSugeridos.reduce((s,r) => s + r.macros.calorias, 0);
+        return `
+          ${salsasSemana.length ? `
+          <div class="card mb-md" style="background:var(--bg-2)">
+            <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">🥫 Salsas de esta semana</div>
+            <div class="text-xs text-lo mb-md">Prepara estas el domingo — van con tus recetas.</div>
+            ${salsasSemana.map(sa => {
+              const recetasNombres = sa.aplica_a.filter(id => todosIds.includes(id)).map(id => { const r = recetas.find(rx => rx.id === id); return r ? esc(r.nombre.split(' ').slice(0,3).join(' ')) : id; });
+              return `<div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding:10px;background:var(--bg-3);border-radius:var(--r-md)">
+                <span style="font-size:16px;flex-shrink:0">🥫</span>
+                <div style="flex:1;min-width:0">
+                  <div class="font-semibold text-sm">${esc(sa.nombre)}</div>
+                  <div class="text-xs text-lo mt-sm">${sa.tiempo_min} min · ${esc(sa.notas.split('.')[0])}.</div>
+                  <div class="text-xs mt-sm" style="color:var(--primary)">→ ${recetasNombres.join(', ')}</div>
+                </div>
+                <button onclick="window._cocinaTipo='salsa';renderCocina('recetas')" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:12px;padding:2px 4px">Ver →</button>
+              </div>`;
+            }).join('')}
+          </div>` : ''}
+          <div class="card mb-md" style="background:var(--bg-2)">
+            <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">🍎 Snacks de esta semana</div>
+            ${shortProt > 0
+              ? `<div class="text-xs text-lo mb-md">Faltan <strong style="color:var(--primary)">${shortProt}g prot</strong> para tu meta — estos snacks cierran el gap (+${protSnacks}g, +${calSnacks} kcal).</div>`
+              : `<div class="text-xs text-lo mb-md">Meta proteína cubierta ✓ — complemento ligero si tienes hambre entre comidas.</div>`}
+            ${snacksSugeridos.map(sn => `
+              <div style="display:flex;gap:10px;align-items:flex-start;margin-bottom:8px;padding:10px;background:var(--bg-3);border-radius:var(--r-md)">
+                <span style="font-size:16px;flex-shrink:0">🍎</span>
+                <div style="flex:1;min-width:0">
+                  <div class="font-semibold text-sm">${esc(sn.nombre)}</div>
+                  <div class="text-xs text-lo mt-sm">${sn.macros.proteina_g}g prot · ${sn.macros.calorias} kcal · $${(sn.costo_total_clp||0).toLocaleString('es-CL')}/ud</div>
+                  <div class="text-xs text-lo mt-sm">${esc(sn.notas.split('.')[0])}.</div>
+                </div>
+                <button onclick="window._cocinaTipo='snack';renderCocina('recetas')" style="background:none;border:none;color:var(--primary);cursor:pointer;font-size:12px;padding:2px 4px">Ver →</button>
+              </div>`).join('')}
+          </div>`;
+      })() : ''}
+
       <!-- Guía de cocina óptima -->
       ${(() => {
         const TMAP = TECNICA_MAP;
@@ -7658,21 +7720,6 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
                 <div class="text-xs text-md" style="line-height:1.5;margin-bottom:6px">${t.desc}</div>
                 <div class="text-xs text-lo">→ ${t.aplica}</div>
               </div>`).join('')}
-
-            <!-- 4 Salsas -->
-            <div class="text-xs font-semibold text-lo mb-sm mt-md" style="text-transform:uppercase;letter-spacing:.06em">4 Salsas rápidas (2 min cada una)</div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
-              ${[
-                ['Yogurt + limón + ajo','3 cdas yogurt + ½ limón + 1 ajo rallado. Fría.'],
-                ['Mostaza + miel','2 cdas mostaza + 1 cdita miel + pimienta.'],
-                ['Sofrito venezolano','Cebolla + ajo + tomate + comino, 5 min.'],
-                ['Soya + limón + ajo','3 cdas soya + limón + ajo + jengibre.'],
-              ].map(([n,d])=>`
-                <div style="padding:8px 10px;background:var(--bg-3);border-radius:var(--r-md)">
-                  <div class="text-xs font-semibold text-md mb-sm">${n}</div>
-                  <div class="text-xs text-lo" style="line-height:1.4">${d}</div>
-                </div>`).join('')}
-            </div>
 
             <!-- Timeline -->
             <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${hasPlan?`Orden de cocción (~${tiempoTotal} min)`:'Orden de cocción (~2h)'}</div>
