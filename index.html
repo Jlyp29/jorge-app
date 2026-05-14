@@ -7232,8 +7232,8 @@ function renderCocina(tab = 'recetas') {
     const desIds  = plan.desayuno_ids || [];
     const almIds  = plan.almuerzo_ids || [];
     const ceIds   = plan.cena_ids    || [];
-    let totalProtDia = 0;
-    [...desIds, ...almIds, ...ceIds].forEach(id => { const r = getR(id); if (r) totalProtDia += r.macros?.proteina_g || 0; });
+    const protMediaExp = ids => { const rs = ids.map(id => getR(id)).filter(Boolean); return rs.length ? Math.round(rs.reduce((a,r) => a + (r.macros?.proteina_g||0), 0) / rs.length) : 0; };
+    const totalProtDia = protMediaExp(desIds) + protMediaExp(almIds) + protMediaExp(ceIds) + (plan.batidos_dia||0) * 24;
     const lines = [];
     const sec    = t => { lines.push(''); lines.push(`=== ${t} ===`); };
     const subsec = t => { lines.push(''); lines.push(`--- ${t} ---`); };
@@ -7274,7 +7274,33 @@ function renderCocina(tab = 'recetas') {
     printGrupo(ceIds,  'CENAS');
     if (plan.shot_id) {
       const sh = getR(plan.shot_id);
-      if (sh) { subsec('SHOT SEMANAL'); lines.push(`• ${sh.nombre}`); (sh.ingredientes||[]).forEach(ing => lines.push(`    - ${ing.item}`)); }
+      if (sh) { subsec('SHOT SEMANAL'); lines.push(`• ${sh.nombre}`); (sh.ingredientes||[]).forEach(ing => lines.push(`    - ${ing.item}: ${ing.cantidad}`)); }
+    }
+    const todosIdsExp = [...desIds, ...almIds, ...ceIds];
+    const salsasExp = recetas.filter(r => r.tipo === 'salsa' && r.aplica_a && r.aplica_a.some(id => todosIdsExp.includes(id)));
+    if (salsasExp.length) {
+      subsec('SALSAS DE LA SEMANA (batch domingo)');
+      salsasExp.forEach(sa => {
+        lines.push(`• ${sa.nombre} — ${sa.notas||''}`);
+        (sa.ingredientes||[]).forEach(ing => lines.push(`    - ${ing.item}: ${ing.cantidad}`));
+      });
+    }
+    const snacksSortedExp = recetas.filter(r => r.tipo === 'snack').sort((a,b) => b.macros.proteina_g - a.macros.proteina_g);
+    const shortProtExp = targetProt - totalProtDia;
+    let snacksSugExp = [];
+    if (shortProtExp > 0) {
+      let acum = 0;
+      for (const sn of snacksSortedExp) { if (snacksSugExp.length >= 2) break; snacksSugExp.push(sn); acum += sn.macros.proteina_g; if (acum >= shortProtExp) break; }
+    } else {
+      snacksSugExp = [...snacksSortedExp].reverse().slice(0, 2);
+    }
+    if (snacksSugExp.length) {
+      subsec('SNACKS SUGERIDOS');
+      snacksSugExp.forEach(sn => {
+        lines.push(`• ${sn.nombre} — ${sn.macros.proteina_g}g prot | ${sn.macros.calorias} kcal`);
+        lines.push(`  ${sn.notas||''}`);
+        (sn.ingredientes||[]).forEach(ing => lines.push(`    - ${ing.item}: ${ing.cantidad}`));
+      });
     }
     sec('ESTRATEGIA QUINCENA — 2 SEMANAS');
     lines.push('Compro para 2 semanas. El domingo cocino todo para semana 1.');
