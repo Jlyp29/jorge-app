@@ -7274,6 +7274,36 @@ function renderCocina(tab = 'recetas') {
     const plan = State.get('cocina.plan_semanal');
     const sem = semanas || State.get('cocina.lista_compras.semanas_compra') || 1;
     const items = [];
+    // Escala una cantidad textual por un multiplicador: "120g" ×4 → "480g"
+    const escalar = (cantidad, mult) => {
+      if (mult === 1) return cantidad;
+      const m = cantidad.trim().match(/^(\d+(?:[.,]\d+)?)\s*(.*)/);
+      if (m) {
+        const n = parseFloat(m[1].replace(',','.')) * mult;
+        const v = Number.isInteger(n) ? n : Math.round(n * 10) / 10;
+        return v + (m[2] ? ' ' + m[2] : '');
+      }
+      const fracs = {'½':0.5,'¼':0.25,'¾':0.75,'⅓':1/3,'⅔':2/3};
+      for (const [f,v] of Object.entries(fracs)) {
+        if (cantidad.startsWith(f)) {
+          const rest = cantidad.slice(f.length).trim();
+          const n = Math.round(v * mult * 10) / 10;
+          return n + (rest ? ' ' + rest : '');
+        }
+      }
+      return `${cantidad} ×${mult}`;
+    };
+    // Suma dos cantidades ya escaladas si tienen la misma unidad: "480g" + "300g" → "780g"
+    const sumar = (a, b) => {
+      const ma = a.match(/^([\d.]+)\s*(.*)/);
+      const mb = b.match(/^([\d.]+)\s*(.*)/);
+      if (ma && mb && ma[2].trim() === mb[2].trim()) {
+        const tot = parseFloat(ma[1]) + parseFloat(mb[1]);
+        const v = Number.isInteger(tot) ? tot : Math.round(tot * 10) / 10;
+        return v + (ma[2] ? ' ' + ma[2] : '');
+      }
+      return `${a} + ${b}`;
+    };
     const addIngredientes = (recetaId, multBase) => {
       const r = recetas.find(x => x.id === recetaId);
       if (!r) return;
@@ -7281,8 +7311,13 @@ function renderCocina(tab = 'recetas') {
       r.ingredientes.forEach(ing => {
         const key = ing.item.toLowerCase();
         const exist = items.find(i => i.item.toLowerCase() === key);
-        if (exist) { exist.costo_clp += ing.costo_clp * mult; }
-        else { items.push({ item: ing.item, cantidad: ing.cantidad + (mult > 1 ? ` ×${mult}` : ''), cat: ing.cat, costo_clp: ing.costo_clp * mult, comprado: false }); }
+        const cantScalada = escalar(ing.cantidad, mult);
+        if (exist) {
+          exist.costo_clp += ing.costo_clp * mult;
+          exist.cantidad = sumar(exist.cantidad, cantScalada);
+        } else {
+          items.push({ item: ing.item, cantidad: cantScalada, cat: ing.cat, costo_clp: ing.costo_clp * mult, comprado: false });
+        }
       });
     };
     // Cada receta = 1 porción/día. 7 días/sem → 1 receta×7, 2 recetas→×4+×3
