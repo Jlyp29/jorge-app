@@ -7371,6 +7371,22 @@ function renderCocina(tab = 'recetas') {
     const todosIds = [...(plan.almuerzo_ids||[]), ...(plan.cena_ids||[]), ...(plan.desayuno_ids||[])];
     recetas.filter(r => r.tipo === 'salsa' && r.aplica_a && r.aplica_a.some(id => todosIds.includes(id)))
       .forEach(r => addIngredientes(r.id, 1));
+    // Snacks sugeridos — misma lógica que el Plan (cierre de proteína), ×1 batch
+    const sAll = State.get();
+    const targetProt = sAll.fisico?.target_proteina_g || 175;
+    const protBatidos = (plan.batidos_dia || 0) * 24;
+    const protMedia = ids => { const rs = (ids||[]).map(id => recetas.find(r => r.id === id)).filter(Boolean); return rs.length ? Math.round(rs.reduce((a,r) => a + r.macros.proteina_g, 0) / rs.length) : 0; };
+    const protDiaComp = protMedia(plan.almuerzo_ids) + protMedia(plan.cena_ids) + protMedia(plan.desayuno_ids) + protBatidos;
+    const shortProtComp = targetProt - protDiaComp;
+    const snacksSorted = recetas.filter(r => r.tipo === 'snack').sort((a,b) => b.macros.proteina_g - a.macros.proteina_g);
+    let snacksSug = [];
+    if (shortProtComp > 0) {
+      let acum = 0;
+      for (const sn of snacksSorted) { if (snacksSug.length >= 2) break; snacksSug.push(sn); acum += sn.macros.proteina_g; if (acum >= shortProtComp) break; }
+    } else {
+      snacksSug = [...snacksSorted].reverse().slice(0, 2);
+    }
+    snacksSug.forEach(r => addIngredientes(r.id, 1));
     // Batidos — agregar whey protein si aplica
     const batidosDia = plan.batidos_dia || 0;
     if (batidosDia > 0) {
