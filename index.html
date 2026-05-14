@@ -7367,6 +7367,10 @@ function renderCocina(tab = 'recetas') {
     (plan.desayuno_ids || []).forEach((id, i) =>
       addIngredientes(id, plan.desayuno_ids.length === 1 ? 7 : (i === 0 ? 4 : 3)));
     if (plan.shot_id) addIngredientes(plan.shot_id, 7); // 7 días/sem
+    // Salsas sugeridas — un batch cubre la semana (×1)
+    const todosIds = [...(plan.almuerzo_ids||[]), ...(plan.cena_ids||[]), ...(plan.desayuno_ids||[])];
+    recetas.filter(r => r.tipo === 'salsa' && r.aplica_a && r.aplica_a.some(id => todosIds.includes(id)))
+      .forEach(r => addIngredientes(r.id, 1));
     // Batidos — agregar whey protein si aplica
     const batidosDia = plan.batidos_dia || 0;
     if (batidosDia > 0) {
