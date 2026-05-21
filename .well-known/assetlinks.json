@@ -2,7 +2,7 @@
   "relation": ["delegate_permission/common.handle_all_urls"],
   "target": {
     "namespace": "android_app",
-    "package_name": "com.jlyp29.misistema",
-    "sha256_cert_fingerprints": ["REEMPLAZAR_CON_SHA256_DE_PWABUILDER"]
+    "package_name": "io.github.jlyp29.twa",
+    "sha256_cert_fingerprints": ["43:95:CB:9A:F6:05:40:24:6B:8D:FD:40:A5:12:3E:50:65:4E:2B:F2:F6:0F:DE:E2:69:E5:78:72:99:4C:26:A8"]
   }
 }]
