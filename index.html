@@ -2436,7 +2436,7 @@ function defaultRecetas() {
       ingredientes:[
         {item:'Pollo molido',cantidad:'180g',costo_clp:990,cat:'proteinas'},
         {item:'Avena',cantidad:'15g',costo_clp:25,cat:'carbos'},
-        {item:'Huevos enteros',cantidad:'¼ unidad',costo_clp:40,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'¼ unidad',costo_clp:79,cat:'proteinas'},
         {item:'Cebolla',cantidad:'30g',costo_clp:80,cat:'verduras'},
         {item:'Ajo',cantidad:'1 diente',costo_clp:30,cat:'especias'},
         {item:'Tomate triturado',cantidad:'200ml',costo_clp:300,cat:'verduras'},
@@ -2694,7 +2694,7 @@ function defaultRecetas() {
       tags:['batch','dulce','portable'],
       ingredientes:[
         {item:'Avena',cantidad:'25g',costo_clp:40,cat:'carbos'},
-        {item:'Huevos enteros',cantidad:'¼ unidad',costo_clp:38,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'¼ unidad',costo_clp:79,cat:'proteinas'},
         {item:'Yogur griego',cantidad:'35g',costo_clp:140,cat:'lacteos'},
         {item:'Proteína en polvo',cantidad:'15g',costo_clp:75,cat:'proteinas'},
         {item:'Plátano maduro',cantidad:'¼ unidad',costo_clp:7,cat:'frutas'},
@@ -7439,7 +7439,8 @@ function renderCocina(tab = 'recetas') {
 
   window.generarListaCompras = (semanas) => {
     const plan = State.get('cocina.plan_semanal');
-    const sem = semanas || State.get('cocina.lista_compras.semanas_compra') || 1;
+    const esQuincena = semanas === 'quincena' || (!semanas && State.get('cocina.lista_compras.semanas_compra') === 'quincena');
+    const sem = esQuincena ? 1 : (semanas || State.get('cocina.lista_compras.semanas_compra') || 1);
     const items = [];
     // Escala una cantidad textual por un multiplicador: "120g" ×4 → "480g"
     const escalar = (cantidad, mult) => {
@@ -7471,11 +7472,13 @@ function renderCocina(tab = 'recetas') {
       }
       return `${a} + ${b}`;
     };
-    const addIngredientes = (recetaId, multBase) => {
+    const addIngredientes = (recetaId, multBase, ignorarQuincena = false) => {
       const r = recetas.find(x => x.id === recetaId);
       if (!r) return;
-      const mult = multBase * sem;
       r.ingredientes.forEach(ing => {
+        const mult = (esQuincena && !ignorarQuincena)
+          ? (ing.cat === 'proteinas' ? 15 : multBase)
+          : multBase * sem;
         const key = ing.item.toLowerCase();
         const exist = items.find(i => i.item.toLowerCase() === key);
         const cantScalada = escalar(ing.cantidad, mult);
@@ -7495,10 +7498,10 @@ function renderCocina(tab = 'recetas') {
     (plan.desayuno_ids || []).forEach((id, i) =>
       addIngredientes(id, plan.desayuno_ids.length === 1 ? 7 : (i === 0 ? 4 : 3)));
     if (plan.shot_id) addIngredientes(plan.shot_id, 7); // 7 días/sem
-    // Salsas sugeridas — un batch cubre la semana (×1)
+    // Salsas sugeridas — un batch cubre la semana (×1, siempre)
     const todosIds = [...(plan.almuerzo_ids||[]), ...(plan.cena_ids||[]), ...(plan.desayuno_ids||[])];
     recetas.filter(r => r.tipo === 'salsa' && r.aplica_a && r.aplica_a.some(id => todosIds.includes(id)))
-      .forEach(r => addIngredientes(r.id, 1));
+      .forEach(r => addIngredientes(r.id, 1, true));
     // Snacks sugeridos — misma lógica que el Plan (cierre de proteína), ×1 batch
     const sAll = State.get();
     const targetProt = sAll.fisico?.target_proteina_g || 175;
@@ -7514,17 +7517,18 @@ function renderCocina(tab = 'recetas') {
     } else {
       snacksSug = [...snacksSorted].reverse().slice(0, 2);
     }
-    snacksSug.forEach(r => addIngredientes(r.id, 1));
-    // Batidos — agregar whey protein si aplica
+    snacksSug.forEach(r => addIngredientes(r.id, 1, true));
+    // Batidos — whey protein (proteína: ×15 en quincena, ×7*sem si no)
     const batidosDia = plan.batidos_dia || 0;
     if (batidosDia > 0) {
-      const scoopsSem = batidosDia * 7 * sem;
-      const gTotal = scoopsSem * 30;
-      items.push({ item: 'Whey protein', cantidad: `~${gTotal}g (${scoopsSem} scoops)`, cat: 'proteinas', costo_clp: batidosDia * 600 * 7 * sem, comprado: false });
+      const diasWhey = esQuincena ? 15 : 7 * sem;
+      const scoopsTotal = batidosDia * diasWhey;
+      const gTotal = scoopsTotal * 30;
+      items.push({ item: 'Whey protein', cantidad: `~${gTotal}g (${scoopsTotal} scoops)`, cat: 'proteinas', costo_clp: batidosDia * 600 * diasWhey, comprado: false });
     }
     const CATS_ORDER = ['proteinas','verduras','frutas','lacteos','carbos','grasas','especias','extras'];
     items.sort((a, b) => CATS_ORDER.indexOf(a.cat) - CATS_ORDER.indexOf(b.cat));
-    State.update(st => { st.cocina.lista_compras = { items, semana: weekISO(), generada: todayISO(), semanas_compra: sem }; });
+    State.update(st => { st.cocina.lista_compras = { items, semana: weekISO(), generada: todayISO(), semanas_compra: esQuincena ? 'quincena' : sem }; });
     renderCocina('compras');
   };
   window.toggleItemCompras = (idx) => {
@@ -7774,7 +7778,7 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
         <button class="btn btn-secondary btn-block mb-lg" onclick="exportarPlanSemanal()">📋 Exportar contexto para IA</button>
       ` : ''}
 
-      <!-- Card sesión batch -->
+      <!-- Card sesión batch — ciclo 3 días -->
       ${hasPlan ? (() => {
         const recetasPrep = [...rAlmuerzos,...rCenas].filter(r=>r.meal_prep);
         if (recetasPrep.length < 2) return '';
@@ -7785,10 +7789,23 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
         const tiempoMax = Math.max(...recetasPrep.map(r=>r.tiempo_min)) + 40;
         const concurrentesIds = new Set(juntas.flatMap(([tec])=>recetasPrep.filter(r=>TECNICA_MAP[r.id]===tec).map(r=>r.id)));
         const individuales = recetasPrep.filter(r=>!concurrentesIds.has(r.id));
+        // Ciclo: sesiones fijas el Martes (2) y Sábado (6)
+        const dHoy = new Date().getDay();
+        let nextSesion, diasFaltan;
+        if (dHoy === 2) { nextSesion = 'Martes'; diasFaltan = 0; }
+        else if (dHoy === 6) { nextSesion = 'Sábado'; diasFaltan = 0; }
+        else if (dHoy < 2) { nextSesion = 'Martes'; diasFaltan = 2 - dHoy; }
+        else if (dHoy < 6) { nextSesion = 'Sábado'; diasFaltan = 6 - dHoy; }
+        else { nextSesion = 'Martes'; diasFaltan = 9 - dHoy; }
+        const nextLabel = diasFaltan === 0 ? `<span style="color:var(--success)">Hoy (${nextSesion})</span>` : diasFaltan === 1 ? `Mañana (${nextSesion})` : nextSesion;
         return `<div class="card mb-md" style="background:var(--bg-2);padding:12px 14px">
-          <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">🍳 Sesión batch — ${tiempoMax} min total</div>
-          ${juntas.map(([tec,nombres])=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px"><span style="font-size:15px;flex-shrink:0">${ICON_TEC[tec]||'🍳'}</span><span class="text-xs text-md">Cocinar juntos: <strong>${nombres.join(' + ')}</strong></span></div>`).join('')}
-          ${individuales.map(r=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px"><span style="font-size:15px;flex-shrink:0">${ICON_TEC[TECNICA_MAP[r.id]]||'🍳'}</span><span class="text-xs text-md">${r.nombre.split(' ').slice(0,4).join(' ')} — individual</span></div>`).join('')}
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <div class="text-xs font-semibold text-lo" style="text-transform:uppercase;letter-spacing:.06em">🍳 Sesión batch</div>
+            <div class="text-xs text-lo">${nextLabel}</div>
+          </div>
+          <div class="text-xs text-md mb-sm" style="margin-bottom:10px">9 comidas · 3 días · ~${tiempoMax} min</div>
+          ${juntas.map(([tec,nombres])=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px"><span style="font-size:15px;flex-shrink:0">${ICON_TEC[tec]||'🍳'}</span><span class="text-xs text-md">Juntos ×3: <strong>${nombres.join(' + ')}</strong></span></div>`).join('')}
+          ${individuales.map(r=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px"><span style="font-size:15px;flex-shrink:0">${ICON_TEC[TECNICA_MAP[r.id]]||'🍳'}</span><span class="text-xs text-md">${r.nombre.split(' ').slice(0,4).join(' ')} ×3 — individual</span></div>`).join('')}
         </div>`;
       })() : ''}
 
@@ -7991,6 +8008,7 @@ function _renderListaCompras(s, recetas, container) {
   const CATS_LABEL = { proteinas:'🥩 Carnicería y proteínas', verduras:'🥦 Verduras y frutas', lacteos:'🥛 Lácteos y huevos', carbos:'🍚 Granos, pastas y pan', grasas:'🫒 Aceites y grasas', especias:'🧄 Condimentos y especias', extras:'🛍️ Otros' };
   const CATS_RENDER_ORDER = ['proteinas','verduras','lacteos','carbos','grasas','especias','extras'];
   const semCompra = lc.semanas_compra || 1;
+  const esQuincenaView = semCompra === 'quincena';
   const comprados = lc.items.filter(i => i.comprado).length;
   const total = lc.items.length;
   const pct = Math.round(comprados / total * 100);
@@ -8008,7 +8026,7 @@ function _renderListaCompras(s, recetas, container) {
     <div>
       <div class="card mb-md" style="background:var(--bg-2)">
         <div class="row-between mb-sm">
-          <div class="text-sm font-semibold">Lista ${semCompra > 1 ? semCompra + ' semanas' : 'semanal'}</div>
+          <div class="text-sm font-semibold">Lista ${esQuincenaView ? '15 días (proteínas)' : semCompra > 1 ? semCompra + ' semanas' : 'semanal'}</div>
           <div class="text-sm" style="color:${pct===100?'var(--success)':'var(--text-md)'}">${comprados}/${total} items</div>
         </div>
         <div class="progress-bar mb-sm"><div class="progress-fill" style="width:${pct}%;background:${pct===100?'var(--success)':'var(--primary)'};transition:width .4s"></div></div>
@@ -8024,12 +8042,13 @@ function _renderListaCompras(s, recetas, container) {
           <div class="text-xs text-lo">Comprar para</div>
           <div style="display:flex;gap:4px">
             ${[1,2,3,4].map(n => `<button onclick="generarListaCompras(${n})" style="padding:3px 9px;border-radius:var(--r-sm);border:1.5px solid ${semCompra===n?'var(--primary)':'var(--border-strong)'};background:${semCompra===n?'var(--primary-glow)':'transparent'};color:${semCompra===n?'var(--primary)':'var(--text-lo)'};cursor:pointer;font-size:12px;font-weight:${semCompra===n?'600':'400'}">${n}sem</button>`).join('')}
+            <button onclick="generarListaCompras('quincena')" style="padding:3px 9px;border-radius:var(--r-sm);border:1.5px solid ${esQuincenaView?'var(--primary)':'var(--border-strong)'};background:${esQuincenaView?'var(--primary-glow)':'transparent'};color:${esQuincenaView?'var(--primary)':'var(--text-lo)'};cursor:pointer;font-size:12px;font-weight:${esQuincenaView?'600':'400'}">15d 🥩</button>
           </div>
         </div>
       </div>
       ${bycatOrdered.map(([cat, items]) => `
         <div class="mb-md">
-          <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${CATS_LABEL[cat]||cat}</div>
+          <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${CATS_LABEL[cat]||cat}${esQuincenaView?`<span style="font-size:10px;font-weight:500;background:${cat==='proteinas'?'var(--primary-glow)':'var(--bg-3)'};color:${cat==='proteinas'?'var(--primary)':'var(--text-lo)'};padding:1px 6px;border-radius:8px;margin-left:6px;text-transform:lowercase">${cat==='proteinas'?'15d':'7d'}</span>`:''}</div>
           ${items.map((item, idx) => {
             const globalIdx = lc.items.indexOf(item);
             return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);opacity:${item.comprado?'.45':'1'}">
