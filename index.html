@@ -1386,7 +1386,7 @@ const State = (() => {
     fisico: {
       mediciones:[], sesiones:[], nutricion:[], agua:{},
       target_proteina_g:175, target_sesiones_fuerza_sem:4, target_cardio_z2_sem:3,
-      presupuesto_comida_semanal: 65000,
+      presupuesto_comida_semanal: 50000,
     },
     sueño:[],
     journal:[],
@@ -3550,6 +3550,17 @@ function renderHoy() {
   window.toggleDetalleComida = (tipo) => {
     const el = document.getElementById(`detalle-comida-${tipo}`);
     if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+  };
+
+  window.aplicarSwapReceta = (tipo, oldId, newId) => {
+    State.update(st => {
+      const key = `${tipo}_ids`;
+      const ids = st.cocina.plan_semanal[key] || [];
+      const idx = ids.indexOf(oldId);
+      if (idx >= 0) ids[idx] = newId;
+      st.cocina.plan_semanal[key] = ids;
+    });
+    renderCocina('plan');
   };
 
   window.toggleVasoHoy = (n) => {
@@ -7772,6 +7783,44 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
             </div>
             <div class="progress-bar mb-sm"><div class="progress-fill" style="width:${budgetPct}%;background:${overBudget?'var(--danger)':budgetPct>80?'var(--accent)':'var(--primary)'};transition:width .4s"></div></div>
             ${costWhey > 0 ? `<div class="row-between"><span class="text-xs text-lo">Whey protein (aparte)</span><span class="text-xs text-lo">~$${costWhey.toLocaleString('es-CL')}/sem</span></div>` : ''}
+            ${(() => {
+              const rem = presupuesto - costSemSinWhey;
+              if (Math.abs(rem) < 500) return `<div class="text-xs" style="margin-top:8px;text-align:center;color:var(--success)">✓ Presupuesto completo</div>`;
+              const multFn = (ids, i) => ids.length === 1 ? 7 : (i === 0 ? 4 : 3);
+              const TIPO_EMOJI = {desayuno:'🌅',almuerzo:'☀️',cena:'🌙'};
+              const swapsB = [];
+              [['desayuno',plan.desayuno_ids||[]],['almuerzo',plan.almuerzo_ids||[]],['cena',plan.cena_ids||[]]].forEach(([tipo,ids]) => {
+                ids.forEach((id,i) => {
+                  const curr = recetas.find(r => r.id === id);
+                  if (!curr) return;
+                  const mult = multFn(ids, i);
+                  if (!overBudget) {
+                    const best = recetas.filter(r => r.tipo === curr.tipo && !ids.includes(r.id) && r.costo_total_clp > curr.costo_total_clp)
+                      .map(r => ({r, delta:(r.costo_total_clp - curr.costo_total_clp)*mult}))
+                      .filter(({delta}) => delta <= rem)
+                      .sort((a,b) => b.delta - a.delta)[0];
+                    if (best) swapsB.push({tipo, currName:curr.nombre.split(' ').slice(0,3).join(' '), currId:id, r:best.r, delta:best.delta, upgrade:true});
+                  } else {
+                    const best = recetas.filter(r => r.tipo === curr.tipo && !ids.includes(r.id) && r.costo_total_clp < curr.costo_total_clp)
+                      .map(r => ({r, delta:(curr.costo_total_clp - r.costo_total_clp)*mult}))
+                      .sort((a,b) => b.delta - a.delta)[0];
+                    if (best) swapsB.push({tipo, currName:curr.nombre.split(' ').slice(0,3).join(' '), currId:id, r:best.r, delta:best.delta, upgrade:false});
+                  }
+                });
+              });
+              swapsB.sort((a,b) => b.delta - a.delta);
+              const top = swapsB.slice(0,2);
+              if (!top.length) return '';
+              const lbl = overBudget ? `⚠️ Pasaste $${Math.abs(rem).toLocaleString('es-CL')} — ajusta:` : `💡 Te sobran $${rem.toLocaleString('es-CL')} — considera:`;
+              return `<div style="margin-top:10px;border-top:1px solid var(--border);padding-top:10px">
+                <div class="text-xs text-lo mb-sm">${lbl}</div>
+                ${top.map(s=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                  <span style="font-size:13px">${TIPO_EMOJI[s.tipo]||'🍽️'}</span>
+                  <span class="text-xs text-md" style="flex:1">${s.currName} → <strong>${s.r.nombre.split(' ').slice(0,3).join(' ')}</strong> <span style="color:${s.upgrade?'var(--success)':'var(--accent)'}"> ${s.upgrade?'+':'-'}$${s.delta.toLocaleString('es-CL')}</span></span>
+                  <button onclick="window.aplicarSwapReceta('${s.tipo}','${s.currId}','${s.r.id}')" style="background:${s.upgrade?'var(--primary-glow)':'var(--bg-3)'};border:none;color:${s.upgrade?'var(--primary)':'var(--text-md)'};cursor:pointer;font-size:11px;padding:3px 8px;border-radius:var(--r-sm);font-weight:600">Aplicar</button>
+                </div>`).join('')}
+              </div>`;
+            })()}
           </div>
         </div>
         <button class="btn btn-primary btn-block mb-sm" onclick="generarListaCompras()">Generar lista de compras →</button>

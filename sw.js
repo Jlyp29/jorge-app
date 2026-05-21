@@ -1,4 +1,4 @@
-const CACHE = 'misistema-v3.12.0';
+const CACHE = 'misistema-v3.13.0';
 const SHELL = [
   './',
   './index.html',
