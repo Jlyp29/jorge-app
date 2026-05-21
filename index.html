@@ -3941,7 +3941,7 @@ function renderHabitos() {
         </div>
       </div>
       <div class="stack stack-lg" id="habits-detail">
-        ${s.habits.map(h => renderHabitoDetail(h)).join('')}
+        ${s.habits.map(h => (h.id === 'h6' ? '<div class="text-xs text-lo font-semibold" style="padding:8px 0 4px;letter-spacing:.06em;text-transform:uppercase">💊 Suplementos</div>' : '') + renderHabitoDetail(h)).join('')}
       </div>
       ${fase >= 2 && s.habits.length < 5
         ? `<button class="btn btn-secondary btn-block mt-lg" onclick="addHabitoModal()">+ Agregar hábito</button>`
@@ -7298,8 +7298,8 @@ function renderCocina(tab = 'recetas') {
         st.cocina.plan_semanal[key] = arr;
         const idx = arr.indexOf(id);
         if (idx !== -1) arr.splice(idx, 1);
-        else if (arr.length < 2) arr.push(id);
-        else UI.toast('Ya tienes 2 recetas de ' + tipo + '. Quita una primero.', 'warn');
+        else if (arr.length < 3) arr.push(id);
+        else UI.toast('Ya tienes 3 recetas de ' + tipo + '. Quita una primero.', 'warn');
       }
     });
     UI.toast('Plan actualizado.', 'success');
@@ -7340,7 +7340,7 @@ function renderCocina(tab = 'recetas') {
     if (fisico.agua && typeof fisico.agua === 'object' && !Array.isArray(fisico.agua)) aguaHoy = fisico.agua[hoy] ?? 0;
     const habits  = s.habits || [];
     const compHoy = habits.filter(h => (h.completions||[]).includes(hoy)).length;
-    const multFn  = (ids, i) => ids.length === 1 ? 7 : (i === 0 ? 4 : 3);
+    const multFn  = (ids, i) => ids.length === 1 ? 7 : ids.length === 2 ? (i === 0 ? 4 : 3) : (i === 0 ? 3 : 2);
     const getR    = id => recetas.find(r => r.id === id);
     const desIds  = plan.desayuno_ids || [];
     const almIds  = plan.almuerzo_ids || [];
@@ -7392,7 +7392,7 @@ function renderCocina(tab = 'recetas') {
     const todosIdsExp = [...desIds, ...almIds, ...ceIds];
     const salsasExp = recetas.filter(r => r.tipo === 'salsa' && r.aplica_a && r.aplica_a.some(id => todosIdsExp.includes(id)));
     if (salsasExp.length) {
-      subsec('SALSAS DE LA SEMANA (batch domingo)');
+      subsec('SALSAS DE LA SEMANA (batch sábado)');
       salsasExp.forEach(sa => {
         lines.push(`• ${sa.nombre} — ${sa.notas||''}`);
         (sa.ingredientes||[]).forEach(ing => lines.push(`    - ${ing.item}: ${ing.cantidad}`));
@@ -7415,9 +7415,29 @@ function renderCocina(tab = 'recetas') {
         (sn.ingredientes||[]).forEach(ing => lines.push(`    - ${ing.item}: ${ing.cantidad}`));
       });
     }
+    const batidosDiaExp = plan.batidos_dia || 0;
+    if (batidosDiaExp > 0) {
+      subsec('BATIDOS DE PROTEÍNA (Whey — compra aparte)');
+      lines.push(`Cantidad: ${batidosDiaExp} batido(s)/día — ~$${(batidosDiaExp*600*7).toLocaleString('es-CL')}/sem`);
+      if (batidosDiaExp >= 1) lines.push('• Batido 1 — Post-entreno o mañana: 30g Whey + Creatina 5g + agua o leche');
+      if (batidosDiaExp >= 2) lines.push('• Batido 2 — Tarde / pre-cena: 30g Whey + leche o avena');
+    }
+    const recetasPrepExp = [...almIds,...ceIds].map(id => getR(id)).filter(r => r && r.meal_prep);
+    if (recetasPrepExp.length >= 2) {
+      const TMAP_EXP = {'al1':'horno','al2':'sellado','al3':'sellado','al4':'horno','al5':'wok','al6':'sellado','al7':'horno','al8':'wok','al9':'horno','al10':'sellado','al11':'sellado','al12':'horno','al13':'wok','al14':'horno','al15':'sellado','ce1':'horno','ce2':'sellado','ce3':'sellado','ce4':'sellado','ce5':'horno','ce6':'horno','ce7':'wok','ce8':'sellado','ce9':'horno','ce10':'sellado','ce11':'horno','ce12':'sellado','ce13':'horno','ce14':'wok','ce15':'sellado'};
+      const tiempoTotalExp = Math.max(...recetasPrepExp.map(r=>r.tiempo_min)) + 40;
+      subsec('SESIÓN BATCH (cocinar el Sábado — o Martes para reponer)');
+      recetasPrepExp.forEach((r,i) => {
+        const arrIds = almIds.includes(r.id) ? almIds : ceIds;
+        const dias = multFn(arrIds, arrIds.indexOf(r.id));
+        lines.push(`• ${r.nombre} — ${TMAP_EXP[r.id]||'directo'} — ${r.tiempo_min} min — ${dias} días/sem`);
+      });
+      lines.push(`Tiempo total estimado: ~${tiempoTotalExp} min`);
+      lines.push('Tip: paraleliza técnicas distintas (horno + sellado al mismo tiempo).');
+    }
     sec('ESTRATEGIA QUINCENA — 2 SEMANAS');
-    lines.push('Compro para 2 semanas. El domingo cocino todo para semana 1.');
-    lines.push('Ese mismo domingo congelo proteínas CRUDAS para semana 2 → semana 2 es 40% más rápida.');
+    lines.push('Compro para 2 semanas. El sábado cocino todo para semana 1.');
+    lines.push('Ese mismo sábado congelo proteínas CRUDAS para semana 2 → semana 2 es 40% más rápida.');
     lines.push('');
     lines.push('Proteínas a congelar el domingo (para semana 2):');
     [...almIds, ...ceIds].forEach(id => {
@@ -7488,7 +7508,9 @@ function renderCocina(tab = 'recetas') {
       if (!r) return;
       r.ingredientes.forEach(ing => {
         const mult = (esQuincena && !ignorarQuincena)
-          ? (ing.cat === 'proteinas' ? 15 : multBase)
+          ? Math.round(multBase * 15 / 7)
+          : (esQuincena && ignorarQuincena)
+          ? multBase * 2
           : multBase * sem;
         const key = ing.item.toLowerCase();
         const exist = items.find(i => i.item.toLowerCase() === key);
@@ -7501,13 +7523,11 @@ function renderCocina(tab = 'recetas') {
         }
       });
     };
-    // Cada receta = 1 porción/día. 7 días/sem → 1 receta×7, 2 recetas→×4+×3
-    (plan.almuerzo_ids || []).forEach((id, i) =>
-      addIngredientes(id, plan.almuerzo_ids.length === 1 ? 7 : (i === 0 ? 4 : 3)));
-    (plan.cena_ids || []).forEach((id, i) =>
-      addIngredientes(id, plan.cena_ids.length === 1 ? 7 : (i === 0 ? 4 : 3)));
-    (plan.desayuno_ids || []).forEach((id, i) =>
-      addIngredientes(id, plan.desayuno_ids.length === 1 ? 7 : (i === 0 ? 4 : 3)));
+    // Cada receta = 1 porción/día. 7 días/sem → 1 receta×7, 2→×4+×3, 3→×3+×2+×2
+    const mFn = (ids, i) => ids.length === 1 ? 7 : ids.length === 2 ? (i === 0 ? 4 : 3) : (i === 0 ? 3 : 2);
+    (plan.almuerzo_ids || []).forEach((id, i) => addIngredientes(id, mFn(plan.almuerzo_ids, i)));
+    (plan.cena_ids || []).forEach((id, i) => addIngredientes(id, mFn(plan.cena_ids, i)));
+    (plan.desayuno_ids || []).forEach((id, i) => addIngredientes(id, mFn(plan.desayuno_ids, i)));
     if (plan.shot_id) addIngredientes(plan.shot_id, 7); // 7 días/sem
     // Salsas sugeridas — un batch cubre la semana (×1, siempre)
     const todosIds = [...(plan.almuerzo_ids||[]), ...(plan.cena_ids||[]), ...(plan.desayuno_ids||[])];
@@ -7646,7 +7666,10 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
   const protDia = protAlm + protCen + protDes + protBatidos;
   const calDia = (rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r)=>s+r.macros.calorias,0)/rAlmuerzos.length) : 0) + (rCenas.length ? Math.round(rCenas.reduce((s,r)=>s+r.macros.calorias,0)/rCenas.length) : 0) + (rDesayunos.length ? Math.round(rDesayunos.reduce((s,r)=>s+r.macros.calorias,0)/rDesayunos.length) : 0) + calBatidos;
   const protPct = Math.min(100, Math.round(protDia / targetProt * 100));
-  const multFn = (ids, i) => ids.length === 1 ? 7 : (i === 0 ? 4 : 3);
+  const multFn = (ids, i) => ids.length === 1 ? 7 : ids.length === 2 ? (i === 0 ? 4 : 3) : (i === 0 ? 3 : 2);
+  const diasMap = {};
+  rAlmuerzos.forEach((r, i) => { diasMap[r.id] = multFn(almIds, i); });
+  rCenas.forEach((r, i) => { diasMap[r.id] = multFn(ceIds, i); });
   const costAlm  = rAlmuerzos.reduce((s,r,i) => s + (r.costo_total_clp||0) * multFn(almIds,i), 0);
   const costCen  = rCenas.reduce((s,r,i)    => s + (r.costo_total_clp||0) * multFn(ceIds,i), 0);
   const costDes  = rDesayunos.reduce((s,r,i) => s + (r.costo_total_clp||0) * multFn(desIds,i), 0);
@@ -7763,7 +7786,9 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
               ${[0,1,2].map(n => `<button onclick="setBatidosDia(${n})" style="padding:3px 10px;border-radius:var(--r-sm);border:1.5px solid ${batidosDia===n?'var(--primary)':'var(--border-strong)'};background:${batidosDia===n?'var(--primary-glow)':'transparent'};color:${batidosDia===n?'var(--primary)':'var(--text-lo)'};cursor:pointer;font-size:13px;font-weight:${batidosDia===n?'600':'400'}">${n}</button>`).join('')}
             </div>
           </div>
-          ${batidosDia > 0 ? `<div class="text-xs text-lo mb-sm" style="text-align:right">+${protBatidos}g prot · +${calBatidos} kcal · ~$${(batidosDia*600*7).toLocaleString('es-CL')}/sem</div>` : ''}
+          ${batidosDia > 0 ? `<div class="text-xs text-lo mb-sm" style="text-align:right">+${protBatidos}g prot · +${calBatidos} kcal · ~$${(batidosDia*600*7).toLocaleString('es-CL')}/sem (aparte)</div>` : ''}
+          ${batidosDia >= 1 ? `<div class="text-xs text-lo mb-sm" style="padding-left:4px">🥤 Batido 1 — Post-entreno o mañana · 30g Whey + Creatina 5g</div>` : ''}
+          ${batidosDia >= 2 ? `<div class="text-xs text-lo mb-sm" style="padding-left:4px">🥤 Batido 2 — Tarde / pre-cena · 30g Whey + leche o avena</div>` : ''}
           <div class="row-between mb-sm">
             <span class="text-sm">Proteína</span>
             <span class="font-semibold text-sm" style="color:${protPct>=80?'var(--success)':protPct>=60?'var(--accent)':'var(--danger)'}">${protDia}g / ${targetProt}g (${protPct}%)</span>
@@ -7784,9 +7809,16 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
             <div class="progress-bar mb-sm"><div class="progress-fill" style="width:${budgetPct}%;background:${overBudget?'var(--danger)':budgetPct>80?'var(--accent)':'var(--primary)'};transition:width .4s"></div></div>
             ${costWhey > 0 ? `<div class="row-between"><span class="text-xs text-lo">Whey protein (aparte)</span><span class="text-xs text-lo">~$${costWhey.toLocaleString('es-CL')}/sem</span></div>` : ''}
             ${(() => {
+              const todosIdsNote = [...almIds, ...ceIds, ...desIds];
+              const salsasCostNote = recetas.filter(r => r.tipo === 'salsa' && r.aplica_a && r.aplica_a.some(id => todosIdsNote.includes(id))).reduce((s,r) => s + (r.ingredientes||[]).reduce((a,ing) => a + (ing.costo_clp||0), 0), 0);
+              const snacksCostNote = recetas.filter(r => r.tipo === 'snack').sort((a,b) => b.macros.proteina_g - a.macros.proteina_g).slice(0, 2).reduce((s,r) => s + (r.costo_total_clp||0), 0);
+              const extraCostNote = salsasCostNote + snacksCostNote;
+              return extraCostNote > 100 ? `<div class="text-xs text-lo" style="margin-top:4px">Lista compras incluye +$${extraCostNote.toLocaleString('es-CL')} salsas/snacks → ~$${(costSemSinWhey + extraCostNote).toLocaleString('es-CL')} total</div>` : '';
+            })()}
+            ${(() => {
               const rem = presupuesto - costSemSinWhey;
               if (Math.abs(rem) < 500) return `<div class="text-xs" style="margin-top:8px;text-align:center;color:var(--success)">✓ Presupuesto completo</div>`;
-              const multFn = (ids, i) => ids.length === 1 ? 7 : (i === 0 ? 4 : 3);
+              const multFn = (ids, i) => ids.length === 1 ? 7 : ids.length === 2 ? (i === 0 ? 4 : 3) : (i === 0 ? 3 : 2);
               const TIPO_EMOJI = {desayuno:'🌅',almuerzo:'☀️',cena:'🌙'};
               const swapsB = [];
               [['desayuno',plan.desayuno_ids||[]],['almuerzo',plan.almuerzo_ids||[]],['cena',plan.cena_ids||[]]].forEach(([tipo,ids]) => {
@@ -7833,10 +7865,10 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
         if (recetasPrep.length < 2) return '';
         const ICON_TEC = {sellado:'🔥',horno:'🫙',wok:'⚡',directo:'🥄','sin-cocina':'❄️'};
         const grupos = {};
-        recetasPrep.forEach(r => { const t=TECNICA_MAP[r.id]||'directo'; if(!grupos[t])grupos[t]=[]; grupos[t].push(r.nombre.split(' ').slice(0,3).join(' ')); });
+        recetasPrep.forEach(r => { const t=TECNICA_MAP[r.id]||'directo'; if(!grupos[t])grupos[t]=[]; grupos[t].push(r); });
         const juntas = Object.entries(grupos).filter(([,arr])=>arr.length>1);
         const tiempoMax = Math.max(...recetasPrep.map(r=>r.tiempo_min)) + 40;
-        const concurrentesIds = new Set(juntas.flatMap(([tec])=>recetasPrep.filter(r=>TECNICA_MAP[r.id]===tec).map(r=>r.id)));
+        const concurrentesIds = new Set(juntas.flatMap(([,rs])=>rs.map(r=>r.id)));
         const individuales = recetasPrep.filter(r=>!concurrentesIds.has(r.id));
         // Ciclo: sesiones fijas el Martes (2) y Sábado (6)
         const dHoy = new Date().getDay();
@@ -7852,9 +7884,9 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
             <div class="text-xs font-semibold text-lo" style="text-transform:uppercase;letter-spacing:.06em">🍳 Sesión batch</div>
             <div class="text-xs text-lo">${nextLabel}</div>
           </div>
-          <div class="text-xs text-md mb-sm" style="margin-bottom:10px">9 comidas · 3 días · ~${tiempoMax} min</div>
-          ${juntas.map(([tec,nombres])=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px"><span style="font-size:15px;flex-shrink:0">${ICON_TEC[tec]||'🍳'}</span><span class="text-xs text-md">Juntos ×3: <strong>${nombres.join(' + ')}</strong></span></div>`).join('')}
-          ${individuales.map(r=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px"><span style="font-size:15px;flex-shrink:0">${ICON_TEC[TECNICA_MAP[r.id]]||'🍳'}</span><span class="text-xs text-md">${r.nombre.split(' ').slice(0,4).join(' ')} ×3 — individual</span></div>`).join('')}
+          <div class="text-xs text-md mb-sm" style="margin-bottom:10px">${recetasPrep.length} receta${recetasPrep.length!==1?'s':''} · ~${tiempoMax} min</div>
+          ${juntas.map(([tec,rs])=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px"><span style="font-size:15px;flex-shrink:0">${ICON_TEC[tec]||'🍳'}</span><span class="text-xs text-md">Juntos: <strong>${rs.map(r=>`${r.nombre.split(' ').slice(0,3).join(' ')} ×${diasMap[r.id]||'?'}`).join(' + ')}</strong></span></div>`).join('')}
+          ${individuales.map(r=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px"><span style="font-size:15px;flex-shrink:0">${ICON_TEC[TECNICA_MAP[r.id]]||'🍳'}</span><span class="text-xs text-md">${r.nombre.split(' ').slice(0,4).join(' ')} ×${diasMap[r.id]||'?'} — individual</span></div>`).join('')}
         </div>`;
       })() : ''}
 
