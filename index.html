@@ -1386,7 +1386,7 @@ const State = (() => {
     fisico: {
       mediciones:[], sesiones:[], nutricion:[], agua:{},
       target_proteina_g:175, target_sesiones_fuerza_sem:4, target_cardio_z2_sem:3,
-      presupuesto_comida_semanal: 50000,
+      presupuesto_comida_semanal: 65000,
     },
     sueño:[],
     journal:[],
@@ -1444,6 +1444,7 @@ const State = (() => {
       favoritas: [],
       plan_semanal: { semana: '', almuerzo_ids: [], cena_ids: [], desayuno_ids: [], shot_id: 'sh1', batidos_dia: 1 },
       lista_compras: { items: [], semana: '', generada: null },
+      registro_comidas: {},
     },
   });
 
@@ -1550,6 +1551,7 @@ const State = (() => {
     }
     if (!Array.isArray(data.cocina.plan_semanal.desayuno_ids)) data.cocina.plan_semanal.desayuno_ids = [];
     if (!data.cocina.lista_compras) data.cocina.lista_compras = defaults().cocina.lista_compras;
+    if (!data.cocina.registro_comidas) data.cocina.registro_comidas = {};
     // Recalcular nivel siempre desde total (fuente de verdad)
     if (data.xp && data.xp.total !== undefined) {
       let lvl = 1;
@@ -2055,7 +2057,7 @@ function defaultRecetas() {
       ingredientes:[
         {item:'Avena',cantidad:'50g',costo_clp:80,cat:'carbos'},
         {item:'Plátano maduro',cantidad:'1 mediano',costo_clp:150,cat:'frutas'},
-        {item:'Huevos enteros',cantidad:'2 unidades',costo_clp:300,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'2 unidades',costo_clp:630,cat:'proteinas'},
         {item:'Proteína en polvo',cantidad:'30g',costo_clp:400,cat:'proteinas'},
         {item:'Polvos de hornear',cantidad:'1 cdita',costo_clp:25,cat:'extras'},
         {item:'Canela',cantidad:'pizca',costo_clp:10,cat:'especias'},
@@ -2063,14 +2065,14 @@ function defaultRecetas() {
       ],
       pasos:['Licuar todos los ingredientes hasta masa homogénea.','Calentar sartén antiadherente a fuego medio-bajo.','Verter porciones (1/3 taza c/u).','Cocinar 2 min por lado hasta dorar.','Enfriar antes de guardar con papel entre cada uno.'],
       macros:{proteina_g:41,calorias:530,grasas_g:12,carbos_g:58},
-      costo_total_clp:1100,
+      costo_total_clp:1330,
       notas:'Batch: escala ×5 el domingo — haz 15 pancakes (5 días × 3 pancakes). Dura 5 días en nevera o 2 meses congelados.' },
 
     { id:'dr3', tipo:'desayuno', nombre:'Revuelto de Huevo con Papa y Pimentón',
       tiempo_min:15, porciones:1, meal_prep:false,
       tags:['completo','sabroso','economico'],
       ingredientes:[
-        {item:'Huevos enteros',cantidad:'4 unidades',costo_clp:600,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'4 unidades',costo_clp:1260,cat:'proteinas'},
         {item:'Papa',cantidad:'150g',costo_clp:250,cat:'verduras'},
         {item:'Pimiento rojo',cantidad:'50g',costo_clp:200,cat:'verduras'},
         {item:'Cebolla',cantidad:'30g',costo_clp:50,cat:'verduras'},
@@ -2081,14 +2083,14 @@ function defaultRecetas() {
       ],
       pasos:['Saltear cebolla, pimiento y papa en aceite con pimentón 5 min.','Batir los 4 huevos con sal y pimienta.','Verter sobre vegetales y revolver hasta cuajar.','Servir con hierbas frescas.'],
       macros:{proteina_g:39,calorias:580,grasas_g:24,carbos_g:40},
-      costo_total_clp:1200,
+      costo_total_clp:1860,
       notas:'Las papas puedes prepararlas en batch el domingo (duran 5 días). Los huevos, siempre al momento. Total: 5 min en la mañana.' },
 
     { id:'dr4', tipo:'desayuno', nombre:'Tortilla Proteica de Espinaca y Queso',
       tiempo_min:30, porciones:1, meal_prep:true,
       tags:['batch','horno','alto-proteina'],
       ingredientes:[
-        {item:'Huevos enteros',cantidad:'3 unidades',costo_clp:450,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'3 unidades',costo_clp:945,cat:'proteinas'},
         {item:'Espinaca fresca',cantidad:'50g',costo_clp:200,cat:'verduras'},
         {item:'Queso parmesano o feta',cantidad:'15g',costo_clp:300,cat:'lacteos'},
         {item:'Cebolla',cantidad:'¼ unidad',costo_clp:50,cat:'verduras'},
@@ -2099,7 +2101,7 @@ function defaultRecetas() {
       ],
       pasos:['Horno a 180°C.','Saltear cebolla, ajo y espinaca 5 min en sartén apto horno.','Batir huevos con queso y especias.','Verter sobre vegetales, agregar tomate cherry encima.','Hornear 20 minutos hasta cuajar.','Cortar en 4, enfriar, refrigerar.'],
       macros:{proteina_g:40,calorias:546,grasas_g:34,carbos_g:12},
-      costo_total_clp:1300,
+      costo_total_clp:1795,
       notas:'Batch: prepara 4 porciones el domingo, escala ×4 todos los ingredientes. Dura 4 días en el fridge. Recalentar 1 min en microondas.' },
 
     { id:'dr5', tipo:'desayuno', nombre:'Bowl Yogur Griego con Granola y Frutas',
@@ -2124,15 +2126,15 @@ function defaultRecetas() {
       ingredientes:[
         {item:'Pan de molde',cantidad:'2 rebanadas',costo_clp:200,cat:'carbos'},
         {item:'Palta',cantidad:'½ unidad',costo_clp:500,cat:'grasas'},
-        {item:'Huevos enteros',cantidad:'2 unidades',costo_clp:300,cat:'proteinas'},
-        {item:'Pechuga de pollo',cantidad:'60g',costo_clp:400,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'2 unidades',costo_clp:630,cat:'proteinas'},
+        {item:'Pechuga de pollo',cantidad:'60g',costo_clp:300,cat:'proteinas'},
         {item:'Limón',cantidad:'½ unidad',costo_clp:80,cat:'extras'},
         {item:'Sal, pimienta, ají molido',cantidad:'al gusto',costo_clp:60,cat:'especias'},
         {item:'Aceite de oliva',cantidad:'1 cdita',costo_clp:60,cat:'grasas'},
       ],
       pasos:['Tostar pan.','Aplastar palta con limón, sal y pimienta.','Cocinar huevos al gusto (poché, revuelto o frito).','Untar palta en tostadas.','Agregar pollo cocido y huevos encima.'],
       macros:{proteina_g:38,calorias:530,grasas_g:24,carbos_g:38},
-      costo_total_clp:1600,
+      costo_total_clp:1830,
       notas:'El pollo puede ser del meal prep dominical. Láminas frías funcionan perfecto. La palta córtala fresca cada mañana.' },
 
     { id:'dr7', tipo:'desayuno', nombre:'Wrap de Huevo, Queso y Espinaca',
@@ -2140,7 +2142,7 @@ function defaultRecetas() {
       tags:['portable','sabroso','rapido'],
       ingredientes:[
         {item:'Tortilla de harina grande',cantidad:'1 unidad',costo_clp:200,cat:'carbos'},
-        {item:'Huevos enteros',cantidad:'3 unidades',costo_clp:450,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'3 unidades',costo_clp:945,cat:'proteinas'},
         {item:'Queso light rallado',cantidad:'30g',costo_clp:300,cat:'lacteos'},
         {item:'Espinaca baby',cantidad:'50g',costo_clp:250,cat:'verduras'},
         {item:'Tomate',cantidad:'1 rodaja',costo_clp:100,cat:'verduras'},
@@ -2148,7 +2150,7 @@ function defaultRecetas() {
       ],
       pasos:['Saltear espinaca brevemente con un poco de aceite.','Batir huevos con sal, cocinar revueltos.','Calentar tortilla 30 seg en sartén seco.','Untar yogur con ajo y hierbas.','Agregar huevos, queso, espinaca y tomate.','Enrollar firmemente.'],
       macros:{proteina_g:36,calorias:500,grasas_g:18,carbos_g:42},
-      costo_total_clp:1400,
+      costo_total_clp:1895,
       notas:'El relleno puede prepararse la noche anterior. Armar al momento para que la tortilla no se ablande. Llevar envuelto en papel aluminio.' },
 
     { id:'dr8', tipo:'desayuno', nombre:'Bowl de Avena Caliente con Cacao y Banana',
@@ -2190,7 +2192,7 @@ function defaultRecetas() {
       tiempo_min:30, porciones:1, meal_prep:true,
       tags:['batch','horno','alto-proteina','italiano'],
       ingredientes:[
-        {item:'Huevos enteros',cantidad:'3 unidades',costo_clp:450,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'3 unidades',costo_clp:945,cat:'proteinas'},
         {item:'Pimiento rojo',cantidad:'¼ unidad',costo_clp:125,cat:'verduras'},
         {item:'Cebolla',cantidad:'¼ unidad',costo_clp:60,cat:'verduras'},
         {item:'Espinaca',cantidad:'25g',costo_clp:125,cat:'verduras'},
@@ -2201,7 +2203,7 @@ function defaultRecetas() {
       ],
       pasos:['Horno a 180°C.','Saltear cebolla y pimiento 5 min.','Agregar espinaca 1 min hasta marchitar.','Batir huevos con queso y especias.','Verter sobre vegetales, agregar tomate cherry encima.','Hornear 22-25 min hasta firme.','Cortar en 4 porciones, enfriar, refrigerar.'],
       macros:{proteina_g:38,calorias:490,grasas_g:28,carbos_g:10},
-      costo_total_clp:1100,
+      costo_total_clp:1595,
       notas:'Batch: prepara 4 porciones el domingo, escala ×4 todos los ingredientes. Dura 5 días en el fridge. Recalentar 1 min en microondas.' },
 
     // ── ALMUERZOS ────────────────────────────────────────────
@@ -2209,7 +2211,7 @@ function defaultRecetas() {
       tiempo_min:25, porciones:1, meal_prep:true,
       tags:['asiatico','alto-proteina','clasico'],
       ingredientes:[
-        {item:'Pechuga de pollo',cantidad:'180g',costo_clp:1260,cat:'proteinas'},
+        {item:'Pechuga de pollo',cantidad:'180g',costo_clp:900,cat:'proteinas'},
         {item:'Arroz blanco',cantidad:'65g',costo_clp:250,cat:'carbos'},
         {item:'Brócoli',cantidad:'150g',costo_clp:450,cat:'verduras'},
         {item:'Cebollín',cantidad:'1 ud',costo_clp:40,cat:'verduras'},
@@ -2220,14 +2222,14 @@ function defaultRecetas() {
       ],
       pasos:['Cortar pollo en cubos, dorar en sartén con aceite 6-8 min.','Agregar salsa teriyaki (SA5), cocinar 3 min más hasta glasear.','Brócoli al vapor 8-10 min (bien tierno).','Armar bowl: arroz, pollo, brócoli.','Decorar con cebollín y sésamo.'],
       macros:{proteina_g:54,calorias:680,grasas_g:14,carbos_g:68},
-      costo_total_clp:2200,
+      costo_total_clp:1840,
       notas:'Batch: prepara 5 porciones el domingo, escala ×5. Usa la salsa teriyaki casera (SA5) — guarda un frasco extra para la semana.' },
 
     { id:'al2', tipo:'almuerzo', nombre:'Tacos de Pollo Desmechado con Salsa Criolla',
       tiempo_min:30, porciones:1, meal_prep:true,
       tags:['mexicano','alto-proteina','batch'],
       ingredientes:[
-        {item:'Pechuga de pollo',cantidad:'180g',costo_clp:1400,cat:'proteinas'},
+        {item:'Pechuga de pollo',cantidad:'180g',costo_clp:900,cat:'proteinas'},
         {item:'Tortillas de maíz',cantidad:'3 unidades',costo_clp:300,cat:'carbos'},
         {item:'Palta',cantidad:'¼ unidad',costo_clp:200,cat:'grasas'},
         {item:'Cilantro fresco',cantidad:'al gusto',costo_clp:50,cat:'verduras'},
@@ -2237,14 +2239,14 @@ function defaultRecetas() {
       ],
       pasos:['Cocinar pollo en caldo con cebolla, ajo, comino y pimentón 25 min.','Desmechar con tenedores. Reservar con un poco de caldo.','Calentar pollo.','Calentar tortillas 30 seg por lado en sartén seco.','Armar: tortilla + pollo + salsa criolla (SA2) + palta + cilantro.'],
       macros:{proteina_g:52,calorias:640,grasas_g:18,carbos_g:52},
-      costo_total_clp:2400,
+      costo_total_clp:1700,
       notas:'Batch del pollo: cocina 900g el domingo (rinde 5 porciones). Dura 5 días en el fridge. Usa la salsa criolla (SA2) ya preparada.' },
 
     { id:'al3', tipo:'almuerzo', nombre:'Bowl Mexicano con Pollo y Frijoles',
       tiempo_min:20, porciones:1, meal_prep:true,
       tags:['mexicano','alto-proteina','completo'],
       ingredientes:[
-        {item:'Pechuga de pollo',cantidad:'150g',costo_clp:1200,cat:'proteinas'},
+        {item:'Pechuga de pollo',cantidad:'150g',costo_clp:750,cat:'proteinas'},
         {item:'Arroz blanco',cantidad:'50g',costo_clp:200,cat:'carbos'},
         {item:'Frijoles negros',cantidad:'80g',costo_clp:200,cat:'verduras'},
         {item:'Maíz desgranado',cantidad:'50g',costo_clp:150,cat:'verduras'},
@@ -2257,14 +2259,14 @@ function defaultRecetas() {
       ],
       pasos:['Calentar pollo y frijoles.','Armar bowl: arroz, pollo, frijoles, maíz, tomate, cebolla.','Agregar palta y limón al servir.'],
       macros:{proteina_g:50,calorias:700,grasas_g:16,carbos_g:80},
-      costo_total_clp:2300,
+      costo_total_clp:1850,
       notas:'Swap anti-hinchazón: si hay sensibilidad a los frijoles, reemplaza por maíz desgranado extra (mismo volumen, mejor digestión).' },
 
     { id:'al4', tipo:'almuerzo', nombre:'Pollo al Curry con Arroz',
       tiempo_min:25, porciones:1, meal_prep:true,
       tags:['asiatico','alto-proteina','aromático'],
       ingredientes:[
-        {item:'Pechuga de pollo',cantidad:'180g',costo_clp:1440,cat:'proteinas'},
+        {item:'Pechuga de pollo',cantidad:'180g',costo_clp:900,cat:'proteinas'},
         {item:'Arroz blanco',cantidad:'65g',costo_clp:220,cat:'carbos'},
         {item:'Leche de coco light',cantidad:'80ml',costo_clp:400,cat:'lacteos'},
         {item:'Tomate',cantidad:'1 mediano',costo_clp:200,cat:'verduras'},
@@ -2276,7 +2278,7 @@ function defaultRecetas() {
       ],
       pasos:['Sofreír cebolla, ajo y jengibre 4 min.','Agregar curry en polvo 1 min, tostar.','Agregar tomate picado, cocinar 5 min.','Agregar pollo en cubos, dorar 5 min.','Verter leche de coco, simmer 8-10 min.','Servir sobre arroz.'],
       macros:{proteina_g:52,calorias:700,grasas_g:18,carbos_g:72},
-      costo_total_clp:2660,
+      costo_total_clp:2120,
       notas:'Batch: prepara 5 porciones el domingo, escala ×5. El curry mejora de sabor al día siguiente.' },
 
     { id:'al5', tipo:'almuerzo', nombre:'Quesadilla Proteica de Pollo y Espinaca',
@@ -2284,7 +2286,7 @@ function defaultRecetas() {
       tags:['mexicano','rapido','alto-proteina'],
       ingredientes:[
         {item:'Tortilla de harina grande',cantidad:'1 unidad',costo_clp:200,cat:'carbos'},
-        {item:'Pechuga de pollo',cantidad:'150g',costo_clp:1300,cat:'proteinas'},
+        {item:'Pechuga de pollo',cantidad:'150g',costo_clp:750,cat:'proteinas'},
         {item:'Queso light rallado',cantidad:'40g',costo_clp:350,cat:'lacteos'},
         {item:'Espinaca baby',cantidad:'50g',costo_clp:250,cat:'verduras'},
         {item:'Tomate',cantidad:'40g',costo_clp:100,cat:'verduras'},
@@ -2292,7 +2294,7 @@ function defaultRecetas() {
       ],
       pasos:['Calentar pollo.','En sartén seco, poner tortilla.','Cubrir mitad con queso, pollo, espinaca y tomate.','Doblar tortilla, cocinar 2-3 min por lado hasta dorar.','Servir con salsa al lado.'],
       macros:{proteina_g:52,calorias:580,grasas_g:18,carbos_g:42},
-      costo_total_clp:2300,
+      costo_total_clp:1750,
       notas:'El pollo puede ser del batch dominical. Armar siempre al momento para que el queso funda bien. Usar salsa criolla (SA2) o yogur (SA3) al lado.' },
 
     { id:'al6', tipo:'almuerzo', nombre:'Pollo Mediterráneo con Papa y Verduras',
@@ -2311,7 +2313,7 @@ function defaultRecetas() {
       ],
       pasos:['Marinar muslos con limón, ajo, aceite y especias 15 min.','Freidora de aire 180°C: papas 15 min.','Agregar muslos y vegetales, 25 min más a 180°C.','Sacudir a la mitad.','Servir todo junto.'],
       macros:{proteina_g:50,calorias:650,grasas_g:22,carbos_g:52},
-      costo_total_clp:2500,
+      costo_total_clp:2420,
       notas:'Sin freidora: horno convencional 200°C 35-40 min. Batch: prepara 5 porciones el domingo, escala ×5.' },
 
     { id:'al7', tipo:'almuerzo', nombre:'Pasta con Atún y Vegetales',
@@ -2338,7 +2340,7 @@ function defaultRecetas() {
       tags:['portable','sabroso','rapido'],
       ingredientes:[
         {item:'Tortilla de harina grande',cantidad:'1 unidad',costo_clp:200,cat:'carbos'},
-        {item:'Pechuga de pollo',cantidad:'150g',costo_clp:1500,cat:'proteinas'},
+        {item:'Pechuga de pollo',cantidad:'150g',costo_clp:750,cat:'proteinas'},
         {item:'Palta',cantidad:'¼ unidad',costo_clp:250,cat:'grasas'},
         {item:'Lechuga',cantidad:'50g',costo_clp:100,cat:'verduras'},
         {item:'Tomate',cantidad:'1 rodaja',costo_clp:80,cat:'verduras'},
@@ -2348,16 +2350,16 @@ function defaultRecetas() {
       ],
       pasos:['Cortar pollo cocido en tiras.','Calentar tortilla 30 seg por lado en sartén seco.','Untar mostaza o salsa de yogur (SA3).','Agregar pollo, palta, lechuga, tomate y cebolla.','Enrollar firmemente.'],
       macros:{proteina_g:50,calorias:620,grasas_g:20,carbos_g:44},
-      costo_total_clp:2400,
+      costo_total_clp:1650,
       notas:'El pollo puede ser del batch dominical. Armar al momento para que la tortilla no se ablande.' },
 
     { id:'al9', tipo:'almuerzo', nombre:'Arroz Frito Proteico Estilo Asiático',
       tiempo_min:15, porciones:1, meal_prep:true,
       tags:['asiatico','rapido','wok'],
       ingredientes:[
-        {item:'Pechuga de pollo',cantidad:'150g',costo_clp:1200,cat:'proteinas'},
+        {item:'Pechuga de pollo',cantidad:'150g',costo_clp:750,cat:'proteinas'},
         {item:'Arroz blanco',cantidad:'75g',costo_clp:200,cat:'carbos'},
-        {item:'Huevos enteros',cantidad:'1 unidad',costo_clp:150,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'1 unidad',costo_clp:315,cat:'proteinas'},
         {item:'Pimiento rojo',cantidad:'50g',costo_clp:150,cat:'verduras'},
         {item:'Zanahoria',cantidad:'50g',costo_clp:150,cat:'verduras'},
         {item:'Cebollín',cantidad:'1 unidad',costo_clp:50,cat:'verduras'},
@@ -2369,7 +2371,7 @@ function defaultRecetas() {
       ],
       pasos:['Wok o sartén grande a fuego alto, dorar pollo.','Agregar ajo y jengibre 30 seg.','Agregar vegetales 3 min.','Hacer hueco en el centro, romper huevo, revolver.','Agregar arroz, salsa de soya y aceite de sésamo.','Saltear todo 3-4 min.','Servir con cebollín y sésamo.'],
       macros:{proteina_g:52,calorias:700,grasas_g:16,carbos_g:78},
-      costo_total_clp:2200,
+      costo_total_clp:1915,
       notas:'Clave: usar arroz del día anterior (más seco, fría mejor). El wok a máxima temperatura es lo que hace la diferencia.' },
 
     { id:'al10', tipo:'almuerzo', nombre:'Pizza Proteica de Pollo y Vegetales',
@@ -2377,7 +2379,7 @@ function defaultRecetas() {
       tags:['clasico','alto-proteina','horno'],
       ingredientes:[
         {item:'Base pita integral o tortilla grande',cantidad:'1 unidad',costo_clp:200,cat:'carbos'},
-        {item:'Pechuga de pollo',cantidad:'120g',costo_clp:880,cat:'proteinas'},
+        {item:'Pechuga de pollo',cantidad:'120g',costo_clp:600,cat:'proteinas'},
         {item:'Queso mozzarella light',cantidad:'50g',costo_clp:450,cat:'lacteos'},
         {item:'Pimiento rojo',cantidad:'30g',costo_clp:100,cat:'verduras'},
         {item:'Tomate cherry',cantidad:'50g',costo_clp:120,cat:'verduras'},
@@ -2387,7 +2389,7 @@ function defaultRecetas() {
       ],
       pasos:['Horno a 200°C.','Sobre la base untar tomate triturado o salsa de tomate (SA4).','Distribuir pollo, queso y vegetales.','Hornear 8-10 min hasta queso dorado.','Agregar albahaca fresca al servir.'],
       macros:{proteina_g:48,calorias:580,grasas_g:16,carbos_g:58},
-      costo_total_clp:2000,
+      costo_total_clp:1720,
       notas:'La salsa y el pollo son del batch dominical. La pizza se arma en 5 min. Diferente de ce10 (pizza cena) por los toppings.' },
 
     // ── CENAS ────────────────────────────────────────────────
@@ -2395,7 +2397,7 @@ function defaultRecetas() {
       tiempo_min:25, porciones:1, meal_prep:true,
       tags:['clasico','alto-proteina','batch'],
       ingredientes:[
-        {item:'Pollo molido',cantidad:'180g',costo_clp:1350,cat:'proteinas'},
+        {item:'Pollo molido',cantidad:'180g',costo_clp:990,cat:'proteinas'},
         {item:'Pan de molde o pita',cantidad:'1 unidad',costo_clp:200,cat:'carbos'},
         {item:'Batata/camote',cantidad:'200g',costo_clp:500,cat:'verduras'},
         {item:'Lechuga',cantidad:'50g',costo_clp:80,cat:'verduras'},
@@ -2407,14 +2409,14 @@ function defaultRecetas() {
       ],
       pasos:['Mezclar pollo molido con especias. Formar hamburguesas.','Batata al horno o freidora 180°C 20 min.','Cocinar hamburguesas a la plancha 4-5 min por lado.','Armar: pan + hamburguesa + lechuga + tomate + cebolla + mostaza.','Servir con batata al lado.'],
       macros:{proteina_g:48,calorias:580,grasas_g:16,carbos_g:52},
-      costo_total_clp:2500,
+      costo_total_clp:2100,
       notas:'Batch: forma 5 hamburguesas el domingo, congela crudas. Descongela la noche anterior. Cocinar 10 min a la plancha. Usar salsa de yogur (SA3) para más sabor.' },
 
     { id:'ce2', tipo:'cena', nombre:'Salmón al Limón con Arroz y Brócoli',
       tiempo_min:20, porciones:1, meal_prep:false,
       tags:['omega3','premium','antivisceral'],
       ingredientes:[
-        {item:'Salmón',cantidad:'180g',costo_clp:2250,cat:'proteinas'},
+        {item:'Salmón',cantidad:'180g',costo_clp:3778,cat:'proteinas'},
         {item:'Arroz blanco',cantidad:'65g',costo_clp:200,cat:'carbos'},
         {item:'Brócoli',cantidad:'150g',costo_clp:400,cat:'verduras'},
         {item:'Limón',cantidad:'1 unidad',costo_clp:100,cat:'extras'},
@@ -2425,14 +2427,14 @@ function defaultRecetas() {
       ],
       pasos:['Marinar salmón con limón, ajo, aceite y eneldo 10 min.','Freidora de aire 180°C 12 min (o horno 200°C 15 min).','Brócoli al vapor 8-10 min (bien tierno).','Servir todo junto con jugo de limón fresco.'],
       macros:{proteina_g:48,calorias:620,grasas_g:20,carbos_g:58},
-      costo_total_clp:3130,
+      costo_total_clp:4660,
       notas:'Sin freidora: horno convencional 200°C 15-18 min. Mejor fresco, pero dura 3 días cocido. El brócoli bien tierno (8-10 min) es más fácil de digerir.' },
 
     { id:'ce3', tipo:'cena', nombre:'Albóndigas de Pollo en Salsa de Tomate',
       tiempo_min:30, porciones:1, meal_prep:true,
       tags:['clasico','alto-proteina','batch'],
       ingredientes:[
-        {item:'Pollo molido',cantidad:'180g',costo_clp:1440,cat:'proteinas'},
+        {item:'Pollo molido',cantidad:'180g',costo_clp:990,cat:'proteinas'},
         {item:'Avena',cantidad:'15g',costo_clp:25,cat:'carbos'},
         {item:'Huevos enteros',cantidad:'¼ unidad',costo_clp:40,cat:'proteinas'},
         {item:'Cebolla',cantidad:'30g',costo_clp:80,cat:'verduras'},
@@ -2444,14 +2446,14 @@ function defaultRecetas() {
       ],
       pasos:['Mezclar pollo molido, avena, huevo, cebolla, ajo y especias.','Formar albóndigas medianas.','Dorar en sartén 5 min.','Agregar tomate triturado y especias, simmer 15 min tapado.','Servir con arroz.'],
       macros:{proteina_g:50,calorias:620,grasas_g:14,carbos_g:62},
-      costo_total_clp:2200,
+      costo_total_clp:1750,
       notas:'Batch: prepara 4 porciones el domingo, escala ×4. Congelan perfecto. Recalentar en la salsa misma.' },
 
     { id:'ce4', tipo:'cena', nombre:'Bistec a la Plancha con Papa y Chimichurri',
       tiempo_min:25, porciones:1, meal_prep:false,
       tags:['clasico','alto-proteina','economico'],
       ingredientes:[
-        {item:'Bistec (posta negra o lomo liso)',cantidad:'180g',costo_clp:1700,cat:'proteinas'},
+        {item:'Bistec (posta negra o lomo liso)',cantidad:'180g',costo_clp:2160,cat:'proteinas'},
         {item:'Papa',cantidad:'200g',costo_clp:350,cat:'verduras'},
         {item:'Lechuga',cantidad:'60g',costo_clp:150,cat:'verduras'},
         {item:'Tomate',cantidad:'1 mediano',costo_clp:100,cat:'verduras'},
@@ -2462,14 +2464,14 @@ function defaultRecetas() {
       ],
       pasos:['Papas al horno o freidora 180°C 25 min.','Bistec a la plancha caliente 3-4 min por lado.','Dejar reposar 3 min antes de cortar.','Servir con chimichurri casero (SA1) encima y ensalada al lado.'],
       macros:{proteina_g:50,calorias:600,grasas_g:20,carbos_g:44},
-      costo_total_clp:2700,
+      costo_total_clp:3010,
       notas:'Las papas pueden ser del batch dominical (duran 5 días). El bistec: solo 8 min a la plancha, siempre al momento. Usa el chimichurri casero (SA1).' },
 
     { id:'ce5', tipo:'cena', nombre:'Tortilla Española con Ensalada',
       tiempo_min:30, porciones:1, meal_prep:true,
       tags:['batch','economico','europeo'],
       ingredientes:[
-        {item:'Huevos enteros',cantidad:'3 unidades',costo_clp:450,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'3 unidades',costo_clp:945,cat:'proteinas'},
         {item:'Papa',cantidad:'150g',costo_clp:300,cat:'verduras'},
         {item:'Cebolla',cantidad:'¼ unidad',costo_clp:100,cat:'verduras'},
         {item:'Aceite de oliva',cantidad:'¾ cda',costo_clp:150,cat:'grasas'},
@@ -2480,14 +2482,14 @@ function defaultRecetas() {
       ],
       pasos:['Cocinar papas y cebolla en sartén con aceite a fuego bajo 15 min hasta tiernas.','Escurrir aceite.','Batir huevos y mezclar con papas.','Verter en sartén antiadherente, cocinar a fuego bajo 8 min tapado.','Dar vuelta con plato, cocinar 5 min más.','Cortar en 4 porciones.','Servir con ensalada fresca.'],
       macros:{proteina_g:39,calorias:653,grasas_g:36,carbos_g:40},
-      costo_total_clp:1500,
+      costo_total_clp:1995,
       notas:'Batch: prepara 4 porciones el domingo, escala ×4 todos los ingredientes. Dura 5 días en el fridge.' },
 
     { id:'ce6', tipo:'cena', nombre:'Stir-fry de Res con Vegetales y Fideos',
       tiempo_min:15, porciones:1, meal_prep:true,
       tags:['asiatico','wok','alto-proteina'],
       ingredientes:[
-        {item:'Bistec (posta negra o lomo liso)',cantidad:'180g',costo_clp:1600,cat:'proteinas'},
+        {item:'Bistec (posta negra o lomo liso)',cantidad:'180g',costo_clp:2160,cat:'proteinas'},
         {item:'Fideos (tallarines o de arroz)',cantidad:'70g',costo_clp:280,cat:'carbos'},
         {item:'Brócoli',cantidad:'80g',costo_clp:250,cat:'verduras'},
         {item:'Pimiento rojo',cantidad:'50g',costo_clp:150,cat:'verduras'},
@@ -2501,14 +2503,14 @@ function defaultRecetas() {
       ],
       pasos:['Cocinar fideos al dente.','Wok caliente, saltear ajo y jengibre 30 seg.','Agregar bistec en tiras, dorar 3 min.','Agregar vegetales 3 min.','Incorporar fideos y salsa de soya.','Saltear todo 2 min.','Servir con cebollín y sésamo.'],
       macros:{proteina_g:48,calorias:650,grasas_g:18,carbos_g:68},
-      costo_total_clp:2800,
+      costo_total_clp:3360,
       notas:'Batch: prepara 4 porciones el domingo, escala ×4. Dura 4 días. El wok a máxima temperatura es clave.' },
 
     { id:'ce7', tipo:'cena', nombre:'Revuelto Proteico de Espinaca y Queso',
       tiempo_min:15, porciones:1, meal_prep:false,
       tags:['rapido','economico','vegetariano'],
       ingredientes:[
-        {item:'Huevos enteros',cantidad:'4 unidades',costo_clp:600,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'4 unidades',costo_clp:1260,cat:'proteinas'},
         {item:'Espinaca fresca',cantidad:'150g',costo_clp:450,cat:'verduras'},
         {item:'Queso parmesano',cantidad:'25g',costo_clp:400,cat:'lacteos'},
         {item:'Pan de molde',cantidad:'1 rebanada',costo_clp:150,cat:'carbos'},
@@ -2518,14 +2520,14 @@ function defaultRecetas() {
       ],
       pasos:['Saltear ajo laminado en aceite 1 min.','Agregar espinaca 1 min hasta marchitar.','Batir los 4 huevos con sal y pimienta.','Verter sobre espinaca, revolver suave hasta cuajar.','Agregar parmesano encima.','Servir con tostada.'],
       macros:{proteina_g:42,calorias:580,grasas_g:32,carbos_g:20},
-      costo_total_clp:1800,
+      costo_total_clp:2460,
       notas:'La espinaca cocida puede prepararse el día anterior (dura 3 días). Los huevos, siempre al momento. Cena de emergencia lista en 10 min.' },
 
     { id:'ce8', tipo:'cena', nombre:'Pollo Tikka Masala con Arroz',
       tiempo_min:30, porciones:1, meal_prep:true,
       tags:['indio','alto-proteina','aromático'],
       ingredientes:[
-        {item:'Pechuga de pollo',cantidad:'180g',costo_clp:1440,cat:'proteinas'},
+        {item:'Pechuga de pollo',cantidad:'180g',costo_clp:900,cat:'proteinas'},
         {item:'Arroz blanco',cantidad:'65g',costo_clp:200,cat:'carbos'},
         {item:'Yogur natural',cantidad:'30g',costo_clp:120,cat:'lacteos'},
         {item:'Tomate triturado',cantidad:'120ml',costo_clp:240,cat:'verduras'},
@@ -2538,14 +2540,14 @@ function defaultRecetas() {
       ],
       pasos:['Marinar pollo con yogur y especias 15 min.','Dorar pollo 5 min.','En otra sartén sofreír cebolla, ajo, jengibre 4 min.','Agregar especias 1 min.','Tomate y leche de coco, simmer 10 min.','Incorporar pollo, cocinar 5 min más.','Servir sobre arroz.'],
       macros:{proteina_g:54,calorias:640,grasas_g:16,carbos_g:68},
-      costo_total_clp:2660,
+      costo_total_clp:2120,
       notas:'Batch: prepara 5 porciones el domingo, escala ×5. El tikka masala mejora de sabor al día siguiente.' },
 
     { id:'ce9', tipo:'cena', nombre:'Tacos de Bistec con Pimientos',
       tiempo_min:15, porciones:1, meal_prep:false,
       tags:['mexicano','rapido','alto-proteina'],
       ingredientes:[
-        {item:'Bistec (posta negra o lomo liso)',cantidad:'180g',costo_clp:1300,cat:'proteinas'},
+        {item:'Bistec (posta negra o lomo liso)',cantidad:'180g',costo_clp:2160,cat:'proteinas'},
         {item:'Tortillas de maíz',cantidad:'3 unidades',costo_clp:300,cat:'carbos'},
         {item:'Pimiento rojo',cantidad:'80g',costo_clp:250,cat:'verduras'},
         {item:'Pimiento verde',cantidad:'80g',costo_clp:250,cat:'verduras'},
@@ -2558,7 +2560,7 @@ function defaultRecetas() {
       ],
       pasos:['Saltear pimientos y cebolla en sartén caliente 5 min.','Agregar ajo y bistec en tiras, especias.','Dorar 4-5 min a fuego alto.','Calentar tortillas 30 seg por lado.','Armar: tortilla + carne + pimientos + salsa criolla (SA2) + cilantro.'],
       macros:{proteina_g:48,calorias:620,grasas_g:20,carbos_g:52},
-      costo_total_clp:2500,
+      costo_total_clp:3360,
       notas:'El bistec sazonado puede prepararse el domingo y guardarse crudo. Cocinarlo en 8 min al momento. Usa la salsa criolla (SA2) ya preparada.' },
 
     { id:'ce10', tipo:'cena', nombre:'Pizza Saludable con Vegetales y Pollo',
@@ -2566,7 +2568,7 @@ function defaultRecetas() {
       tags:['clasico','rapido','horno'],
       ingredientes:[
         {item:'Base pita integral grande',cantidad:'1 unidad',costo_clp:200,cat:'carbos'},
-        {item:'Pechuga de pollo',cantidad:'120g',costo_clp:880,cat:'proteinas'},
+        {item:'Pechuga de pollo',cantidad:'120g',costo_clp:600,cat:'proteinas'},
         {item:'Mozzarella light',cantidad:'50g',costo_clp:400,cat:'lacteos'},
         {item:'Champiñones',cantidad:'40g',costo_clp:150,cat:'verduras'},
         {item:'Pimiento rojo',cantidad:'30g',costo_clp:100,cat:'verduras'},
@@ -2576,7 +2578,7 @@ function defaultRecetas() {
       ],
       pasos:['Horno a 200°C.','Sobre base pita untar tomate triturado o salsa de tomate (SA4).','Distribuir pollo, queso y vegetales.','Hornear 8-10 min hasta queso dorado y borde crujiente.','Albahaca fresca al servir.'],
       macros:{proteina_g:46,calorias:560,grasas_g:14,carbos_g:60},
-      costo_total_clp:2000,
+      costo_total_clp:1720,
       notas:'La salsa y el pollo son del batch dominical. La pizza se arma en 5 min. Los champiñones la diferencian de la pizza al almuerzo (al10).' },
 
     // ── SHOTS ─────────────────────────────────────────────────
@@ -2706,7 +2708,7 @@ function defaultRecetas() {
       tiempo_min:20, porciones:1, meal_prep:true,
       tags:['batch','proteina','asiatico'],
       ingredientes:[
-        {item:'Huevos enteros',cantidad:'2 unidades',costo_clp:300,cat:'proteinas'},
+        {item:'Huevos enteros',cantidad:'2 unidades',costo_clp:630,cat:'proteinas'},
         {item:'Salsa de soya',cantidad:'20ml',costo_clp:40,cat:'extras'},
         {item:'Vinagre de arroz',cantidad:'2 cditas',costo_clp:20,cat:'extras'},
         {item:'Ajo',cantidad:'½ diente',costo_clp:15,cat:'especias'},
@@ -2715,7 +2717,7 @@ function defaultRecetas() {
       ],
       pasos:['Hervir huevos 9 minutos exactos.','Enfriar en agua con hielo, pelar.','Mezclar marinado en frasco: 100ml soya + 100ml agua + vinagre + ajo + jengibre + ají.','Sumergir huevos, refrigerar mínimo 4h (mejor 24h).','Sacar 2 huevos por snack.'],
       macros:{proteina_g:13,calorias:150,grasas_g:10,carbos_g:2},
-      costo_total_clp:400,
+      costo_total_clp:730,
       notas:'Batch de 10 huevos el domingo. Dura 5 días. Los mejores snacks de la semana — ricos, saciadores, fácil de llevar.' },
 
     { id:'sn4', tipo:'snack', nombre:'Yogur Griego con Toppings',
@@ -2767,7 +2769,7 @@ function defaultRecetas() {
       tiempo_min:5, porciones:1, meal_prep:false,
       tags:['proteina','rapido','portable'],
       ingredientes:[
-        {item:'Pechuga de pollo',cantidad:'80g',costo_clp:600,cat:'proteinas'},
+        {item:'Pechuga de pollo',cantidad:'80g',costo_clp:400,cat:'proteinas'},
         {item:'Queso light en láminas',cantidad:'30g',costo_clp:200,cat:'lacteos'},
         {item:'Pepino',cantidad:'50g',costo_clp:100,cat:'verduras'},
         {item:'Mostaza Dijon',cantidad:'al gusto',costo_clp:0,cat:'extras'},
@@ -3327,6 +3329,15 @@ function renderFase0() {
 /* ═══════════════════════════════════════════════════════════
    VISTA: HOY
 ═══════════════════════════════════════════════════════════ */
+function recetaDelDia(tipo, plan, recetas) {
+  if (tipo === 'shot') return recetas.find(r => r.id === plan.shot_id) || null;
+  const ids = plan[`${tipo}_ids`] || [];
+  if (!ids.length) return null;
+  if (ids.length === 1) return recetas.find(r => r.id === ids[0]) || null;
+  const diaSem = new Date().getDay() || 7;
+  return recetas.find(r => r.id === ids[diaSem <= 4 ? 0 : 1]) || null;
+}
+
 function renderHoy() {
   const s = State.get();
   const nombre = s.profile.nombre || '';
@@ -3355,6 +3366,21 @@ function renderHoy() {
 
   // Quick daily check
   const quickHoy = (s.journal || []).find(j => j.fecha === today() && j.tipo === 'quick');
+
+  // Comidas del día
+  const planHoy = s.cocina?.plan_semanal || {};
+  const regComHoy = (s.cocina?.registro_comidas || {})[hoy] || {};
+  const recetasHoy = defaultRecetas();
+  const hasPlanHoy = (planHoy.almuerzo_ids||[]).length || (planHoy.cena_ids||[]).length || (planHoy.desayuno_ids||[]).length;
+  const EMOJIS_COMIDA = { desayuno:'🌅', almuerzo:'☀️', cena:'🌙', shot:'⚡', batido:'🥤' };
+  const comidaTipos = ['desayuno','almuerzo','cena','shot'];
+  const protComida = comidaTipos.reduce((acc, t) => {
+    if (!regComHoy[t]) return acc;
+    const r = recetaDelDia(t, planHoy, recetasHoy);
+    return acc + (r?.macros?.proteina_g || 0);
+  }, 0) + (regComHoy.batido && planHoy.batidos_dia ? planHoy.batidos_dia * 24 : 0);
+  const targetProtHoy = s.fisico?.target_proteina_g || 175;
+  const protPctHoy = Math.min(100, Math.round(protComida / targetProtHoy * 100));
 
   const app = document.getElementById('app');
   app.innerHTML = `
@@ -3394,6 +3420,65 @@ function renderHoy() {
           ${secondaryHabits.map(h => renderHabitCard(h, h.completions.includes(today()), 0)).join('')}
         </div>
       </details>` : ''}
+
+      <!-- Comidas de hoy -->
+      <div class="mb-lg">
+        <div class="row-between mb-sm">
+          <span class="text-sm font-semibold">Comidas de hoy</span>
+          ${hasPlanHoy ? `<span class="text-xs ${protPctHoy >= 100 ? 'font-semibold' : 'text-lo'}">${protComida}/${targetProtHoy}g prot</span>` : ''}
+        </div>
+        ${hasPlanHoy ? `
+          ${protPctHoy > 0 ? `<div style="height:4px;background:var(--bg-3);border-radius:4px;margin-bottom:10px;overflow:hidden"><div style="height:100%;width:${protPctHoy}%;background:var(--primary);border-radius:4px;transition:width .4s"></div></div>` : ''}
+          ${comidaTipos.map(tipo => {
+            const r = recetaDelDia(tipo, planHoy, recetasHoy);
+            if (!r) return '';
+            const comido = !!regComHoy[tipo];
+            const ing = (r.ingredientes||[]).map(i => `<span style="display:inline-block;background:var(--bg-3);border-radius:6px;padding:2px 8px;font-size:11px;margin:2px">${esc(i.item)} ${esc(i.cantidad)}</span>`).join('');
+            const pasos = (r.pasos||[]).map((p,i) => `<div style="font-size:12px;color:var(--text-md);margin-bottom:4px"><span style="color:var(--primary);font-weight:600">${i+1}.</span> ${esc(p)}</div>`).join('');
+            return `
+            <div style="border:1px solid ${comido?'var(--primary)':'var(--border)'};border-radius:var(--r-lg);padding:12px;margin-bottom:8px;background:${comido?'var(--primary-glow)':'var(--bg-2)'};transition:all .2s">
+              <div style="display:flex;align-items:center;gap:10px">
+                <button onclick="toggleComidaHoy('${tipo}')" style="width:28px;height:28px;border-radius:50%;border:2px solid ${comido?'var(--primary)':'var(--border)'};background:${comido?'var(--primary)':'transparent'};flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s">
+                  ${comido ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                </button>
+                <span style="font-size:18px">${EMOJIS_COMIDA[tipo]}</span>
+                <div style="flex:1;min-width:0">
+                  <div class="font-semibold text-sm" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.nombre)}</div>
+                  <div class="text-xs text-lo">${r.macros?.proteina_g||0}g prot · ${r.macros?.calorias||0} kcal</div>
+                </div>
+                <button onclick="toggleDetalleComida('${tipo}')" style="padding:4px 8px;border-radius:6px;border:none;background:transparent;color:var(--text-lo);font-size:18px;cursor:pointer;line-height:1">⌄</button>
+              </div>
+              <div id="detalle-comida-${tipo}" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
+                <div class="text-xs font-semibold text-lo mb-xs" style="text-transform:uppercase;letter-spacing:.05em">Ingredientes</div>
+                <div style="margin-bottom:10px">${ing}</div>
+                <div class="text-xs font-semibold text-lo mb-xs" style="text-transform:uppercase;letter-spacing:.05em">Pasos</div>
+                ${pasos}
+              </div>
+            </div>`;
+          }).join('')}
+          ${planHoy.batidos_dia > 0 ? (() => {
+            const comido = !!regComHoy.batido;
+            return `
+            <div style="border:1px solid ${comido?'var(--primary)':'var(--border)'};border-radius:var(--r-lg);padding:12px;background:${comido?'var(--primary-glow)':'var(--bg-2)'};transition:all .2s">
+              <div style="display:flex;align-items:center;gap:10px">
+                <button onclick="toggleComidaHoy('batido')" style="width:28px;height:28px;border-radius:50%;border:2px solid ${comido?'var(--primary)':'var(--border)'};background:${comido?'var(--primary)':'transparent'};flex-shrink:0;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s">
+                  ${comido ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>' : ''}
+                </button>
+                <span style="font-size:18px">🥤</span>
+                <div style="flex:1">
+                  <div class="font-semibold text-sm">Batido de proteína</div>
+                  <div class="text-xs text-lo">${planHoy.batidos_dia} batido${planHoy.batidos_dia>1?'s':''}/día · ${planHoy.batidos_dia*24}g prot · 30g Whey + agua o leche</div>
+                </div>
+              </div>
+            </div>`;
+          })() : ''}
+        ` : `
+          <div style="border:1px solid var(--border);border-radius:var(--r-lg);padding:16px;text-align:center;color:var(--text-lo)">
+            <div class="text-sm mb-xs">Sin plan esta semana</div>
+            <a href="#cocina" class="text-xs" style="color:var(--primary)">Ir a Cocina → Plan semana</a>
+          </div>
+        `}
+      </div>
 
       <!-- Agua -->
       <div class="card mb-lg">
@@ -3449,6 +3534,23 @@ function renderHoy() {
         Me siento mal o ansioso
       </button>
     </div>`;
+
+  window.toggleComidaHoy = (tipo) => {
+    const h = todayISO();
+    let esNueva = false;
+    State.update(st => {
+      if (!st.cocina.registro_comidas[h]) st.cocina.registro_comidas[h] = {};
+      esNueva = !st.cocina.registro_comidas[h][tipo];
+      st.cocina.registro_comidas[h][tipo] = esNueva;
+    });
+    if (esNueva) XP.add(10, 'Comida del día registrada');
+    renderHoy();
+  };
+
+  window.toggleDetalleComida = (tipo) => {
+    const el = document.getElementById(`detalle-comida-${tipo}`);
+    if (el) el.style.display = el.style.display === 'none' ? '' : 'none';
+  };
 
   window.toggleVasoHoy = (n) => {
     const h = todayISO();
