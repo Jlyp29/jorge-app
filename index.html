@@ -1398,6 +1398,7 @@ const State = (() => {
     best_possible_self:[],
     gratitud:[],
     small_wins:[],
+    deleted_habit_ids:[],
     emociones_pre_procrastinacion:[],
     insights:[],
     metas_5y:{
@@ -1426,6 +1427,7 @@ const State = (() => {
       hito1: { sueldo_actual_clp: 1937500, target_bruto_clp: 2360000, target_liquido_clp: 2000000, meses_consecutivos_req: 3, colchon_meses_req: 3 },
       hito2: { target_usd_acumulado: 50000 },
     },
+    agenda: { bloques: defaultBloques() },
     finanzas: {
       meta_ahorro_pct: 18,
       ingreso_fijo_clp: 1937500,
@@ -1497,9 +1499,10 @@ const State = (() => {
     if (!data.experimentos) data.experimentos = [];
     if (!data.fase0_checklist) data.fase0_checklist = defaults().fase0_checklist;
     if (!data.habits || !data.habits.length) data.habits = defaultHabits();
-    // Agregar hábitos nuevos del sistema que no existen aún en el usuario
+    // Agregar hábitos nuevos del sistema que no existen aún (salvo los que el usuario borró)
+    if (!Array.isArray(data.deleted_habit_ids)) data.deleted_habit_ids = [];
     defaultHabits().forEach(def => {
-      if (!data.habits.find(h => h.id === def.id)) data.habits.push({ ...def });
+      if (!data.deleted_habit_ids.includes(def.id) && !data.habits.find(h => h.id === def.id)) data.habits.push({ ...def });
     });
     if (!data.fisico) data.fisico = defaults().fisico;
     if (!data.fisico.agua) data.fisico.agua = {};
@@ -1529,6 +1532,10 @@ const State = (() => {
     else defaultSprints().forEach(def => { if (!data.roadmap.sprints.find(sp => sp.id === def.id)) data.roadmap.sprints.push({ ...def, estado:'pendiente' }); });
     if (!data.roadmap.sprint_actual_id) data.roadmap.sprint_actual_id = data.roadmap.sprints[0]?.id || 's0';
     if (!data.hitos) data.hitos = defaults().hitos;
+    // Agenda diaria (idempotente; agrega bloques nuevos del sistema sin pisar los editados)
+    if (!data.agenda) data.agenda = defaults().agenda;
+    if (!Array.isArray(data.agenda.bloques) || !data.agenda.bloques.length) data.agenda.bloques = defaultBloques();
+    else defaultBloques().forEach(def => { if (!data.agenda.bloques.find(bl => bl.id === def.id)) data.agenda.bloques.push({ ...def }); });
     if (!data.metas_5y) data.metas_5y = defaults().metas_5y;
     // Agregar campos nuevos de metas_5y sin pisar los que ya existen
     const dm = defaults().metas_5y;
@@ -1611,7 +1618,7 @@ const State = (() => {
       ['fisico','sesiones'], ['fisico','mediciones'], ['fisico','nutricion'],
       ['journal'], ['insights'], ['revisiones_semanales'], ['finanzas','mensual'],
       ['finanzas','gastos_fijos'], ['protocols_log'], ['accountability_checkins'],
-      ['roadmap','sprints'],
+      ['roadmap','sprints'], ['agenda','bloques'],
     ];
     mustBeArrays.forEach(keys => {
       let obj = data;
@@ -2153,6 +2160,26 @@ function getSprintActual(s) {
   const r = s.roadmap || {};
   return (r.sprints || []).find(x => x.id === r.sprint_actual_id) || (r.sprints || [])[0] || null;
 }
+/* ═══════════════════════════════════════════════════════════
+   AGENDA DIARIA — bloques de hora editables (rutina del día)
+═══════════════════════════════════════════════════════════ */
+// dias: 'diario' o array de números de día [1..7] (1=lunes … 7=domingo). habit_id enlaza el bloque a un hábito.
+function defaultBloques() {
+  const b = (id, hora, titulo, tipo, icono, habit_id = null, dias = 'diario') => ({ id, hora, titulo, tipo, icono, habit_id, dias, recordar: true });
+  return [
+    b('ag1', '06:30', 'Despertar + hacer la cama', 'rutina', '🛏️', 'h5'),
+    b('ag2', '06:45', 'Suplementos + café', 'rutina', '💊', 'h7'),
+    b('ag3', '07:00', 'Deep Work Vant', 'trabajo', '💻', 'h2'),
+    b('ag4', '08:00', 'Desayuno', 'comida', '🌅'),
+    b('ag5', '13:00', 'Almuerzo + Omega-3', 'comida', '☀️', 'h8'),
+    b('ag6', '19:00', 'Entrenamiento', 'cuerpo', '🏋️', 'h3'),
+    b('ag7', '20:00', 'Cena', 'comida', '🌙'),
+    b('ag8', '21:00', 'Lectura', 'lectura', '📖', 'h4'),
+    b('ag9', '22:00', 'Magnesio', 'rutina', '🌿', 'h9'),
+    b('ag10', '22:30', 'Dormir', 'sueño', '😴', 'h1'),
+    b('ag11', '11:00', 'Sesión de cocina / meal prep', 'cocina', '🍳', null, [7]),
+  ];
+}
 // Micro-victoria diaria: guarda en small_wins, suma XP una vez, y si tiene tipo la registra
 // también en el embudo de Vant (sin doble XP).
 function logMicroVictoria(txt, tipo, sprintId) {
@@ -2206,6 +2233,44 @@ function renderMicroVictoriasHoy(s) {
       ${racha > 0 ? `<div class="text-xs mt-md" style="color:var(--primary)">🔥 ${racha} día${racha !== 1 ? 's' : ''} seguidos avanzando</div>` : ''}
       <button class="btn btn-secondary btn-block mt-md" onclick="openMicroVictoriaModal()">+ Registrar otro avance</button>
     </div>`;
+}
+
+// Timeline del día en #hoy (colapsable): bloques de hoy + "ahora toca" + recordatorio/editar
+function renderAgendaHoy(s) {
+  const dow = new Date().getDay() || 7;
+  const ahora = new Date().getHours() * 60 + new Date().getMinutes();
+  const toMin = h => { const [hh, mm] = (h || '0:0').split(':').map(Number); return hh * 60 + (mm || 0); };
+  const bloques = ((s.agenda && s.agenda.bloques) || [])
+    .filter(bl => bl.dias === 'diario' || (Array.isArray(bl.dias) && bl.dias.includes(dow)))
+    .slice().sort((a, b) => toMin(a.hora) - toMin(b.hora));
+  const proximo = bloques.find(bl => toMin(bl.hora) >= ahora);
+  return `
+    <details class="card" style="padding:12px 14px">
+      <summary style="cursor:pointer;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <span class="font-semibold text-sm" style="min-width:0">🗓️ Mi día${proximo ? ` · ahora: ${proximo.icono} ${esc(proximo.titulo)} (${proximo.hora})` : ''}</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div style="margin-top:12px">
+        ${bloques.map(bl => {
+          const h = bl.habit_id ? s.habits.find(x => x.id === bl.habit_id) : null;
+          const hecho = h && (h.completions || []).includes(today());
+          const esProximo = proximo && bl.id === proximo.id;
+          return `<div class="row-between" style="padding:7px 6px;border-bottom:1px solid var(--border);${esProximo ? 'background:var(--primary-glow);border-radius:6px' : ''}">
+            <div style="display:flex;gap:8px;align-items:center;min-width:0">
+              <span class="num text-xs" style="color:var(--text-lo);width:38px;flex-shrink:0">${bl.hora}</span>
+              <span style="flex-shrink:0">${bl.icono || '⏰'}</span>
+              <span class="text-sm" style="${hecho ? 'text-decoration:line-through;color:var(--text-lo)' : ''};overflow:hidden;text-overflow:ellipsis">${esc(bl.titulo)}</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-shrink:0">
+              <button onclick="toggleBloqueRecordar('${bl.id}')" title="Recordatorio" style="background:none;border:none;cursor:pointer;font-size:13px;opacity:${bl.recordar ? 1 : 0.3}">🔔</button>
+              <button onclick="editBloque('${bl.id}')" title="Editar" style="background:none;border:none;cursor:pointer;font-size:12px;color:var(--text-lo)">✎</button>
+            </div>
+          </div>`;
+        }).join('')}
+        <button class="btn btn-ghost btn-sm btn-block mt-md" onclick="addBloqueModal()">+ Agregar bloque</button>
+        <div class="text-xs text-lo mt-sm" style="text-align:center;line-height:1.4">Los recordatorios 🔔 llegan a su hora si la app está abierta o instalada. (Sin servidor no hay aviso con la app cerrada.)</div>
+      </div>
+    </details>`;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -3592,6 +3657,9 @@ function renderHoy() {
       <!-- Ejecución diaria: micro-victorias del sprint -->
       ${renderMicroVictoriasHoy(s)}
 
+      <!-- Agenda del día -->
+      <div class="hoy-section">${renderAgendaHoy(s)}</div>
+
       <!-- Hábitos core -->
       <div class="stack stack-md mb-lg" id="habits-list">
         ${coreHabits.map(h => renderHabitCard(h, h.completions.includes(today()), 0)).join('')}
@@ -4029,6 +4097,55 @@ function wireHabitChecks() {
   };
 
   window.toggleSprintTareaHoy = (sprintId, tareaId) => { setTareaDone(sprintId, tareaId); renderHoy(); };
+
+  const _reprogramarNotifs = () => { try { if (typeof Notifs !== 'undefined' && Notifs.schedule) Notifs.schedule(State.get()); } catch (e) {} };
+  window.toggleBloqueRecordar = (id) => {
+    State.update(st => { const bl = (st.agenda.bloques || []).find(b => b.id === id); if (bl) bl.recordar = !bl.recordar; });
+    _reprogramarNotifs(); renderHoy();
+  };
+  window.editBloque = (id) => {
+    const bl = (State.get().agenda.bloques || []).find(b => b.id === id); if (!bl) return;
+    UI.modal({
+      title: 'Editar bloque',
+      body: `<div class="stack stack-md">
+        <div class="field"><label>Hora</label><input id="bl-hora" class="input" type="time" value="${bl.hora}"></div>
+        <div class="field"><label>Nombre</label><input id="bl-titulo" class="input" value="${esc(bl.titulo)}"></div>
+        <div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input id="bl-recordar" type="checkbox" ${bl.recordar ? 'checked' : ''}> Recordarme a esta hora</label></div>
+      </div>`,
+      actions: [
+        { label: 'Guardar', action: () => {
+          const hora = document.getElementById('bl-hora')?.value || bl.hora;
+          const titulo = document.getElementById('bl-titulo')?.value.trim() || bl.titulo;
+          const recordar = !!document.getElementById('bl-recordar')?.checked;
+          State.update(st => { const b = st.agenda.bloques.find(x => x.id === id); if (b) { b.hora = hora; b.titulo = titulo; b.recordar = recordar; } });
+          _reprogramarNotifs(); UI.toast('Bloque actualizado', 'success'); renderHoy();
+        }},
+        { label: 'Eliminar', action: () => { State.update(st => { st.agenda.bloques = (st.agenda.bloques || []).filter(x => x.id !== id); }); _reprogramarNotifs(); UI.toast('Bloque eliminado'); renderHoy(); } },
+        { label: 'Cancelar', action: () => {} },
+      ],
+    });
+  };
+  window.addBloqueModal = () => {
+    UI.modal({
+      title: 'Nuevo bloque',
+      body: `<div class="stack stack-md">
+        <div class="field"><label>Hora</label><input id="bl-hora" class="input" type="time" value="12:00"></div>
+        <div class="field"><label>Nombre</label><input id="bl-titulo" class="input" placeholder="ej. Pausa / caminar"></div>
+        <div class="field"><label style="display:flex;gap:8px;align-items:center;cursor:pointer"><input id="bl-recordar" type="checkbox" checked> Recordarme a esta hora</label></div>
+      </div>`,
+      actions: [
+        { label: 'Agregar', action: () => {
+          const hora = document.getElementById('bl-hora')?.value || '12:00';
+          const titulo = document.getElementById('bl-titulo')?.value.trim();
+          if (!titulo) { UI.toast('Ponle un nombre', 'warn'); return false; }
+          const recordar = !!document.getElementById('bl-recordar')?.checked;
+          State.update(st => { st.agenda.bloques.push({ id: 'ag' + Date.now(), hora, titulo, tipo: 'custom', icono: '⏰', habit_id: null, dias: 'diario', recordar }); });
+          _reprogramarNotifs(); UI.toast('Bloque agregado', 'success'); renderHoy();
+        }},
+        { label: 'Cancelar', action: () => {} },
+      ],
+    });
+  };
 
   window.openMicroVictoriaModal = (sprintId) => {
     const sp = getSprintActual(State.get());
@@ -8246,63 +8363,26 @@ const Notifs = (() => {
   // Las condiciones se evalúan EN ESTE MOMENTO — el SW las dispara a su hora sin volver a chequear.
   function buildSchedule(s) {
     const notifs = [];
-    const nombre = s.profile.nombre ? `, ${s.profile.nombre}` : '';
     const todayStr = today();
-    const coreIds = ['h1','h2','h3'];
-
+    const dow = new Date().getDay() || 7; // 1=lunes … 7=domingo
     function addAt(hh, mm, title, body, tag) {
       const t = new Date(); t.setHours(hh, mm, 0, 0);
       const ms = t.getTime() - Date.now();
       if (ms > 0) notifs.push({ fireAt: t.getTime(), title, body, tag });
     }
-
-    // ☀️ 08:00 — Buenos días
-    addAt(8, 0, 'MI SISTEMA', `Buenos días${nombre}. Arranca con tus hábitos tiny.`, 'buenos-dias');
-
-    // 💧 13:00 — Agua mediodía (solo si llevas menos de 4 vasos)
-    {
-      const vasos = s.fisico?.agua?.[todayStr] || 0;
-      if (vasos < 4) {
-        addAt(13, 0, '💧 Agua', `Llevas ${vasos} vaso${vasos === 1 ? '' : 's'}. Meta: 8. A mitad del día, mitad del camino.`, 'agua-mediodia');
-      }
-    }
-
-    // 🏋️ 19:00 — Entreno (solo si h3 no está marcado)
-    {
-      const h3 = s.habits.find(h => h.id === 'h3');
-      if (h3 && !h3.completions.includes(todayStr)) {
-        addAt(19, 0, '🏋️ Entrenamiento', '¿Ya entrenaste? La versión tiny cuenta igual — 2 min de activación.', 'entreno-19h');
-      }
-    }
-
-    // 💊 20:00 — Magnesio noche (solo si h9 no está marcado)
-    {
-      const h9 = s.habits.find(h => h.id === 'h9');
-      if (h9 && !h9.completions.includes(todayStr)) {
-        addAt(20, 0, '💊 Suplementos', 'Magnesio antes de dormir. Últimos 5 minutos del hábito de hoy.', 'suplementos-noche');
-      }
-    }
-
-    // 💧 20:30 — Agua noche (solo si llevas menos de 6 vasos)
-    {
-      const vasos = s.fisico?.agua?.[todayStr] || 0;
-      if (vasos < 6) {
-        addAt(20, 30, '💧 Agua', `Terminás el día con ${vasos} vasos. Tómate 2 más antes de cerrar la noche.`, 'agua-noche');
-      }
-    }
-
-    // 🔄 Mañana 08:00 — Comeback (si fallaste algún hábito core ayer)
-    {
-      const t = new Date(); t.setDate(t.getDate() + 1); t.setHours(8, 0, 0, 0);
-      const ms = t.getTime() - Date.now();
-      if (ms > 0) {
-        const d = new Date(); d.setDate(d.getDate() - 1);
-        const ayer = dateStr(d);
-        const fallaste = s.habits.some(h => coreIds.includes(h.id) && !h.completions.includes(ayer));
-        if (fallaste) notifs.push({ fireAt: t.getTime(), title: 'MI SISTEMA', body: 'Ayer se pasó. Hoy está aquí. Versión mínima cuenta.', tag: 'comeback' });
-      }
-    }
-
+    // Recordatorios desde la AGENDA (horas editables por el usuario, ya no hardcodeadas)
+    const bloques = (s.agenda && s.agenda.bloques) || [];
+    bloques.forEach(bl => {
+      if (!bl.recordar) return;
+      if (Array.isArray(bl.dias) && !bl.dias.includes(dow)) return;
+      if (bl.habit_id) { const h = s.habits.find(x => x.id === bl.habit_id); if (h && (h.completions || []).includes(todayStr)) return; }
+      const parts = (bl.hora || '08:00').split(':'); const hh = +parts[0], mm = +parts[1] || 0;
+      addAt(hh, mm, `${bl.icono || '⏰'} ${bl.titulo}`, bl.habit_id ? 'Cuando lo hagas, márcalo en la app.' : 'Es la hora.', 'ag-' + bl.id);
+    });
+    // 💧 Agua mediodía (dinámico: depende de cuántos vasos llevas)
+    { const vasos = s.fisico?.agua?.[todayStr] || 0; if (vasos < 4) addAt(13, 30, '💧 Agua', `Llevas ${vasos} vaso${vasos === 1 ? '' : 's'}. Meta: 8.`, 'agua-mediodia'); }
+    // 🌙 Cierre del día (si no registró su check rápido)
+    { const j = (s.journal || []).find(x => x.fecha === todayStr && x.tipo === 'quick'); if (!j) addAt(21, 30, '🌙 Cierre', 'Una línea sobre tu día. ¿Cómo te fue?', 'cierre-dia'); }
     return notifs;
   }
 
