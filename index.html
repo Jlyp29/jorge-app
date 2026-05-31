@@ -4002,6 +4002,39 @@ function wireHabitChecks() {
     });
   };
 
+  window.openMicroVictoriaModal = (sprintId) => {
+    const sp = getSprintActual(State.get());
+    const opts = area => Object.entries(VANT_OUTPUTS).filter(([,o]) => o.area === area)
+      .map(([k,o]) => `<option value="${k}">${o.emoji} ${o.label} (+${o.xp} XP)</option>`).join('');
+    UI.modal({
+      title: 'Micro-victoria',
+      body: `<div class="stack stack-md">
+        ${sp ? `<p class="text-xs text-lo">Sprint: <strong>${esc(sp.nombre)}</strong></p>` : ''}
+        <div class="field"><label>¿Qué hiciste? (una acción real hacia tu sprint)</label>
+          <input id="mv-txt" class="input" placeholder="ej. Mandé 5 DMs a tiendas de ML"></div>
+        <div class="field"><label>¿Cuenta como output de Vant? (opcional)</label>
+          <select id="mv-tipo" class="input">
+            <option value="">— Solo micro-victoria (+15 XP)</option>
+            <optgroup label="Servicios">${opts('servicios')}</optgroup>
+            <optgroup label="SaaS">${opts('saas')}</optgroup>
+          </select>
+          <div class="hint">Si es outreach, propuesta o llamada, también suma a tu embudo de Vant.</div>
+        </div>
+      </div>`,
+      actions: [
+        { label: 'Registrar', action: () => {
+          const txt = document.getElementById('mv-txt')?.value.trim();
+          if (!txt) { UI.toast('Escribe qué hiciste', 'warn'); return false; }
+          const tipo = document.getElementById('mv-tipo')?.value || '';
+          const xp = logMicroVictoria(txt, tipo, sprintId || (sp && sp.id) || null);
+          UI.confetti(15); UI.toast(`+${xp} XP · ¡bien!`, 'success');
+          renderHoy();
+        }},
+        { label: 'Cancelar', action: () => {} },
+      ],
+    });
+  };
+
   window.addWinField = () => {
     const list = document.getElementById('wins-list');
     if (!list || list.children.length >= 5) return;
