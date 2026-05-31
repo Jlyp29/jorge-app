@@ -1446,6 +1446,20 @@ const State = (() => {
         { id: 'hogar',        nombre: 'Hogar / varios', icono: '🏠', limite_clp: 35000 },
       ],
       mensual: [],
+      // Motor de reglas que aprende: {match (nombre normalizado), destino:'variable'|'fijo'|'ignorar', catId/nombre, concepto}
+      reglas: [
+        { match:'jumbo', destino:'variable', catId:'alimentacion' },
+        { match:'lider', destino:'variable', catId:'alimentacion' },
+        { match:'unimarc', destino:'variable', catId:'alimentacion' },
+        { match:'santa isabel', destino:'variable', catId:'alimentacion' },
+        { match:'uber', destino:'variable', catId:'transporte' },
+        { match:'copec', destino:'variable', catId:'transporte' },
+        { match:'shell', destino:'variable', catId:'transporte' },
+        { match:'farmacia', destino:'variable', catId:'personal' },
+        { match:'cruz verde', destino:'variable', catId:'personal' },
+        { match:'sodimac', destino:'variable', catId:'hogar' },
+      ],
+      import_log: [],
     },
     cocina: {
       favoritas: [],
@@ -1561,12 +1575,16 @@ const State = (() => {
     if (data.finanzas.ahorro_target_clp === undefined) data.finanzas.ahorro_target_clp = defaults().finanzas.ahorro_target_clp;
     if (!data.finanzas.presupuesto) data.finanzas.presupuesto = defaults().finanzas.presupuesto;
     if (data.finanzas.gastos_fijos.length === 0) data.finanzas.gastos_fijos = defaults().finanzas.gastos_fijos;
+    // Importador de cartola: reglas que aprende + log + movimientos por mes (para dedupe/trazabilidad)
+    if (!Array.isArray(data.finanzas.reglas)) data.finanzas.reglas = defaults().finanzas.reglas;
+    if (!Array.isArray(data.finanzas.import_log)) data.finanzas.import_log = [];
     data.finanzas.mensual = (data.finanzas.mensual || []).map(m => {
       if (!m.categorias) {
         const cats = {};
         (data.finanzas.presupuesto || []).forEach(p => { cats[p.id] = 0; });
         m.categorias = cats;
       }
+      if (!Array.isArray(m.movimientos)) m.movimientos = [];
       return m;
     });
     // Meta de proteína: bajar el default viejo (175) al nuevo (150). Respeta cualquier valor personalizado.
@@ -6075,6 +6093,100 @@ const InsightsEngine = (() => {
 /* ═══════════════════════════════════════════════════════════
    VISTA: FINANZAS
 ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════
+   IMPORTADOR DE CARTOLA PDF (banco) + motor de reglas
+═══════════════════════════════════════════════════════════ */
+// Normaliza texto para comparar: minúsculas, sin tildes, sin espacios extra.
+function _norm(s) {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim();
+}
+// "$12.345", "-12.345", "(1.234)", "12.345,50" → número (CLP, gasto positivo)
+function parseMontoCLP(str) {
+  if (str == null) return NaN;
+  let s = String(str).trim();
+  const neg = /^-/.test(s) || /^\(.*\)$/.test(s);
+  s = s.replace(/[()]/g, '').replace(/\$/g, '').replace(/\s/g, '').replace(/[a-zA-Z]/g, '');
+  // separadores: punto = miles, coma = decimal (formato CLP)
+  if (s.includes(',')) s = s.replace(/\./g, '').replace(',', '.');
+  else s = s.replace(/\./g, '');
+  const n = parseFloat(s);
+  if (isNaN(n)) return NaN;
+  return neg ? -Math.abs(n) : n;
+}
+// "31/05/2026", "31-05-26", "2026-05-31", "31 may 2026", "31 de mayo" → "YYYY-MM-DD" (o '' si no parsea)
+function parseFechaCL(str, anioFallback) {
+  if (!str) return '';
+  const s = _norm(str);
+  let m = s.match(/(\d{4})[\/\-.](\d{1,2})[\/\-.](\d{1,2})/); // yyyy-mm-dd
+  if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  m = s.match(/(\d{1,2})[\/\-.](\d{1,2})[\/\-.](\d{2,4})/); // dd-mm-yyyy
+  if (m) { let y = m[3]; if (y.length === 2) y = '20' + y; return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+  const meses = { ene:'01', feb:'02', mar:'03', abr:'04', may:'05', jun:'06', jul:'07', ago:'08', sep:'09', oct:'10', nov:'11', dic:'12' };
+  m = s.match(/(\d{1,2})\s*(?:de\s*)?([a-z]{3})[a-z]*\.?\s*(?:de\s*)?(\d{4})?/); // 31 may 2026 / 31 de mayo
+  if (m && meses[m[2]]) { const y = m[3] || anioFallback || String(new Date().getFullYear()); return `${y}-${meses[m[2]]}-${m[1].padStart(2,'0')}`; }
+  return '';
+}
+// Parser por PATRÓN de línea (tolerante a formatos de banco): fecha al inicio, monto al final.
+function parseMovimientosCartola(texto, opts = {}) {
+  const anio = opts.anio || String(new Date().getFullYear());
+  const lineas = String(texto || '').split('\n').map(l => l.trim()).filter(Boolean);
+  const reFecha = /^(\d{1,2}[\/\-.]\d{1,2}[\/\-.]\d{2,4}|\d{4}[\/\-.]\d{1,2}[\/\-.]\d{1,2}|\d{1,2}\s*(?:de\s*)?[a-zA-ZáéíóúñÁ]{3,}\.?\s*\d{0,4})/;
+  const reMonto = /-?\$?\s?\(?\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?\)?|-?\$\s?\d+/g;
+  const movs = [];
+  for (const linea of lineas) {
+    const mf = linea.match(reFecha);
+    if (!mf) continue;
+    const fecha = parseFechaCL(mf[1], anio);
+    if (!fecha) continue;
+    const montos = linea.match(reMonto);
+    if (!montos || !montos.length) continue;
+    const montoRaw = montos[montos.length - 1]; // último número = monto del movimiento (saldo iría aparte)
+    const monto = parseMontoCLP(montoRaw);
+    if (isNaN(monto) || monto === 0) continue;
+    let desc = linea.replace(mf[1], '');
+    montos.forEach(mm => { desc = desc.replace(mm, ''); });
+    desc = desc.replace(/\s+/g, ' ').replace(/^[\s|.-]+|[\s|.-]+$/g, '').trim();
+    movs.push({ fecha, desc: desc || '(sin descripción)', monto: Math.abs(monto), tipo: monto < 0 ? 'cargo' : 'abono', raw: linea });
+  }
+  return movs;
+}
+// Aplica las reglas aprendidas a una descripción. Devuelve {destino, catId, concepto} o null.
+function clasificarMovimiento(desc, reglas) {
+  const d = _norm(desc);
+  for (const r of (reglas || [])) { if (r.match && d.includes(_norm(r.match))) return r; }
+  return null;
+}
+// Carga PDF.js on-demand (UMD vía CDN; cacheado por el SW para offline).
+const PDFJS_URL = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js';
+const PDFJS_WORKER = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+function cargarPdfJs() {
+  return new Promise((resolve, reject) => {
+    if (window.pdfjsLib) return resolve(window.pdfjsLib);
+    const sc = document.createElement('script');
+    sc.src = PDFJS_URL;
+    sc.onload = () => { try { window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER; resolve(window.pdfjsLib); } catch (e) { reject(e); } };
+    sc.onerror = () => reject(new Error('No se pudo cargar el lector de PDF (¿sin conexión la primera vez?).'));
+    document.head.appendChild(sc);
+  });
+}
+// Extrae texto del PDF reconstruyendo líneas por coordenada Y.
+async function extraerTextoPDF(file) {
+  const lib = await cargarPdfJs();
+  const buf = await file.arrayBuffer();
+  const pdf = await lib.getDocument({ data: buf }).promise;
+  let texto = '';
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const content = await page.getTextContent();
+    const filas = {};
+    content.items.forEach(it => { const y = Math.round(it.transform[5]); (filas[y] = filas[y] || []).push(it); });
+    Object.keys(filas).sort((a, b) => b - a).forEach(y => {
+      texto += filas[y].sort((a, b) => a.transform[4] - b.transform[4]).map(i => i.str).join(' ').replace(/\s+/g, ' ').trim() + '\n';
+    });
+  }
+  return texto;
+}
+
 function renderFinanzas() {
   const s = State.get();
   const mes = monthStr();
@@ -6170,6 +6282,8 @@ function renderFinanzas() {
           </div>
         </div>
         <button class="btn btn-secondary btn-block mt-md" onclick="agregarGastoFijo()">+ Agregar gasto fijo</button>
+      <button class="btn btn-block btn-secondary" onclick="document.getElementById('cartola-file').click()" style="margin-top:10px">📄 Subir cartola (PDF) del banco</button>
+      <input type="file" id="cartola-file" accept=".pdf,application/pdf" style="display:none" onchange="onCartolaFile(this)">
       </div>
 
       <!-- PRESUPUESTO VARIABLES -->

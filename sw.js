@@ -1,4 +1,4 @@
-const CACHE = 'misistema-v3.23.0';
+const CACHE = 'misistema-v3.24.0';
 const SHELL = [
   './',
   './index.html',
@@ -6,6 +6,8 @@ const SHELL = [
 ];
 const REMOTE = [
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js',
+  'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js',
 ];
 
 self.addEventListener('install', e => {
