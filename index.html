@@ -1421,6 +1421,11 @@ const State = (() => {
     fresh_start_triggers:[],
     revisiones_semanales:[],
     revisiones_mensuales:[],
+    roadmap: { sprint_actual_id: 's0', sprints: defaultSprints() },
+    hitos: {
+      hito1: { sueldo_actual_clp: 1937500, target_bruto_clp: 2360000, target_liquido_clp: 2000000, meses_consecutivos_req: 3, colchon_meses_req: 3 },
+      hito2: { target_usd_acumulado: 50000 },
+    },
     finanzas: {
       meta_ahorro_pct: 18,
       ingreso_fijo_clp: 1937500,
@@ -1518,6 +1523,12 @@ const State = (() => {
     if (data.onboarding_done === undefined) data.onboarding_done = false;
     if (!data.revisiones_semanales) data.revisiones_semanales = [];
     if (!data.revisiones_mensuales) data.revisiones_mensuales = [];
+    // Roadmap por sprints + hitos (idempotente; agrega sprints nuevos del sistema sin pisar ediciones)
+    if (!data.roadmap) data.roadmap = defaults().roadmap;
+    if (!Array.isArray(data.roadmap.sprints) || !data.roadmap.sprints.length) data.roadmap.sprints = defaultSprints();
+    else defaultSprints().forEach(def => { if (!data.roadmap.sprints.find(sp => sp.id === def.id)) data.roadmap.sprints.push({ ...def, estado:'pendiente' }); });
+    if (!data.roadmap.sprint_actual_id) data.roadmap.sprint_actual_id = data.roadmap.sprints[0]?.id || 's0';
+    if (!data.hitos) data.hitos = defaults().hitos;
     if (!data.metas_5y) data.metas_5y = defaults().metas_5y;
     // Agregar campos nuevos de metas_5y sin pisar los que ya existen
     const dm = defaults().metas_5y;
@@ -1600,6 +1611,7 @@ const State = (() => {
       ['fisico','sesiones'], ['fisico','mediciones'], ['fisico','nutricion'],
       ['journal'], ['insights'], ['revisiones_semanales'], ['finanzas','mensual'],
       ['finanzas','gastos_fijos'], ['protocols_log'], ['accountability_checkins'],
+      ['roadmap','sprints'],
     ];
     mustBeArrays.forEach(keys => {
       let obj = data;
@@ -2034,7 +2046,7 @@ const Router = (() => {
 
   function updateNav(hash) {
     // vant y finanzas ahora viven bajo resultados
-    const normalised = (hash === 'vant' || hash === 'sinergy' || hash === 'finanzas') ? 'resultados' : hash;
+    const normalised = (hash === 'vant' || hash === 'sinergy' || hash === 'roadmap' || hash === 'finanzas') ? 'resultados' : hash;
     document.querySelectorAll('.nav-tab').forEach(t => {
       t.classList.toggle('active', normalised.startsWith(t.dataset.route));
     });
@@ -2101,6 +2113,76 @@ function vantIngresoMes(md) {
   if (!md) return 0;
   const v = (md.ingresos_servicios_clp || 0) + (md.ingresos_saas_clp || 0);
   return v > 0 ? v : (md.ingresos_empresa_clp || 0);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ROADMAP POR SPRINTS — plan de negocio editable
+═══════════════════════════════════════════════════════════ */
+// Pre-cargado pero EDITABLE. La lógica nunca referencia un id literal: opera por
+// sprint_actual_id / índice / campos genéricos. hito:'hito1'|'hito2' conecta el gate financiero.
+function defaultSprints() {
+  const t = (id, txt) => ({ id, txt, done: false });
+  return [
+    { id:'s0', nombre:'Sprint 0 · Cimientos', rango:'Semana 1-2', hito:null, estado:'activo', fecha_inicio:null, fecha_fin:null,
+      objetivo:'Dejar todo listo para poder vender y construir.',
+      tareas:[ t('t1','Inicio de actividades en SII + boletas de honorarios'), t('t2','Abrir y verificar Wise + Payoneer'), t('t3','Perfiles afilados en Upwork, Workana y LinkedIn'), t('t4','Repo base del SaaS con Claude Code'), t('t5','Escribir 1 oferta productizada (1 servicio, 1 precio, 1 entregable)') ],
+      metrica_exito:'Todo lo de la lista hecho + 1 oferta productizada escrita.', kill_criteria:'' },
+    { id:'s1', nombre:'Sprint 1 · Primera oferta', rango:'Semana 3-4', hito:null, estado:'pendiente', fecha_inicio:null, fecha_fin:null,
+      objetivo:'Salir a vender el primer servicio y construir el primer feature del SaaS con la cuenta real.',
+      tareas:[ t('t1','20-30 mensajes de outreach directo a vendedores ML / PYMEs'), t('t2','Aplicar a 10-15 proyectos en Upwork/Workana'), t('t3','Publicar 1 contenido build-in-public'), t('t4','1er feature SaaS: respuestas a preguntas con IA') ],
+      metrica_exito:'1 llamada de descubrimiento agendada.', kill_criteria:'60 mensajes + 30 propuestas en 3-4 semanas sin UNA llamada → cambiar nicho u oferta (no el esfuerzo).' },
+    { id:'s2_3', nombre:'Sprint 2-3 · Primeros clientes', rango:'Semana 5-8', hito:null, estado:'pendiente', fecha_inicio:null, fecha_fin:null,
+      objetivo:'Cerrar 1-3 clientes de servicios pagados (validación de caja).',
+      tareas:[ t('t1','Convertir llamadas en propuestas de 1 página (problema→solución→precio→garantía)'), t('t2','Cobrar 50% por adelantado siempre'), t('t3','Documentar cada entrega como caso/contenido') ],
+      metrica_exito:'USD 1.000-2.500 cobrados (~$1-2,4M CLP) + 1 testimonio.', kill_criteria:'Llegaste a propuestas pero 0 cierres en 4 semanas → baja ticket de entrada y agrega prueba (tu propia cuenta ML).' },
+    { id:'s4_6', nombre:'Sprint 4-6 · Repetibilidad + MVP SaaS', rango:'Mes 3-4', hito:null, estado:'pendiente', fecha_inicio:null, fecha_fin:null,
+      objetivo:'Estabilizar la caja de servicios y lanzar el SaaS en beta.',
+      tareas:[ t('t1','Subir a 2-4 clientes con componente recurrente (retainer USD 1.500-3.000/mes)'), t('t2','MVP SaaS: preguntas IA + calculadora de rentabilidad + dashboard'), t('t3','Onboarding 1-a-1 con 5-10 usuarios beta'), t('t4','Iniciar certificación en el Centro de Partners de ML') ],
+      metrica_exito:'Caja de servicios ≥ $1,5M CLP/mes y 5-10 usuarios beta del SaaS.', kill_criteria:'Tras MVP + 10 conversaciones nadie (fuera de tu negocio) quiere pagar → pivota el feature antes de invertir más meses.' },
+    { id:'s7_12', nombre:'Sprint 7-12 · Hito 1: reemplazar el sueldo', rango:'Mes 4-7', hito:'hito1', estado:'pendiente', fecha_inicio:null, fecha_fin:null,
+      objetivo:'Alcanzar $2M líquidos/mes estables y construir colchón para dejar el 9-7.',
+      tareas:[ t('t1','Subir tarifas a clientes nuevos y productizar para reducir tiempo/entrega'), t('t2','SaaS de beta a pago (USD 49-79/mes)'), t('t3','Conseguir 10-30 clientes pagados del SaaS') ],
+      metrica_exito:'3 meses seguidos facturando ≥ $2,36M brutos (≈$2M líquidos) + 3 meses de gastos en colchón.', kill_criteria:'A mes 7 (10-15h/sem) sin superar ~$1,2-1,5M → NO renuncies, el modelo necesita más rampa.' },
+    { id:'s13', nombre:'Sprint 13+ · Hito 2: $50K USD acumulados', rango:'Mes 8-24', hito:'hito2', estado:'pendiente', fecha_inicio:null, fecha_fin:null,
+      objetivo:'Acumular USD 50K y/o construir MRR que sostenga el negocio sin servicios.',
+      tareas:[ t('t1','Subcontratar entregas y mantener 4-6 retainers'), t('t2','Llevar el SaaS a USD 3.000-5.000 MRR'), t('t3','Reinvertir excedentes (colchón → herramientas/API → VA part-time)') ],
+      metrica_exito:'USD 50K acumulados o MRR que sostiene el negocio sin servicios.', kill_criteria:'' },
+  ];
+}
+function getSprintActual(s) {
+  const r = s.roadmap || {};
+  return (r.sprints || []).find(x => x.id === r.sprint_actual_id) || (r.sprints || [])[0] || null;
+}
+// Micro-victoria diaria: guarda en small_wins, suma XP una vez, y si tiene tipo la registra
+// también en el embudo de Vant (sin doble XP).
+function logMicroVictoria(txt, tipo, sprintId) {
+  const xp = tipo ? (VANT_OUTPUTS[tipo] ? VANT_OUTPUTS[tipo].xp : 15) : 15;
+  State.update(s => { s.small_wins.unshift({ fecha: todayISO(), wins: [{ txt, sprint_id: sprintId || null, tipo: tipo || null, xp }], setbacks: [], reframe_setback: '' }); });
+  if (tipo) logVantOutput(tipo, txt, sprintId, { skipXp: true });
+  XP.add(xp, 'Micro-victoria');
+  return xp;
+}
+// Bloque de micro-victorias del día en #hoy (ligado al sprint actual + racha)
+function renderMicroVictoriasHoy(s) {
+  const sp = getSprintActual(s);
+  const hoy = todayISO();
+  const fechas = [...new Set((s.small_wins || []).map(w => w.fecha).filter(Boolean))];
+  const racha = (typeof calcLiveStreak === 'function') ? calcLiveStreak(fechas, []) : 0;
+  const hoyWins = (s.small_wins || []).filter(w => w.fecha === hoy)
+    .flatMap(w => (w.wins || []).map(x => typeof x === 'string' ? { txt: x } : x));
+  return `
+    <div class="card mb-md" style="padding:14px 16px">
+      <div class="row-between mb-sm">
+        <span class="font-semibold text-sm">⚡ Micro-victorias de hoy</span>
+        ${sp ? `<button class="btn btn-ghost btn-sm" onclick="Router.navigate('roadmap')" style="font-size:11px;padding:2px 6px">Roadmap →</button>` : ''}
+      </div>
+      ${sp ? `<div class="text-xs text-lo mb-md">${esc(sp.nombre)} — ${esc(sp.objetivo)}</div>` : ''}
+      ${racha > 0 ? `<div class="text-xs mb-sm" style="color:var(--primary)">🔥 ${racha} día${racha !== 1 ? 's' : ''} seguidos registrando</div>` : ''}
+      ${hoyWins.length
+        ? `<div class="stack stack-sm mb-md">${hoyWins.map(w => `<div class="text-sm" style="display:flex;gap:6px"><span style="color:var(--success)">✓</span><span style="flex:1">${esc(w.txt)}${w.xp ? ` <span class="text-xs text-lo">+${w.xp} XP</span>` : ''}</span></div>`).join('')}</div>`
+        : `<div class="text-xs text-lo mb-md">Aún nada hoy. Una acción concreta hacia tu sprint cuenta — empieza por el outreach.</div>`}
+      <button class="btn btn-secondary btn-block" onclick="openMicroVictoriaModal()">+ Registrar micro-victoria</button>
+    </div>`;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -6304,6 +6386,8 @@ function _renderResultadosResumen(body) {
     <div class="section">
       <div class="section-title row-between"><span>${mesNombre}</span><span class="text-xs text-lo">Día ${dia}/${diasMes}</span></div>
 
+      ${renderHito1Card(s)}
+
       <!-- VANT -->
       <div class="card mb-sm" style="padding:14px 16px">
         <div class="row-between mb-sm">
@@ -6381,6 +6465,111 @@ function _renderResultadosResumen(body) {
         ${!finMes.ingreso_clp ? `<div class="text-xs text-lo">Ingresa tus datos del mes en la pestaña Finanzas.</div>` : ''}
       </div>
     </div>`;
+}
+
+function renderHito1Card(s) {
+  const h1 = (s.hitos && s.hitos.hito1) || {};
+  const target = h1.target_bruto_clp || 2360000;
+  const liquido = h1.target_liquido_clp || 2000000;
+  const reqMeses = h1.meses_consecutivos_req || 3;
+  const fmt = n => `$${Math.round(n).toLocaleString('es-CL')}`;
+  const mensual = s.vant.mensual || [];
+  const ingMes = vantIngresoMes(mensual.find(m => m.mes === monthStr()));
+  let consec = 0;
+  for (let i = 0; i < 24; i++) { const d = new Date(); d.setMonth(d.getMonth() - i); const md = mensual.find(x => x.mes === monthStr(d)); if (vantIngresoMes(md) >= target) consec++; else break; }
+  const pct = Math.min(100, Math.round(ingMes / target * 100));
+  const mesesPct = Math.min(100, Math.round(consec / reqMeses * 100));
+  return `
+    <div class="card mb-md" style="padding:14px 16px;border:1.5px solid var(--primary)">
+      <div class="font-semibold text-sm mb-sm">🎯 Hito 1 · Reemplazar el sueldo</div>
+      <div class="text-xs text-lo mb-md">Meta: ${fmt(liquido)} líquidos/mes = facturar ${fmt(target)} brutos (retención boleta 15,25%), ${reqMeses} meses seguidos.</div>
+      <div class="row-between mb-sm"><span class="text-sm">Este mes</span><span class="font-semibold text-sm" style="color:${pct>=100?'var(--success)':'var(--text-md)'}">${fmt(ingMes)} / ${fmt(target)}</span></div>
+      <div class="progress-bar mb-md"><div class="progress-fill" style="width:${pct}%;background:${pct>=100?'var(--success)':'var(--primary)'}"></div></div>
+      <div class="row-between mb-sm"><span class="text-sm">Meses seguidos cumplidos</span><span class="font-semibold text-sm" style="color:${consec>=reqMeses?'var(--success)':'var(--text-md)'}">${consec} / ${reqMeses}</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${mesesPct}%;background:${consec>=reqMeses?'var(--success)':'var(--accent)'}"></div></div>
+      ${consec >= reqMeses ? `<div class="text-xs mt-md" style="color:var(--success)">✓ Gate cumplido: con 3 meses de colchón ya puedes evaluar dejar el 9-7.</div>` : `<div class="text-xs text-lo mt-md">Cuando llegues a ${reqMeses} meses seguidos + 3 de colchón, evalúa el salto.</div>`}
+    </div>`;
+}
+
+function _renderRoadmapTab(body) {
+  const s = State.get();
+  const sprints = (s.roadmap && s.roadmap.sprints) || [];
+  const actual = getSprintActual(s);
+  const ESTADO = { completado:{e:'✓',c:'var(--success)'}, activo:{e:'●',c:'var(--primary)'}, pendiente:{e:'○',c:'var(--text-lo)'} };
+  const tareasHTML = sp => (sp.tareas||[]).map(t => `
+    <div class="row-between" style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <span class="text-sm" style="${t.done?'text-decoration:line-through;color:var(--text-lo)':''};flex:1;padding-right:10px">${esc(t.txt)}</span>
+      <button onclick="toggleSprintTarea('${sp.id}','${t.id}')" style="width:24px;height:24px;border-radius:6px;border:2px solid ${t.done?'var(--success)':'var(--border-strong)'};background:${t.done?'var(--success)':'transparent'};cursor:pointer;flex-shrink:0;color:#fff;font-size:13px">${t.done?'✓':''}</button>
+    </div>`).join('');
+  body.innerHTML = `
+    <div class="section">
+      ${actual ? `
+      <div class="card mb-md" style="padding:16px;border:1.5px solid var(--primary)">
+        <div class="text-xs text-lo font-semibold uppercase mb-sm">Sprint actual</div>
+        <div class="font-semibold" style="font-size:var(--fs-lg)">${esc(actual.nombre)}</div>
+        <div class="text-xs text-lo mb-md">${esc(actual.rango)}</div>
+        <div class="text-sm text-md mb-md">${esc(actual.objetivo)}</div>
+        <div class="text-xs font-semibold text-lo uppercase mb-sm">Tareas (${(actual.tareas||[]).filter(t=>t.done).length}/${(actual.tareas||[]).length})</div>
+        ${tareasHTML(actual)}
+        <div style="margin-top:12px;padding:10px;background:var(--success-glow);border-radius:var(--r-sm)"><div class="text-xs" style="color:var(--success)">🎯 Éxito: ${esc(actual.metrica_exito)}</div></div>
+        ${actual.kill_criteria ? `<details style="margin-top:8px"><summary class="text-xs text-lo" style="cursor:pointer">⚠️ Criterio de corte (cuándo cambiar de táctica)</summary><div class="text-xs mt-sm" style="color:var(--danger)">${esc(actual.kill_criteria)}</div></details>` : ''}
+        <button class="btn btn-primary btn-block mt-md" onclick="avanzarSprint()">Completar y avanzar →</button>
+      </div>
+      ${actual.hito ? renderHito1Card(s) : ''}
+      ` : ''}
+
+      <div class="section-title">Tu camino completo</div>
+      <div class="card" style="padding:6px 0">
+        ${sprints.map((sp) => { const st=ESTADO[sp.estado]||ESTADO.pendiente; const esActual = sp.id===(actual&&actual.id); return `
+          <div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;${esActual?'background:var(--primary-glow)':''}">
+            <span style="color:${st.c};font-size:16px;flex-shrink:0;line-height:1.4">${st.e}</span>
+            <div style="flex:1;min-width:0">
+              <div class="text-sm ${esActual?'font-semibold':''}">${esc(sp.nombre)} ${sp.hito?'🎯':''}</div>
+              <div class="text-xs text-lo">${esc(sp.rango)} · ${(sp.tareas||[]).filter(t=>t.done).length}/${(sp.tareas||[]).length} tareas</div>
+            </div>
+          </div>`; }).join('')}
+      </div>
+      <div class="text-xs text-lo mt-md" style="text-align:center">Tu Sprint 0 ya está cargado. Marca tareas y avanza a tu ritmo.</div>
+    </div>`;
+
+  window.toggleSprintTarea = (sprintId, tareaId) => {
+    let sumXp = false;
+    State.update(st => {
+      const sp = (st.roadmap.sprints||[]).find(x=>x.id===sprintId); if (!sp) return;
+      const t = (sp.tareas||[]).find(x=>x.id===tareaId); if (!t) return;
+      t.done = !t.done; sumXp = t.done;
+    });
+    if (sumXp) { XP.add(20, 'Tarea de sprint'); UI.toast('+20 XP · tarea hecha', 'success'); }
+    renderResultados('roadmap');
+  };
+
+  window.avanzarSprint = () => {
+    const sp = getSprintActual(State.get()); if (!sp) return;
+    const pend = (sp.tareas||[]).filter(t=>!t.done).length;
+    UI.modal({
+      title: 'Avanzar de sprint',
+      body: `<div class="stack stack-md">
+        <p class="text-sm">Vas a completar <strong>${esc(sp.nombre)}</strong> y activar el siguiente.</p>
+        ${pend>0?`<div class="text-xs" style="color:var(--accent)">Te quedan ${pend} tarea(s) sin marcar — puedes avanzar igual.</div>`:''}
+        <div style="padding:10px;background:var(--success-glow);border-radius:var(--r-sm)"><div class="text-xs" style="color:var(--success)">🎯 ${esc(sp.metrica_exito)}</div></div>
+        ${sp.kill_criteria?`<div style="padding:10px;background:#fef3c7;border-radius:var(--r-sm)"><div class="text-xs" style="color:#92400e">⚠️ ${esc(sp.kill_criteria)}</div></div>`:''}
+      </div>`,
+      actions: [
+        { label: 'Completar y avanzar', action: () => {
+          State.update(st => {
+            const arr = st.roadmap.sprints||[];
+            const i = arr.findIndex(x=>x.id===st.roadmap.sprint_actual_id);
+            if (i<0) return;
+            arr[i].estado = 'completado'; arr[i].fecha_fin = todayISO();
+            if (arr[i+1]) { arr[i+1].estado = 'activo'; arr[i+1].fecha_inicio = todayISO(); st.roadmap.sprint_actual_id = arr[i+1].id; }
+          });
+          XP.add(200, 'Sprint completado'); UI.confetti(60); UI.toast('🚀 ¡Sprint completado! +200 XP', 'success', 4000);
+          renderResultados('roadmap');
+        }},
+        { label: 'Cancelar', action: () => {} },
+      ],
+    });
+  };
 }
 
 function _renderResultadosVant(body) {
@@ -8118,6 +8307,7 @@ const App = (() => {
     Router.register('resultados', () => { renderNav(); renderResultados(); });
     Router.register('vant', () => { renderNav(); renderResultados('vant'); });
     Router.register('sinergy', () => { renderNav(); renderResultados('vant'); }); // alias retrocompat
+    Router.register('roadmap', () => { renderNav(); renderResultados('roadmap'); });
     Router.register('finanzas', () => { renderNav(); renderFinanzas(); });
     Router.register('finanzas-resumen', () => { renderNav(); renderResultados('finanzas'); });
     Router.register('diario', () => { renderNav(); renderDiario(); });
