@@ -3566,6 +3566,9 @@ function renderHoy() {
             : `Ayer se pasó. Hoy está aquí. Eso es el sistema funcionando. <strong>+100 XP Comeback.</strong>`}
         </div>` : ''}
 
+      <!-- Ejecución diaria: micro-victorias del sprint -->
+      ${renderMicroVictoriasHoy(s)}
+
       <!-- Hábitos core -->
       <div class="stack stack-md mb-lg" id="habits-list">
         ${coreHabits.map(h => renderHabitCard(h, h.completions.includes(today()), 0)).join('')}
