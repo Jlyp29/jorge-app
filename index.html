@@ -2162,26 +2162,49 @@ function logMicroVictoria(txt, tipo, sprintId) {
   XP.add(xp, 'Micro-victoria');
   return xp;
 }
-// Bloque de micro-victorias del día en #hoy (ligado al sprint actual + racha)
+// Marca/desmarca una tarea de sprint (compartido entre #hoy y Roadmap). +20 XP al completar.
+function setTareaDone(sprintId, tareaId) {
+  let becameDone = false;
+  State.update(st => {
+    const sp = (st.roadmap.sprints || []).find(x => x.id === sprintId); if (!sp) return;
+    const t = (sp.tareas || []).find(x => x.id === tareaId); if (!t) return;
+    t.done = !t.done; becameDone = t.done;
+  });
+  if (becameDone) { XP.add(20, 'Tarea de sprint'); UI.toast('+20 XP · paso hecho', 'success'); }
+  return becameDone;
+}
+// Bloque "paso a paso" del sprint en #hoy: qué te toca ahora + barra de progreso + racha
 function renderMicroVictoriasHoy(s) {
   const sp = getSprintActual(s);
-  const hoy = todayISO();
+  if (!sp) return '';
   const fechas = [...new Set((s.small_wins || []).map(w => w.fecha).filter(Boolean))];
   const racha = (typeof calcLiveStreak === 'function') ? calcLiveStreak(fechas, []) : 0;
-  const hoyWins = (s.small_wins || []).filter(w => w.fecha === hoy)
-    .flatMap(w => (w.wins || []).map(x => typeof x === 'string' ? { txt: x } : x));
+  const tareas = sp.tareas || [];
+  const hechas = tareas.filter(t => t.done).length;
+  const total = tareas.length;
+  const pct = total ? Math.round(hechas / total * 100) : 0;
+  const siguientes = tareas.filter(t => !t.done).slice(0, 2);
+  const completo = total > 0 && hechas === total;
+  const nombreCorto = sp.nombre.replace(/^Sprint[^·]*·\s*/, '');
   return `
-    <div class="card mb-md" style="padding:14px 16px">
+    <div class="card" style="padding:14px 16px;border:1.5px solid var(--primary)">
       <div class="row-between mb-sm">
-        <span class="font-semibold text-sm">⚡ Micro-victorias de hoy</span>
-        ${sp ? `<button class="btn btn-ghost btn-sm" onclick="Router.navigate('roadmap')" style="font-size:11px;padding:2px 6px">Roadmap →</button>` : ''}
+        <span class="font-semibold text-sm">🎯 ${esc(nombreCorto)} — paso a paso</span>
+        <button class="btn btn-ghost btn-sm" onclick="Router.navigate('roadmap')" style="font-size:11px;padding:2px 6px">Roadmap →</button>
       </div>
-      ${sp ? `<div class="text-xs text-lo mb-md">${esc(sp.nombre)} — ${esc(sp.objetivo)}</div>` : ''}
-      ${racha > 0 ? `<div class="text-xs mb-sm" style="color:var(--primary)">🔥 ${racha} día${racha !== 1 ? 's' : ''} seguidos registrando</div>` : ''}
-      ${hoyWins.length
-        ? `<div class="stack stack-sm mb-md">${hoyWins.map(w => `<div class="text-sm" style="display:flex;gap:6px"><span style="color:var(--success)">✓</span><span style="flex:1">${esc(w.txt)}${w.xp ? ` <span class="text-xs text-lo">+${w.xp} XP</span>` : ''}</span></div>`).join('')}</div>`
-        : `<div class="text-xs text-lo mb-md">Aún nada hoy. Una acción concreta hacia tu sprint cuenta — empieza por el outreach.</div>`}
-      <button class="btn btn-secondary btn-block" onclick="openMicroVictoriaModal()">+ Registrar micro-victoria</button>
+      <div class="text-xs text-lo mb-sm">${esc(sp.objetivo)}</div>
+      <div class="row-between mb-sm"><span class="text-xs text-lo">Progreso del sprint</span><span class="text-xs font-semibold" style="color:${pct===100?'var(--success)':'var(--primary)'}">${hechas}/${total}</span></div>
+      <div class="progress-bar mb-md"><div class="progress-fill" style="width:${pct}%;background:${pct===100?'var(--success)':'var(--primary)'};transition:width .4s"></div></div>
+      ${completo
+        ? `<div style="padding:10px;background:var(--success-glow);border-radius:var(--r-sm)"><div class="text-xs" style="color:var(--success)">✓ Terminaste las tareas de este sprint. <button onclick="Router.navigate('roadmap')" style="color:var(--success);text-decoration:underline;background:none;border:none;cursor:pointer;padding:0;font-size:inherit">Avanza al siguiente →</button></div></div>`
+        : `<div class="text-xs font-semibold text-lo uppercase mb-sm">Lo que te toca ahora</div>
+           ${siguientes.map(t => `
+             <div class="row-between" style="padding:9px 0;border-bottom:1px solid var(--border)">
+               <span class="text-sm" style="flex:1;padding-right:10px">${esc(t.txt)}</span>
+               <button onclick="toggleSprintTareaHoy('${sp.id}','${t.id}')" aria-label="Marcar hecho" style="width:26px;height:26px;border-radius:7px;border:2px solid var(--border-strong);background:transparent;cursor:pointer;flex-shrink:0"></button>
+             </div>`).join('')}`}
+      ${racha > 0 ? `<div class="text-xs mt-md" style="color:var(--primary)">🔥 ${racha} día${racha !== 1 ? 's' : ''} seguidos avanzando</div>` : ''}
+      <button class="btn btn-secondary btn-block mt-md" onclick="openMicroVictoriaModal()">+ Registrar otro avance</button>
     </div>`;
 }
 
@@ -4004,6 +4027,8 @@ function wireHabitChecks() {
       }],
     });
   };
+
+  window.toggleSprintTareaHoy = (sprintId, tareaId) => { setTareaDone(sprintId, tareaId); renderHoy(); };
 
   window.openMicroVictoriaModal = (sprintId) => {
     const sp = getSprintActual(State.get());
@@ -6568,16 +6593,7 @@ function _renderRoadmapTab(body) {
       <div class="text-xs text-lo mt-md" style="text-align:center">Tu Sprint 0 ya está cargado. Marca tareas y avanza a tu ritmo.</div>
     </div>`;
 
-  window.toggleSprintTarea = (sprintId, tareaId) => {
-    let sumXp = false;
-    State.update(st => {
-      const sp = (st.roadmap.sprints||[]).find(x=>x.id===sprintId); if (!sp) return;
-      const t = (sp.tareas||[]).find(x=>x.id===tareaId); if (!t) return;
-      t.done = !t.done; sumXp = t.done;
-    });
-    if (sumXp) { XP.add(20, 'Tarea de sprint'); UI.toast('+20 XP · tarea hecha', 'success'); }
-    renderResultados('roadmap');
-  };
+  window.toggleSprintTarea = (sprintId, tareaId) => { setTareaDone(sprintId, tareaId); renderResultados('roadmap'); };
 
   window.avanzarSprint = () => {
     const sp = getSprintActual(State.get()); if (!sp) return;
