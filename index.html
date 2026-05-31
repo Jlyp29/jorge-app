@@ -4358,7 +4358,9 @@ function renderHabitoDetail(h) {
           ? `<button class="btn btn-sm btn-ghost" onclick="scaleHabit('${h.id}','target')">Subir a versión completa</button>`
           : `<button class="btn btn-sm btn-ghost" onclick="scaleHabit('${h.id}','tiny')">Bajar a versión mínima</button>`}
         <button class="btn btn-sm btn-secondary" onclick="useFreeze('${h.id}')">Proteger racha 🧊</button>
-        <button class="btn btn-sm btn-ghost" onclick="editAnchor('${h.id}')">Editar disparador</button>
+        <button class="btn btn-sm btn-ghost" onclick="editAnchor('${h.id}')">Disparador</button>
+        <button class="btn btn-sm btn-ghost" onclick="editHabitModal('${h.id}')">✎ Editar</button>
+        <button class="btn btn-sm btn-ghost" onclick="deleteHabit('${h.id}')" style="color:var(--danger)">Eliminar</button>
       </div>
     </div>`;
 }
@@ -4390,6 +4392,35 @@ window.editAnchor = (id) => {
       if(v) { State.update(s => { const habit = s.habits.find(x=>x.id===id); if(habit) habit.anchor=v; }); UI.toast('Disparador actualizado.','success'); renderHabitos(); }
     }}],
   });
+};
+window.editHabitModal = (id) => {
+  const h = State.get().habits.find(x => x.id === id); if (!h) return;
+  UI.modal({
+    title: 'Editar hábito',
+    body: `<div class="stack stack-md">
+      <div class="field"><label>Nombre</label><input id="eh-nombre" class="input" value="${esc(h.nombre||'')}"></div>
+      <div class="field"><label>Versión mínima (2 min)</label><input id="eh-tiny" class="input" value="${esc(h.version_tiny||'')}"></div>
+      <div class="field"><label>Versión objetivo</label><input id="eh-target" class="input" value="${esc(h.version_target||'')}"></div>
+      <div class="field"><label>Disparador (después de…)</label><input id="eh-anchor" class="input" value="${esc(h.anchor||'')}"></div>
+      <div class="field"><label>Identidad ("Soy alguien que…")</label><input id="eh-ident" class="input" value="${esc(h.identity_tag||'')}"></div>
+    </div>`,
+    actions: [
+      { label: 'Guardar', action: () => {
+        const g = k => (document.getElementById(k)?.value || '').trim();
+        State.update(s => { const hb = s.habits.find(x => x.id === id); if (!hb) return;
+          hb.nombre = g('eh-nombre') || hb.nombre; hb.version_tiny = g('eh-tiny'); hb.version_target = g('eh-target'); hb.anchor = g('eh-anchor'); hb.identity_tag = g('eh-ident'); hb.updatedAt = Date.now(); });
+        UI.toast('Hábito actualizado.', 'success'); renderHabitos();
+      }},
+      { label: 'Cancelar', action: () => {} },
+    ],
+  });
+};
+window.deleteHabit = async (id) => {
+  const h = State.get().habits.find(x => x.id === id); if (!h) return;
+  const ok = await UI.confirm(`¿Eliminar el hábito "${esc(h.nombre)}"? Se pierde su historial y rachas.`, { ok: 'Eliminar', cancel: 'Cancelar' });
+  if (!ok) return;
+  State.update(s => { s.habits = s.habits.filter(x => x.id !== id); if (!Array.isArray(s.deleted_habit_ids)) s.deleted_habit_ids = []; if (!s.deleted_habit_ids.includes(id)) s.deleted_habit_ids.push(id); });
+  UI.toast('Hábito eliminado.'); Router.navigate('habitos');
 };
 window.addHabitoModal = () => {
   UI.modal({
