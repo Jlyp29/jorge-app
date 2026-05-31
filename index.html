@@ -2063,6 +2063,47 @@ const Router = (() => {
    BOTTOM NAV RENDERER
 ═══════════════════════════════════════════════════════════ */
 /* ═══════════════════════════════════════════════════════════
+   VANT — TIPOS DE OUTPUT (fuente única) + helpers
+═══════════════════════════════════════════════════════════ */
+// Modelo: servicios de automatización con IA PRIMERO (caja desde 0), SaaS después.
+const VANT_OUTPUTS = {
+  outreach:     { emoji:'📨', label:'Outreach enviado',         area:'servicios', xp:15,  sub:'Contactaste un prospecto (DM/email)' },
+  propuesta:    { emoji:'📝', label:'Propuesta / aplicación',    area:'servicios', xp:40,  sub:'Mandaste cotización o aplicaste a un proyecto' },
+  llamada:      { emoji:'📞', label:'Llamada de descubrimiento', area:'servicios', xp:80,  sub:'Reunión agendada o realizada' },
+  cliente_serv: { emoji:'🤝', label:'Cliente de servicios',      area:'servicios', xp:400, sub:'Cerraste / cobraste un proyecto' },
+  entrega:      { emoji:'✅', label:'Entrega a cliente',          area:'servicios', xp:60,  sub:'Completaste un hito pagado' },
+  testimonio:   { emoji:'⭐', label:'Testimonio / caso',          area:'servicios', xp:120, sub:'Cliente te dejó review o caso de éxito' },
+  saas_feature: { emoji:'🚀', label:'Feature SaaS a producción',  area:'saas',      xp:150, sub:'Algo nuevo usable en el SaaS' },
+  saas_beta:    { emoji:'🧪', label:'Beta tester sumado',         area:'saas',      xp:80,  sub:'Alguien probando el SaaS' },
+  saas_pago:    { emoji:'💳', label:'Pago SaaS / MRR nuevo',      area:'saas',      xp:300, sub:'Cliente recurrente del SaaS' },
+};
+// Etiquetas legacy (outputs viejos del CRM/ML) — solo para mostrar historial
+const VANT_OUTPUTS_LEGACY = {
+  crm_llamada:'📞 Llamada (CRM)', crm_cliente:'🎉 Cliente (CRM)', crm_feature:'🚀 Feature (CRM)', crm_bug:'🔧 Bug',
+  ml_listing:'🛍️ Listing ML', ml_campaña:'📣 Campaña ML', ml_record:'🏆 Hito ML',
+  llamada_old:'📞 Llamada', cliente_nuevo:'🎉 Cliente', feature:'🚀 Feature', margen_millon:'💰 Millón',
+};
+function vantOutputLabel(tipo) {
+  const o = VANT_OUTPUTS[tipo];
+  return o ? `${o.emoji} ${o.label}` : (VANT_OUTPUTS_LEGACY[tipo] || tipo);
+}
+// Registra un output en el log (fuente de KPIs mensuales) y suma XP una sola vez.
+// skipXp:true cuando el XP ya lo otorgó otra cosa (ej. una micro-victoria ligada).
+function logVantOutput(tipo, detalle, sprintId, opts = {}) {
+  const def = VANT_OUTPUTS[tipo];
+  const xp = opts.skipXp ? 0 : (def ? def.xp : 10);
+  State.update(s => { s.vant.outputs_log.unshift({ fecha: todayISO(), tipo, detalle: detalle || '', xp_ganado: xp, sprint_id: sprintId || null }); });
+  if (xp > 0) XP.add(xp, `Vant: ${def ? def.label : tipo}`);
+  return xp;
+}
+// Ingreso total del mes: servicios + SaaS (con fallback al campo viejo ingresos_empresa_clp)
+function vantIngresoMes(md) {
+  if (!md) return 0;
+  const v = (md.ingresos_servicios_clp || 0) + (md.ingresos_saas_clp || 0);
+  return v > 0 ? v : (md.ingresos_empresa_clp || 0);
+}
+
+/* ═══════════════════════════════════════════════════════════
    RECETAS — BIBLIOTECA CURADA
 ═══════════════════════════════════════════════════════════ */
 function defaultRecetas() {
@@ -3820,29 +3861,22 @@ function wireHabitChecks() {
   };
 
   window.openOutputModal = () => {
+    const opts = area => Object.entries(VANT_OUTPUTS).filter(([,o]) => o.area === area)
+      .map(([k,o]) => `<option value="${k}">${o.emoji} ${o.label} (+${o.xp} XP)</option>`).join('');
     UI.modal({
-      title: 'Output rápido',
+      title: 'Output de Vant',
       body: `
         <div class="stack stack-md">
           <div class="field">
             <label>¿Qué hiciste?</label>
             <select id="out-tipo" class="input">
-              <optgroup label="CRM · Vant">
-                <option value="crm_llamada">📞 Llamada de prospección (+50 XP)</option>
-                <option value="crm_cliente">🎉 Cliente CRM cerrado (+300 XP)</option>
-                <option value="crm_feature">🚀 Feature a producción (+500 XP)</option>
-                <option value="crm_bug">🔧 Bug crítico resuelto (+100 XP)</option>
-              </optgroup>
-              <optgroup label="MercadoLibre">
-                <option value="ml_listing">🛍️ Listing optimizada (+30 XP)</option>
-                <option value="ml_campaña">📣 Campaña ajustada (+50 XP)</option>
-                <option value="ml_record">🏆 Hito de ventas ML (+150 XP)</option>
-              </optgroup>
+              <optgroup label="Servicios (la caja primero)">${opts('servicios')}</optgroup>
+              <optgroup label="SaaS (más adelante)">${opts('saas')}</optgroup>
             </select>
           </div>
           <div class="field">
             <label>Detalle (opcional)</label>
-            <input id="out-detalle" class="input" placeholder="ej. Empresa ABC — interesados">
+            <input id="out-detalle" class="input" placeholder="ej. 5 DMs a tiendas de ML">
           </div>
         </div>`,
       actions:[{
@@ -3850,11 +3884,8 @@ function wireHabitChecks() {
         action: () => {
           const tipo = document.getElementById('out-tipo')?.value;
           const detalle = document.getElementById('out-detalle')?.value.trim();
-          const xpMap = { crm_llamada:50, crm_cliente:300, crm_feature:500, crm_bug:100, ml_listing:30, ml_campaña:50, ml_record:150 };
-          const xp = xpMap[tipo] || 50;
-          State.update(s => { s.vant.outputs_log.unshift({ fecha:todayISO(), tipo, detalle, xp_ganado: xp }); });
-          XP.add(xp, `Vant: ${tipo}`);
-          if (tipo === 'crm_cliente') { UI.confetti(60); UI.toast(`🎉 ¡Cliente cerrado! +${xp} XP`, 'success', 5000); }
+          const xp = logVantOutput(tipo, detalle);
+          if (tipo === 'cliente_serv' || tipo === 'saas_pago') { UI.confetti(60); UI.toast(`🎉 ¡Grande! +${xp} XP`, 'success', 5000); }
           else UI.toast(`+${xp} XP — Registrado.`, 'success');
           renderHoy();
         }
@@ -4965,10 +4996,10 @@ function renderYo() {
   })();
   const longestStreak = Math.max(...s.habits.map(h=>h.longestStreak),0);
   const medicion = s.fisico.mediciones.slice(-1)[0];
-  // Ingresos empresa Vant — último mes con datos
-  const lastMesConDatos = s.vant.mensual.slice().reverse().find(m => (m.ingresos_empresa_clp || 0) > 0);
+  // Ingresos Vant — último mes con datos (servicios + SaaS)
+  const lastMesConDatos = s.vant.mensual.slice().reverse().find(m => vantIngresoMes(m) > 0);
   const gmDisplay = lastMesConDatos
-    ? `${(lastMesConDatos.ingresos_empresa_clp/1000).toFixed(0)}k CLP (${new Date(lastMesConDatos.mes+'-01').toLocaleDateString('es-CL',{month:'short',year:'numeric'})})`
+    ? `${(vantIngresoMes(lastMesConDatos)/1000).toFixed(0)}k CLP (${new Date(lastMesConDatos.mes+'-01').toLocaleDateString('es-CL',{month:'short',year:'numeric'})})`
     : 'Sin datos aún';
 
   const app = document.getElementById('app');
@@ -6226,11 +6257,10 @@ function _renderResultadosResumen(body) {
   const prevOutputs = (s.vant.outputs_log || []).filter(o => o.fecha?.startsWith(mesPrev));
   const mesData = s.vant.mensual.find(m => m.mes === mes) || {};
   const prevData = s.vant.mensual.find(m => m.mes === mesPrev) || {};
-  const crmClientes = mesOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
-  const prevClientes = prevOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
-  const mrrActual = mesData.ingresos_empresa_clp || 0;
-  const mrrPrev = prevData.ingresos_empresa_clp || 0;
-  const mrrDelta = mrrActual - mrrPrev;
+  const vClientes = mesOutputs.filter(o => ['cliente_serv','crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
+  const ingActual = vantIngresoMes(mesData);
+  const ingPrev = vantIngresoMes(prevData);
+  const ingDelta = ingActual - ingPrev;
   const outputDelta = mesOutputs.length - prevOutputs.length;
   const dia = new Date().getDate(); const diasMes = new Date(new Date().getFullYear(), new Date().getMonth()+1, 0).getDate();
   const ritmo = dia > 0 ? Math.round(mesOutputs.length / dia * diasMes) : 0;
@@ -6282,16 +6312,16 @@ function _renderResultadosResumen(body) {
         </div>
         <div class="grid-2" style="gap:8px;margin-bottom:8px">
           <div style="background:var(--bg-2);border-radius:var(--r-md);padding:10px">
-            <div class="num" style="font-size:20px;font-weight:800;color:${mrrActual>0?'var(--success)':'var(--text-lo)'}">${mrrActual>0?fmt(mrrActual):'—'}</div>
-            <div class="text-xs text-lo">MRR empresa ${deltaChip(mrrActual,mrrPrev,v=>'$'+(v/1000).toFixed(0)+'k')}</div>
+            <div class="num" style="font-size:20px;font-weight:800;color:${ingActual>0?'var(--success)':'var(--text-lo)'}">${ingActual>0?fmt(ingActual):'—'}</div>
+            <div class="text-xs text-lo">Ingresos ${deltaChip(ingActual,ingPrev,v=>'$'+(v/1000).toFixed(0)+'k')}</div>
           </div>
           <div style="background:var(--bg-2);border-radius:var(--r-md);padding:10px">
             <div class="num" style="font-size:20px;font-weight:800">${mesOutputs.length}</div>
             <div class="text-xs text-lo">Outputs ${deltaChip(mesOutputs.length,prevOutputs.length,v=>v+' más')}</div>
           </div>
         </div>
-        ${mrrActual===0 ? `<div class="text-xs text-lo">Sin MRR registrado · <button class="btn btn-ghost btn-sm" onclick="renderResultados('vant')" style="font-size:11px;padding:2px 6px">Registrar →</button></div>`
-          : `<div class="text-xs text-lo">Ritmo: ~${ritmo} outputs/mes · ${crmClientes} cliente${crmClientes!==1?'s':''} cerrado${crmClientes!==1?'s':''} este mes</div>`}
+        ${ingActual===0 ? `<div class="text-xs text-lo">Sin ingresos registrados · <button class="btn btn-ghost btn-sm" onclick="renderResultados('vant')" style="font-size:11px;padding:2px 6px">Registrar →</button></div>`
+          : `<div class="text-xs text-lo">Ritmo: ~${ritmo} outputs/mes · ${vClientes} cliente${vClientes!==1?'s':''} cerrado${vClientes!==1?'s':''} este mes</div>`}
       </div>
 
       <!-- HÁBITOS -->
@@ -6357,90 +6387,82 @@ function _renderResultadosVant(body) {
   const s = State.get();
   const mes = monthStr();
   const mesOutputs = s.vant.outputs_log.filter(o => o.fecha?.startsWith(mes));
-  const crmLlamadas = mesOutputs.filter(o => ['crm_llamada','llamada'].includes(o.tipo)).length;
-  const crmClientes = mesOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
-  const crmFeatures = mesOutputs.filter(o => ['crm_feature','feature'].includes(o.tipo)).length;
-  const mlListings  = mesOutputs.filter(o => o.tipo === 'ml_listing').length;
-  const mlCampañas  = mesOutputs.filter(o => o.tipo === 'ml_campaña').length;
-  const mlRecords   = mesOutputs.filter(o => o.tipo === 'ml_record').length;
   const mesNombre   = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
-  let mesData = s.vant.mensual.find(m => m.mes === mes) || { mes, ingresos_empresa_clp: 0, retiro_clp: 0, notas: '' };
+  const md = s.vant.mensual.find(m => m.mes === mes) || { mes };
   const metas = s.vant.metas_trimestre.learning_goals || [];
-  const TIPO_LABEL = {
-    crm_llamada:'📞 Llamada CRM', crm_cliente:'🎉 Cliente cerrado', crm_feature:'🚀 Feature lanzada',
-    crm_bug:'🔧 Bug resuelto', ml_listing:'🛍️ Listing ML', ml_campaña:'📣 Campaña ML',
-    ml_record:'🏆 Hito ML', llamada:'📞 Llamada', cliente_nuevo:'🎉 Cliente', feature:'🚀 Feature', margen_millon:'💰 Millón'
-  };
   const fmt = n => `$${Math.abs(Math.round(n)).toLocaleString('es-CL')}`;
-
-  // MRR últimos 6 meses para trend
+  // Embudo de servicios (tipos nuevos + equivalentes legacy del CRM)
+  const cnt = tipos => mesOutputs.filter(o => tipos.includes(o.tipo)).length;
+  const funnel = [
+    { emoji:'📨', label:'Outreach',   n:cnt(['outreach']) },
+    { emoji:'📝', label:'Propuestas', n:cnt(['propuesta']) },
+    { emoji:'📞', label:'Llamadas',   n:cnt(['llamada','crm_llamada']) },
+    { emoji:'🤝', label:'Clientes',   n:cnt(['cliente_serv','crm_cliente','cliente_nuevo']) },
+  ];
+  // Ingresos: servicios (boleta) + SaaS (MRR)
+  const ingServ = md.ingresos_servicios_clp || 0;
+  const ingSaas = md.ingresos_saas_clp || 0;
+  const ingTotal = vantIngresoMes(md);
   const ultimos6 = Array.from({length:6},(_,i)=>{const d=new Date();d.setMonth(d.getMonth()-i);return monthStr(d);}).reverse();
-  const mrrTrend = ultimos6.map(m=>({m,v:(s.vant.mensual.find(x=>x.mes===m)||{}).ingresos_empresa_clp||0}));
-  const mrrMax = Math.max(...mrrTrend.map(x=>x.v),1);
+  const incTrend = ultimos6.map(m=>({m,v:vantIngresoMes(s.vant.mensual.find(x=>x.mes===m))}));
+  const incMax = Math.max(...incTrend.map(x=>x.v),1);
   const dia = new Date().getDate(); const diasMes = new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
   const ritmo = dia > 0 ? Math.round(mesOutputs.length/dia*diasMes) : 0;
   const mesPrev = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return monthStr(d); })();
   const prevOutputs = (s.vant.outputs_log||[]).filter(o=>o.fecha?.startsWith(mesPrev));
   const outDelta = mesOutputs.length - prevOutputs.length;
   const prevData = s.vant.mensual.find(m=>m.mes===mesPrev)||{};
-  const mrrDelta = (mesData.ingresos_empresa_clp||0) - (prevData.ingresos_empresa_clp||0);
+  const incDelta = ingTotal - vantIngresoMes(prevData);
 
   body.innerHTML = `
     <div class="section">
       <div class="section-title row-between"><span>${mesNombre}</span><span class="text-xs text-lo">Día ${dia}/${diasMes}</span></div>
 
-      <!-- MRR card -->
+      <!-- Ingresos card -->
       <div class="card mb-md" style="padding:16px">
         <div class="row-between mb-sm">
           <div>
-            <div class="text-xs text-lo font-semibold uppercase mb-sm">Ingresos empresa (MRR)</div>
-            <div class="num" style="font-size:var(--fs-2xl);font-weight:800;color:${mesData.ingresos_empresa_clp>0?'var(--success)':'var(--text-lo)'}">${mesData.ingresos_empresa_clp>0?fmt(mesData.ingresos_empresa_clp):'Sin datos'}</div>
+            <div class="text-xs text-lo font-semibold uppercase mb-sm">Ingresos del mes</div>
+            <div class="num" style="font-size:var(--fs-2xl);font-weight:800;color:${ingTotal>0?'var(--success)':'var(--text-lo)'}">${ingTotal>0?fmt(ingTotal):'Sin datos'}</div>
+            <div class="text-xs text-lo mt-sm">🤝 Servicios ${fmt(ingServ)} · 💳 SaaS ${fmt(ingSaas)}</div>
           </div>
           <div class="text-right">
-            ${mesData.ingresos_empresa_clp>0&&prevData.ingresos_empresa_clp>0 ? `<div style="font-size:20px;font-weight:800;color:${mrrDelta>=0?'var(--success)':'var(--danger)'}">${mrrDelta>=0?'↑':'↓'} ${fmt(Math.abs(mrrDelta))}</div><div class="text-xs text-lo">vs mes anterior</div>` : ''}
+            ${ingTotal>0&&vantIngresoMes(prevData)>0 ? `<div style="font-size:20px;font-weight:800;color:${incDelta>=0?'var(--success)':'var(--danger)'}">${incDelta>=0?'↑':'↓'} ${fmt(Math.abs(incDelta))}</div><div class="text-xs text-lo">vs mes anterior</div>` : ''}
           </div>
         </div>
-        <!-- Mini bar chart MRR -->
-        ${mrrTrend.some(x=>x.v>0) ? `<div style="display:flex;align-items:flex-end;gap:4px;height:40px;margin-top:8px">
-          ${mrrTrend.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-            <div style="width:100%;border-radius:3px 3px 0 0;background:${x.m===mes?'var(--success)':'var(--bg-3)'};height:${Math.max(4,Math.round(x.v/mrrMax*36))}px" title="${fmt(x.v)}"></div>
+        ${incTrend.some(x=>x.v>0) ? `<div style="display:flex;align-items:flex-end;gap:4px;height:40px;margin-top:8px">
+          ${incTrend.map(x=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+            <div style="width:100%;border-radius:3px 3px 0 0;background:${x.m===mes?'var(--success)':'var(--bg-3)'};height:${Math.max(4,Math.round(x.v/incMax*36))}px" title="${fmt(x.v)}"></div>
             <div class="text-xs text-lo" style="font-size:9px">${x.m.slice(5)}</div>
           </div>`).join('')}
-        </div>` : `<div class="text-xs text-lo mt-sm">Registra el MRR mensual para ver la curva de crecimiento.</div>`}
-        <button class="btn btn-ghost btn-sm mt-md" onclick="openGananciaModal()" style="width:100%">Actualizar MRR →</button>
+        </div>` : `<div class="text-xs text-lo mt-sm">Registra tus ingresos del mes para ver la curva de crecimiento.</div>`}
+        <button class="btn btn-ghost btn-sm mt-md" onclick="openGananciaModal()" style="width:100%">Actualizar ingresos →</button>
       </div>
 
-      <!-- Stats outputs -->
-      <div class="grid-2 mb-md" style="gap:8px">
-        <div class="stat-card">
-          <div class="stat-val num">${crmLlamadas}</div>
-          <div class="stat-label">📞 Llamadas</div>
+      <!-- Embudo de servicios -->
+      <div class="card mb-md" style="padding:14px 16px">
+        <div class="text-xs text-lo font-semibold uppercase mb-md">Embudo de servicios · este mes</div>
+        <div style="display:flex;align-items:center;gap:2px">
+          ${funnel.map((f,i)=>`
+            <div style="flex:1;text-align:center">
+              <div style="font-size:17px">${f.emoji}</div>
+              <div class="num" style="font-size:20px;font-weight:800">${f.n}</div>
+              <div class="text-xs text-lo" style="font-size:10px">${f.label}</div>
+            </div>${i<funnel.length-1?'<div class="text-lo" style="font-size:13px">→</div>':''}`).join('')}
         </div>
-        <div class="stat-card">
-          <div class="stat-val num">${crmClientes}</div>
-          <div class="stat-label">🎉 Clientes</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-val num">${crmFeatures + mlListings}</div>
-          <div class="stat-label">🚀 Features/Listings</div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-val num" style="color:${outDelta>=0?'var(--success)':'var(--warn)'}">${mesOutputs.length}</div>
-          <div class="stat-label">⚡ Outputs ${outDelta!==0?`(${outDelta>=0?'+':''}${outDelta} vs ant.)`:''}</div>
-        </div>
+        <div class="text-xs text-lo mt-md" style="text-align:center">${mesOutputs.length} outputs${outDelta!==0?` (${outDelta>=0?'+':''}${outDelta} vs mes ant.)`:''} · ritmo ~${ritmo}/mes</div>
+        <button class="btn btn-primary btn-block mt-md" onclick="openOutputModal()">+ Registrar output de hoy</button>
       </div>
-      <div class="text-xs text-lo mb-md" style="text-align:center">Ritmo actual: ~${ritmo} outputs este mes</div>
-      <button class="btn btn-primary btn-block" onclick="openOutputModal()">+ Registrar output de hoy</button>
     </div>
 
     <div class="section">
       <div class="section-title">Outputs del mes</div>
       ${mesOutputs.length === 0
-        ? `<div class="empty-state"><div class="empty-sub">Sin outputs este mes todavía.</div></div>`
+        ? `<div class="empty-state"><div class="empty-sub">Sin outputs este mes. Cada DM, propuesta o llamada cuenta — arranca por el outreach.</div></div>`
         : `<div class="stack stack-sm">${mesOutputs.slice(0,20).map(o => `
             <div class="card" style="padding:10px 14px">
               <div class="row-between">
-                <span class="chip chip-primary">${TIPO_LABEL[o.tipo]||esc(o.tipo)}</span>
+                <span class="chip chip-primary">${vantOutputLabel(o.tipo)}</span>
                 <span class="text-xs text-lo">${formatDate(o.fecha)}</span>
               </div>
               ${o.detalle ? `<div class="text-sm text-md mt-sm">${esc(o.detalle)}</div>` : ''}
@@ -6465,36 +6487,42 @@ function _renderResultadosVant(body) {
   };
 
   window.openGananciaModal = () => {
-    const s2 = State.get();
-    const md = s2.vant.mensual.find(m => m.mes === mes) || {};
+    const md2 = State.get().vant.mensual.find(m => m.mes === mes) || {};
     UI.modal({
-      title: 'Dinero del mes · Vant',
+      title: 'Ingresos del mes · Vant',
       body: `<div class="stack stack-md">
         <div class="field">
-          <label>Ingresos de Vant como empresa (CLP)</label>
+          <label>Ingresos por servicios (boleta CLP)</label>
           <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
-          <input id="gan-empresa" class="input input-prefixed num" type="number" placeholder="ej. 1200000" value="${md.ingresos_empresa_clp||''}"></div>
-          <div class="hint">Lo que facturó Vant este mes antes de gastos.</div>
+          <input id="gan-serv" class="input input-prefixed num" type="number" placeholder="ej. 800000" value="${md2.ingresos_servicios_clp||''}"></div>
+          <div class="hint">Lo que cobraste por proyectos / automatizaciones este mes.</div>
         </div>
         <div class="field">
-          <label>Tu retiro personal de Vant (CLP)</label>
+          <label>MRR del SaaS (CLP)</label>
           <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
-          <input id="gan-retiro" class="input input-prefixed num" type="number" placeholder="ej. 300000" value="${md.retiro_clp||''}"></div>
-          <div class="hint">Lo que te llevaste vos. Inclúyelo en Finanzas como parte de tu ingreso total.</div>
+          <input id="gan-saas" class="input input-prefixed num" type="number" placeholder="ej. 0" value="${md2.ingresos_saas_clp||''}"></div>
+          <div class="hint">Ingreso recurrente del SaaS (cuando empiece).</div>
         </div>
-        <div class="field"><label>Nota (opcional)</label><input id="gan-nota" class="input" value="${esc(md.notas||'')}"></div>
+        <div class="field">
+          <label>Tu retiro personal (CLP)</label>
+          <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
+          <input id="gan-retiro" class="input input-prefixed num" type="number" placeholder="ej. 300000" value="${md2.retiro_clp||''}"></div>
+          <div class="hint">Lo que te llevaste tú. Inclúyelo en Finanzas como ingreso.</div>
+        </div>
+        <div class="field"><label>Nota (opcional)</label><input id="gan-nota" class="input" value="${esc(md2.notas||'')}"></div>
       </div>`,
       actions: [
         { label: 'Guardar', action: () => {
-          const empresa = parseInt(document.getElementById('gan-empresa')?.value) || 0;
-          const retiro  = parseInt(document.getElementById('gan-retiro')?.value) || 0;
-          const nota    = document.getElementById('gan-nota')?.value.trim() || '';
+          const serv   = parseInt(document.getElementById('gan-serv')?.value) || 0;
+          const saas   = parseInt(document.getElementById('gan-saas')?.value) || 0;
+          const retiro = parseInt(document.getElementById('gan-retiro')?.value) || 0;
+          const nota   = document.getElementById('gan-nota')?.value.trim() || '';
           State.update(s => {
             const idx = s.vant.mensual.findIndex(m => m.mes === mes);
-            const entry = { ...((s.vant.mensual[idx]) || {}), mes, ingresos_empresa_clp: empresa, retiro_clp: retiro, notas: nota };
+            const entry = { ...((s.vant.mensual[idx]) || {}), mes, ingresos_servicios_clp: serv, ingresos_saas_clp: saas, retiro_clp: retiro, notas: nota };
             if (idx >= 0) s.vant.mensual[idx] = entry;
             else s.vant.mensual.unshift(entry);
-            if (empresa > 0 || retiro > 0) s.fase0_checklist.pnl_vant_completo = true;
+            if (serv > 0 || saas > 0 || retiro > 0) s.fase0_checklist.pnl_vant_completo = true;
           });
           UI.toast('Guardado.', 'success');
           renderResultados('vant');
@@ -6504,36 +6532,35 @@ function _renderResultadosVant(body) {
     });
   };
 
-  window.openOutputModal = window.openVantAccionModal || (() => {
-    const TIPOS = [
-      ['crm_llamada','📞 Llamada CRM'],['crm_cliente','🎉 Cliente cerrado'],['crm_feature','🚀 Feature lanzada'],
-      ['crm_bug','🔧 Bug resuelto'],['ml_listing','🛍️ Listing ML'],['ml_campaña','📣 Campaña ML'],['ml_record','🏆 Hito ML'],
-    ];
+  window.openOutputModal = () => {
+    const opts = area => Object.entries(VANT_OUTPUTS).filter(([,o]) => o.area === area)
+      .map(([k,o]) => `<option value="${k}">${o.emoji} ${o.label} (+${o.xp} XP)</option>`).join('');
     UI.modal({
-      title: '¿Qué hiciste hoy en Vant?',
+      title: 'Output de Vant',
       body: `<div class="stack stack-md">
-        <div class="field"><label>Tipo</label>
-          <select id="out-tipo" class="input">${TIPOS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
+        <div class="field"><label>¿Qué hiciste?</label>
+          <select id="out-tipo" class="input">
+            <optgroup label="Servicios (la caja primero)">${opts('servicios')}</optgroup>
+            <optgroup label="SaaS (más adelante)">${opts('saas')}</optgroup>
+          </select>
         </div>
         <div class="field"><label>Detalle (opcional)</label>
-          <input id="out-detalle" class="input" placeholder="ej. Llamada con cliente ABC...">
+          <input id="out-detalle" class="input" placeholder="ej. 5 DMs a tiendas de ML">
         </div>
       </div>`,
       actions: [
         { label: 'Registrar', action: () => {
           const tipo    = document.getElementById('out-tipo')?.value;
           const detalle = document.getElementById('out-detalle')?.value.trim() || '';
-          const XP_MAP  = { crm_llamada:10, crm_cliente:50, crm_feature:40, crm_bug:20, ml_listing:15, ml_campaña:20, ml_record:60 };
-          const xpGanado = XP_MAP[tipo] || 10;
-          State.update(s => { s.vant.outputs_log.unshift({ fecha: todayISO(), tipo, detalle, xp_ganado: xpGanado }); });
-          XP.add(xpGanado, `Vant: ${tipo}`);
-          UI.toast(`Output registrado. +${xpGanado} XP`, 'success');
+          const xp = logVantOutput(tipo, detalle);
+          if (tipo === 'cliente_serv' || tipo === 'saas_pago') { UI.confetti(60); UI.toast(`🎉 ¡Grande! +${xp} XP`, 'success', 5000); }
+          else UI.toast(`+${xp} XP — Registrado.`, 'success');
           renderResultados('vant');
         }},
         { label: 'Cancelar', action: () => {} },
       ],
     });
-  });
+  };
 }
 
 function _renderResultadosFinanzas(body) {
