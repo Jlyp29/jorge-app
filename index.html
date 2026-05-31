@@ -782,19 +782,19 @@ select.input{
 }
 
 /* ═══════════════════════════════════════════════════════════
-   SINERGY
+   VANT
 ═══════════════════════════════════════════════════════════ */
-.sinergy-metric{
+.vant-metric{
   padding:14px;
   background:var(--bg-1);
   border-radius:var(--r-md);
   border:1px solid var(--border);
   text-align:center;
 }
-.sinergy-metric-val{font-size:var(--fs-xl);font-weight:800;color:var(--text-hi);}
-.sinergy-metric-label{font-size:var(--fs-xs);color:var(--text-lo);margin-top:4px;}
-.sinergy-metric.critical .sinergy-metric-val{color:var(--warn);}
-.sinergy-metric.good .sinergy-metric-val{color:var(--success);}
+.vant-metric-val{font-size:var(--fs-xl);font-weight:800;color:var(--text-hi);}
+.vant-metric-label{font-size:var(--fs-xs);color:var(--text-lo);margin-top:4px;}
+.vant-metric.critical .vant-metric-val{color:var(--warn);}
+.vant-metric.good .vant-metric-val{color:var(--success);}
 .margin-banner{
   padding:14px 16px;
   background:rgba(217,119,6,.1);
@@ -1239,7 +1239,7 @@ function shouldShowScaleCTA(h) {
 ═══════════════════════════════════════════════════════════ */
 const State = (() => {
   const KEY = 'misistema';
-  const V = 4;
+  const V = 5;
 
   const defaultHabits = () => [
     {
@@ -1254,7 +1254,7 @@ const State = (() => {
       createdAt: Date.now(), updatedAt: Date.now(),
     },
     {
-      id:'h2', nombre:'Deep Work Sinergy', tipo:'sinergy',
+      id:'h2', nombre:'Deep Work Vant', tipo:'vant',
       anchor:'Después del primer sorbo de café', escala_actual:'tiny',
       version_tiny:'5 min: abrir plan + escribir 1 línea',
       version_target:'25 min bloque enfocado',
@@ -1361,7 +1361,7 @@ const State = (() => {
       modo_crisis:false,
     },
     fase0_checklist: {
-      pnl_sinergy_completo:false,
+      pnl_vant_completo:false,
       psicologo_agendado:false, psicologo_fecha:'',
       accountability_partner_confirmado:false,
       yt_desinstalado:false, ig_desinstalado:false, clash_desinstalado:false,
@@ -1378,14 +1378,14 @@ const State = (() => {
       comeback_pendiente:false,
       domingo_libre_usado:false, domingo_libre_semana:'',
     },
-    sinergy: {
+    vant: {
       mensual:[],
       metas_trimestre:{ trimestre:'', gross_margin_target:40, mrr_target:0, learning_goals:[], performance_goals:[] },
       outputs_log:[],
     },
     fisico: {
       mediciones:[], sesiones:[], nutricion:[], agua:{},
-      target_proteina_g:175, target_sesiones_fuerza_sem:4, target_cardio_z2_sem:3,
+      target_proteina_g:150, target_sesiones_fuerza_sem:4, target_cardio_z2_sem:3,
       presupuesto_comida_semanal: 50000,
     },
     sueño:[],
@@ -1403,7 +1403,7 @@ const State = (() => {
     metas_5y:{
       // Visión
       ingreso_usd_mes:10000, grasa_pct:12,
-      auto:'Golf GTI/R', sinergy_rol:'CEO consolidado',
+      auto:'Golf GTI/R', vant_rol:'CEO consolidado',
       // Punto de partida (para calcular progreso real)
       inicio_grasa_pct:21, inicio_peso_kg:70, inicio_fecha:'2026-04-19',
       // Targets por año (ingreso total mensual en USD)
@@ -1412,11 +1412,11 @@ const State = (() => {
       // Target físico por trimestre (% grasa)
       grasa_q1:18, grasa_q2:16, grasa_q3:14, grasa_q4:13,
       // Targets de hábitos y negocio
-      adherencia_meta_pct:85, clientes_sinergy_anio_1:5,
+      adherencia_meta_pct:85, clientes_vant_anio_1:5,
     },
     metas_trimestre_actual:{
       trimestre:'', performance:[], learning:[],
-      proyeccion_realista:{ grasa_pct_fin_trimestre:19, ingreso_usd_delta:600, mrr_delta_sinergy:0, gross_margin_sinergy_target:35 },
+      proyeccion_realista:{ grasa_pct_fin_trimestre:19, ingreso_usd_delta:600, mrr_delta_vant:0, gross_margin_vant_target:35 },
     },
     fresh_start_triggers:[],
     revisiones_semanales:[],
@@ -1453,14 +1453,41 @@ const State = (() => {
     if (prev < V) {
       localStorage.setItem(KEY + '.bak.' + prev, JSON.stringify(data));
     }
-    // v1→v2: add xp, sinergy
+    // v4→v5: rebrand Sinergy → Vant (renombra claves preservando valores; idempotente)
+    if (data.sinergy && !data.vant) { data.vant = data.sinergy; delete data.sinergy; }
+    const _cl = data.fase0_checklist;
+    if (_cl && _cl.pnl_sinergy_completo !== undefined && _cl.pnl_vant_completo === undefined) { _cl.pnl_vant_completo = _cl.pnl_sinergy_completo; delete _cl.pnl_sinergy_completo; }
+    const _m5 = data.metas_5y;
+    if (_m5) {
+      if (_m5.sinergy_rol !== undefined && _m5.vant_rol === undefined) { _m5.vant_rol = _m5.sinergy_rol; delete _m5.sinergy_rol; }
+      if (_m5.clientes_sinergy_anio_1 !== undefined && _m5.clientes_vant_anio_1 === undefined) { _m5.clientes_vant_anio_1 = _m5.clientes_sinergy_anio_1; delete _m5.clientes_sinergy_anio_1; }
+    }
+    const _pr = data.metas_trimestre_actual && data.metas_trimestre_actual.proyeccion_realista;
+    if (_pr) {
+      if (_pr.mrr_delta_sinergy !== undefined && _pr.mrr_delta_vant === undefined) { _pr.mrr_delta_vant = _pr.mrr_delta_sinergy; delete _pr.mrr_delta_sinergy; }
+      if (_pr.gross_margin_sinergy_target !== undefined && _pr.gross_margin_vant_target === undefined) { _pr.gross_margin_vant_target = _pr.gross_margin_sinergy_target; delete _pr.gross_margin_sinergy_target; }
+    }
+    (data.revisiones_semanales || []).forEach(r => {
+      if (r.sinergy_outputs !== undefined && r.vant_outputs === undefined) { r.vant_outputs = r.sinergy_outputs; delete r.sinergy_outputs; }
+    });
+    (data.revisiones_mensuales || []).forEach(r => {
+      if (r.clientes_sinergy !== undefined && r.clientes_vant === undefined) { r.clientes_vant = r.clientes_sinergy; delete r.clientes_sinergy; }
+      if (r.horas_sinergy !== undefined && r.horas_vant === undefined) { r.horas_vant = r.horas_sinergy; delete r.horas_sinergy; }
+    });
+    (data.habits || []).forEach(h => {
+      if (h.id === 'h2') {
+        if (h.tipo === 'sinergy') h.tipo = 'vant';
+        if (h.nombre === 'Deep Work Sinergy') h.nombre = 'Deep Work Vant';
+      }
+    });
+    // v1→v2: add xp, vant
     if (!data.xp) data.xp = defaults().xp;
-    if (!data.sinergy) data.sinergy = defaults().sinergy;
-    if (!data.sinergy.mensual) data.sinergy.mensual = [];
-    if (!data.sinergy.outputs_log) data.sinergy.outputs_log = [];
-    if (!data.sinergy.metas_trimestre) data.sinergy.metas_trimestre = defaults().sinergy.metas_trimestre;
-    if (!data.sinergy.metas_trimestre.learning_goals) data.sinergy.metas_trimestre.learning_goals = [];
-    if (!data.sinergy.metas_trimestre.performance_goals) data.sinergy.metas_trimestre.performance_goals = [];
+    if (!data.vant) data.vant = defaults().vant;
+    if (!data.vant.mensual) data.vant.mensual = [];
+    if (!data.vant.outputs_log) data.vant.outputs_log = [];
+    if (!data.vant.metas_trimestre) data.vant.metas_trimestre = defaults().vant.metas_trimestre;
+    if (!data.vant.metas_trimestre.learning_goals) data.vant.metas_trimestre.learning_goals = [];
+    if (!data.vant.metas_trimestre.performance_goals) data.vant.metas_trimestre.performance_goals = [];
     if (!data.insights) data.insights = [];
     if (!data.experimentos) data.experimentos = [];
     if (!data.fase0_checklist) data.fase0_checklist = defaults().fase0_checklist;
@@ -1496,17 +1523,17 @@ const State = (() => {
     const dm = defaults().metas_5y;
     Object.keys(dm).forEach(k => { if (data.metas_5y[k] === undefined) data.metas_5y[k] = dm[k]; });
     // Migrar ganancia_neta_clp → retiro_clp (separación empresa vs retiro personal)
-    (data.sinergy?.mensual || []).forEach(m => {
+    (data.vant?.mensual || []).forEach(m => {
       if (m.ganancia_neta_clp !== undefined && m.retiro_clp === undefined) {
         m.retiro_clp = m.ganancia_neta_clp;
         delete m.ganancia_neta_clp;
       }
       if (m.ingresos_empresa_clp === undefined) m.ingresos_empresa_clp = 0;
     });
-    // Auto-marcar pnl_sinergy_completo si ya hay datos registrados
-    if (!data.fase0_checklist.pnl_sinergy_completo) {
-      const tieneGanancia = (data.sinergy?.mensual || []).some(m => (m.retiro_clp || 0) > 0 || (m.ingresos_empresa_clp || 0) > 0);
-      if (tieneGanancia) data.fase0_checklist.pnl_sinergy_completo = true;
+    // Auto-marcar pnl_vant_completo si ya hay datos registrados
+    if (!data.fase0_checklist.pnl_vant_completo) {
+      const tieneGanancia = (data.vant?.mensual || []).some(m => (m.retiro_clp || 0) > 0 || (m.ingresos_empresa_clp || 0) > 0);
+      if (tieneGanancia) data.fase0_checklist.pnl_vant_completo = true;
     }
     if (!data.finanzas) data.finanzas = defaults().finanzas;
     if (!data.finanzas.gastos_fijos) data.finanzas.gastos_fijos = [];
@@ -1524,6 +1551,8 @@ const State = (() => {
       }
       return m;
     });
+    // Meta de proteína: bajar el default viejo (175) al nuevo (150). Respeta cualquier valor personalizado.
+    if (data.fisico && data.fisico.target_proteina_g === 175) data.fisico.target_proteina_g = 150;
     if (!data.cocina) data.cocina = defaults().cocina;
     if (!data.cocina.favoritas) data.cocina.favoritas = [];
     if (!data.cocina.plan_semanal) data.cocina.plan_semanal = defaults().cocina.plan_semanal;
@@ -1561,7 +1590,7 @@ const State = (() => {
     }
     // Validar shape básico — reparar arrays corruptos
     const mustBeArrays = [
-      ['habits'], ['xp','history'], ['sinergy','mensual'], ['sinergy','outputs_log'],
+      ['habits'], ['xp','history'], ['vant','mensual'], ['vant','outputs_log'],
       ['fisico','sesiones'], ['fisico','mediciones'], ['fisico','nutricion'],
       ['journal'], ['insights'], ['revisiones_semanales'], ['finanzas','mensual'],
       ['finanzas','gastos_fijos'], ['protocols_log'], ['accountability_checkins'],
@@ -1998,8 +2027,8 @@ const Router = (() => {
   }
 
   function updateNav(hash) {
-    // sinergy y finanzas ahora viven bajo resultados
-    const normalised = (hash === 'sinergy' || hash === 'finanzas') ? 'resultados' : hash;
+    // vant y finanzas ahora viven bajo resultados
+    const normalised = (hash === 'vant' || hash === 'sinergy' || hash === 'finanzas') ? 'resultados' : hash;
     document.querySelectorAll('.nav-tab').forEach(t => {
       t.classList.toggle('active', normalised.startsWith(t.dataset.route));
     });
@@ -2066,7 +2095,7 @@ function defaultRecetas() {
       pasos:['Licuar todos los ingredientes hasta masa homogénea.','Calentar sartén antiadherente a fuego medio-bajo.','Verter porciones (1/3 taza c/u).','Cocinar 2 min por lado hasta dorar.','Enfriar antes de guardar con papel entre cada uno.'],
       macros:{proteina_g:41,calorias:530,grasas_g:12,carbos_g:58},
       costo_total_clp:1330,
-      notas:'Batch: escala ×5 el domingo — haz 15 pancakes (5 días × 3 pancakes). Dura 5 días en nevera o 2 meses congelados.' },
+      notas:'Batch: escala ×5 el domingo — haz 15 pancakes (5 días × 3 pancakes). Dura 3-4 días en nevera o 2 meses congelados.' },
 
     { id:'dr3', tipo:'desayuno', nombre:'Revuelto de Huevo con Papa y Pimentón',
       tiempo_min:15, porciones:1, meal_prep:false,
@@ -2082,7 +2111,7 @@ function defaultRecetas() {
         {item:'Cilantro fresco',cantidad:'al gusto',costo_clp:20,cat:'verduras'},
       ],
       pasos:['Saltear cebolla, pimiento y papa en aceite con pimentón 5 min.','Batir los 4 huevos con sal y pimienta.','Verter sobre vegetales y revolver hasta cuajar.','Servir con hierbas frescas.'],
-      macros:{proteina_g:39,calorias:580,grasas_g:24,carbos_g:40},
+      macros:{proteina_g:29,calorias:580,grasas_g:24,carbos_g:40},
       costo_total_clp:1860,
       notas:'Las papas puedes prepararlas en batch el domingo (duran 5 días). Los huevos, siempre al momento. Total: 5 min en la mañana.' },
 
@@ -2100,7 +2129,7 @@ function defaultRecetas() {
         {item:'Sal, pimienta, nuez moscada',cantidad:'al gusto',costo_clp:100,cat:'especias'},
       ],
       pasos:['Horno a 180°C.','Saltear cebolla, ajo y espinaca 5 min en sartén apto horno.','Batir huevos con queso y especias.','Verter sobre vegetales, agregar tomate cherry encima.','Hornear 20 minutos hasta cuajar.','Cortar en 4, enfriar, refrigerar.'],
-      macros:{proteina_g:40,calorias:546,grasas_g:34,carbos_g:12},
+      macros:{proteina_g:24,calorias:546,grasas_g:34,carbos_g:12},
       costo_total_clp:1795,
       notas:'Batch: prepara 4 porciones el domingo, escala ×4 todos los ingredientes. Dura 4 días en el fridge. Recalentar 1 min en microondas.' },
 
@@ -2133,7 +2162,7 @@ function defaultRecetas() {
         {item:'Aceite de oliva',cantidad:'1 cdita',costo_clp:60,cat:'grasas'},
       ],
       pasos:['Tostar pan.','Aplastar palta con limón, sal y pimienta.','Cocinar huevos al gusto (poché, revuelto o frito).','Untar palta en tostadas.','Agregar pollo cocido y huevos encima.'],
-      macros:{proteina_g:38,calorias:530,grasas_g:24,carbos_g:38},
+      macros:{proteina_g:33,calorias:530,grasas_g:24,carbos_g:38},
       costo_total_clp:1830,
       notas:'El pollo puede ser del meal prep dominical. Láminas frías funcionan perfecto. La palta córtala fresca cada mañana.' },
 
@@ -2202,9 +2231,9 @@ function defaultRecetas() {
         {item:'Hierbas italianas, sal, pimienta',cantidad:'al gusto',costo_clp:30,cat:'especias'},
       ],
       pasos:['Horno a 180°C.','Saltear cebolla y pimiento 5 min.','Agregar espinaca 1 min hasta marchitar.','Batir huevos con queso y especias.','Verter sobre vegetales, agregar tomate cherry encima.','Hornear 22-25 min hasta firme.','Cortar en 4 porciones, enfriar, refrigerar.'],
-      macros:{proteina_g:38,calorias:490,grasas_g:28,carbos_g:10},
+      macros:{proteina_g:23,calorias:490,grasas_g:28,carbos_g:10},
       costo_total_clp:1595,
-      notas:'Batch: prepara 4 porciones el domingo, escala ×4 todos los ingredientes. Dura 5 días en el fridge. Recalentar 1 min en microondas.' },
+      notas:'Batch: prepara 4 porciones el domingo, escala ×4 todos los ingredientes. Dura 3-4 días en nevera (congela lo que no comas en ese plazo). Recalentar 1 min en microondas.' },
 
     // ── ALMUERZOS ────────────────────────────────────────────
     { id:'al1', tipo:'almuerzo', nombre:'Bowl de Pollo Teriyaki con Arroz y Brócoli',
@@ -2221,7 +2250,7 @@ function defaultRecetas() {
         {item:'Miel',cantidad:'½ cdita',costo_clp:60,cat:'extras'},
       ],
       pasos:['Cortar pollo en cubos, dorar en sartén con aceite 6-8 min.','Agregar salsa teriyaki (SA5), cocinar 3 min más hasta glasear.','Brócoli al vapor 8-10 min (bien tierno).','Armar bowl: arroz, pollo, brócoli.','Decorar con cebollín y sésamo.'],
-      macros:{proteina_g:54,calorias:680,grasas_g:14,carbos_g:68},
+      macros:{proteina_g:46,calorias:680,grasas_g:14,carbos_g:68},
       costo_total_clp:1840,
       notas:'Batch: prepara 5 porciones el domingo, escala ×5. Usa la salsa teriyaki casera (SA5) — guarda un frasco extra para la semana.' },
 
@@ -2238,9 +2267,9 @@ function defaultRecetas() {
         {item:'Comino, pimentón, ajo en polvo',cantidad:'al gusto',costo_clp:90,cat:'especias'},
       ],
       pasos:['Cocinar pollo en caldo con cebolla, ajo, comino y pimentón 25 min.','Desmechar con tenedores. Reservar con un poco de caldo.','Calentar pollo.','Calentar tortillas 30 seg por lado en sartén seco.','Armar: tortilla + pollo + salsa criolla (SA2) + palta + cilantro.'],
-      macros:{proteina_g:52,calorias:640,grasas_g:18,carbos_g:52},
+      macros:{proteina_g:42,calorias:640,grasas_g:18,carbos_g:52},
       costo_total_clp:1700,
-      notas:'Batch del pollo: cocina 900g el domingo (rinde 5 porciones). Dura 5 días en el fridge. Usa la salsa criolla (SA2) ya preparada.' },
+      notas:'Batch del pollo: cocina 900g el domingo (rinde 5 porciones). Dura 3-4 días en nevera (congela lo que no comas en ese plazo). Usa la salsa criolla (SA2) ya preparada.' },
 
     { id:'al3', tipo:'almuerzo', nombre:'Bowl Mexicano con Pollo y Frijoles',
       tiempo_min:20, porciones:1, meal_prep:true,
@@ -2248,8 +2277,8 @@ function defaultRecetas() {
       ingredientes:[
         {item:'Pechuga de pollo',cantidad:'150g',costo_clp:750,cat:'proteinas'},
         {item:'Arroz blanco',cantidad:'50g',costo_clp:200,cat:'carbos'},
-        {item:'Frijoles negros',cantidad:'80g',costo_clp:200,cat:'verduras'},
-        {item:'Maíz desgranado',cantidad:'50g',costo_clp:150,cat:'verduras'},
+        {item:'Frijoles negros',cantidad:'80g',costo_clp:200,cat:'carbos'},
+        {item:'Maíz desgranado',cantidad:'50g',costo_clp:150,cat:'carbos'},
         {item:'Tomate',cantidad:'80g',costo_clp:130,cat:'verduras'},
         {item:'Cebolla morada',cantidad:'30g',costo_clp:100,cat:'verduras'},
         {item:'Cilantro fresco',cantidad:'al gusto',costo_clp:50,cat:'verduras'},
@@ -2268,7 +2297,7 @@ function defaultRecetas() {
       ingredientes:[
         {item:'Pechuga de pollo',cantidad:'180g',costo_clp:900,cat:'proteinas'},
         {item:'Arroz blanco',cantidad:'65g',costo_clp:220,cat:'carbos'},
-        {item:'Leche de coco light',cantidad:'80ml',costo_clp:400,cat:'lacteos'},
+        {item:'Leche de coco light',cantidad:'80ml',costo_clp:400,cat:'grasas'},
         {item:'Tomate',cantidad:'1 mediano',costo_clp:200,cat:'verduras'},
         {item:'Cebolla',cantidad:'½ unidad',costo_clp:100,cat:'verduras'},
         {item:'Ajo',cantidad:'2 dientes',costo_clp:50,cat:'especias'},
@@ -2312,8 +2341,8 @@ function defaultRecetas() {
         {item:'Orégano seco',cantidad:'al gusto',costo_clp:80,cat:'especias'},
       ],
       pasos:['Marinar muslos con limón, ajo, aceite y especias 15 min.','Freidora de aire 180°C: papas 15 min.','Agregar muslos y vegetales, 25 min más a 180°C.','Sacudir a la mitad.','Servir todo junto.'],
-      macros:{proteina_g:50,calorias:650,grasas_g:22,carbos_g:52},
-      costo_total_clp:2420,
+      macros:{proteina_g:40,calorias:650,grasas_g:22,carbos_g:52},
+      costo_total_clp:2500,
       notas:'Sin freidora: horno convencional 200°C 35-40 min. Batch: prepara 5 porciones el domingo, escala ×5.' },
 
     { id:'al7', tipo:'almuerzo', nombre:'Pasta con Atún y Vegetales',
@@ -2331,7 +2360,7 @@ function defaultRecetas() {
         {item:'Albahaca, orégano, ají, parmesano',cantidad:'al gusto',costo_clp:180,cat:'especias'},
       ],
       pasos:['Cocinar pasta al dente.','Sofreír cebolla y ajo 3 min.','Agregar tomate, aceitunas, alcaparras y especias 5 min.','Incorporar atún 1 min.','Mezclar con pasta.','Servir con parmesano.'],
-      macros:{proteina_g:48,calorias:680,grasas_g:16,carbos_g:78},
+      macros:{proteina_g:40,calorias:680,grasas_g:16,carbos_g:78},
       costo_total_clp:1700,
       notas:'Batch: prepara 4 porciones el domingo, escala ×4. Dura 4 días. Compra atún en caja de 12 para economizar.' },
 
@@ -2349,7 +2378,7 @@ function defaultRecetas() {
         {item:'Sal, pimienta',cantidad:'al gusto',costo_clp:90,cat:'especias'},
       ],
       pasos:['Cortar pollo cocido en tiras.','Calentar tortilla 30 seg por lado en sartén seco.','Untar mostaza o salsa de yogur (SA3).','Agregar pollo, palta, lechuga, tomate y cebolla.','Enrollar firmemente.'],
-      macros:{proteina_g:50,calorias:620,grasas_g:20,carbos_g:44},
+      macros:{proteina_g:40,calorias:620,grasas_g:20,carbos_g:44},
       costo_total_clp:1650,
       notas:'El pollo puede ser del batch dominical. Armar al momento para que la tortilla no se ablande.' },
 
@@ -2370,7 +2399,7 @@ function defaultRecetas() {
         {item:'Semillas de sésamo',cantidad:'1 cdita',costo_clp:40,cat:'extras'},
       ],
       pasos:['Wok o sartén grande a fuego alto, dorar pollo.','Agregar ajo y jengibre 30 seg.','Agregar vegetales 3 min.','Hacer hueco en el centro, romper huevo, revolver.','Agregar arroz, salsa de soya y aceite de sésamo.','Saltear todo 3-4 min.','Servir con cebollín y sésamo.'],
-      macros:{proteina_g:52,calorias:700,grasas_g:16,carbos_g:78},
+      macros:{proteina_g:46,calorias:700,grasas_g:16,carbos_g:78},
       costo_total_clp:1915,
       notas:'Clave: usar arroz del día anterior (más seco, fría mejor). El wok a máxima temperatura es lo que hace la diferencia.' },
 
@@ -2408,8 +2437,8 @@ function defaultRecetas() {
         {item:'Aceite vegetal spray',cantidad:'al gusto',costo_clp:40,cat:'grasas'},
       ],
       pasos:['Mezclar pollo molido con especias. Formar hamburguesas.','Batata al horno o freidora 180°C 20 min.','Cocinar hamburguesas a la plancha 4-5 min por lado.','Armar: pan + hamburguesa + lechuga + tomate + cebolla + mostaza.','Servir con batata al lado.'],
-      macros:{proteina_g:48,calorias:580,grasas_g:16,carbos_g:52},
-      costo_total_clp:2100,
+      macros:{proteina_g:42,calorias:580,grasas_g:16,carbos_g:52},
+      costo_total_clp:2140,
       notas:'Batch: forma 5 hamburguesas el domingo, congela crudas. Descongela la noche anterior. Cocinar 10 min a la plancha. Usar salsa de yogur (SA3) para más sabor.' },
 
     { id:'ce2', tipo:'cena', nombre:'Salmón al Limón con Arroz y Brócoli',
@@ -2426,8 +2455,8 @@ function defaultRecetas() {
         {item:'Sal, pimienta',cantidad:'al gusto',costo_clp:0,cat:'especias'},
       ],
       pasos:['Marinar salmón con limón, ajo, aceite y eneldo 10 min.','Freidora de aire 180°C 12 min (o horno 200°C 15 min).','Brócoli al vapor 8-10 min (bien tierno).','Servir todo junto con jugo de limón fresco.'],
-      macros:{proteina_g:48,calorias:620,grasas_g:20,carbos_g:58},
-      costo_total_clp:4660,
+      macros:{proteina_g:42,calorias:620,grasas_g:20,carbos_g:58},
+      costo_total_clp:4658,
       notas:'Sin freidora: horno convencional 200°C 15-18 min. Mejor fresco, pero dura 3 días cocido. El brócoli bien tierno (8-10 min) es más fácil de digerir.' },
 
     { id:'ce3', tipo:'cena', nombre:'Albóndigas de Pollo en Salsa de Tomate',
@@ -2445,8 +2474,8 @@ function defaultRecetas() {
         {item:'Arroz blanco',cantidad:'65g',costo_clp:185,cat:'carbos'},
       ],
       pasos:['Mezclar pollo molido, avena, huevo, cebolla, ajo y especias.','Formar albóndigas medianas.','Dorar en sartén 5 min.','Agregar tomate triturado y especias, simmer 15 min tapado.','Servir con arroz.'],
-      macros:{proteina_g:50,calorias:620,grasas_g:14,carbos_g:62},
-      costo_total_clp:1750,
+      macros:{proteina_g:42,calorias:620,grasas_g:14,carbos_g:62},
+      costo_total_clp:1789,
       notas:'Batch: prepara 4 porciones el domingo, escala ×4. Congelan perfecto. Recalentar en la salsa misma.' },
 
     { id:'ce4', tipo:'cena', nombre:'Bistec a la Plancha con Papa y Chimichurri',
@@ -2463,7 +2492,7 @@ function defaultRecetas() {
         {item:'Sal, pimienta',cantidad:'al gusto',costo_clp:20,cat:'especias'},
       ],
       pasos:['Papas al horno o freidora 180°C 25 min.','Bistec a la plancha caliente 3-4 min por lado.','Dejar reposar 3 min antes de cortar.','Servir con chimichurri casero (SA1) encima y ensalada al lado.'],
-      macros:{proteina_g:50,calorias:600,grasas_g:20,carbos_g:44},
+      macros:{proteina_g:42,calorias:600,grasas_g:20,carbos_g:44},
       costo_total_clp:3010,
       notas:'Las papas pueden ser del batch dominical (duran 5 días). El bistec: solo 8 min a la plancha, siempre al momento. Usa el chimichurri casero (SA1).' },
 
@@ -2481,9 +2510,9 @@ function defaultRecetas() {
         {item:'Pepino',cantidad:'½ unidad',costo_clp:100,cat:'verduras'},
       ],
       pasos:['Cocinar papas y cebolla en sartén con aceite a fuego bajo 15 min hasta tiernas.','Escurrir aceite.','Batir huevos y mezclar con papas.','Verter en sartén antiadherente, cocinar a fuego bajo 8 min tapado.','Dar vuelta con plato, cocinar 5 min más.','Cortar en 4 porciones.','Servir con ensalada fresca.'],
-      macros:{proteina_g:39,calorias:653,grasas_g:36,carbos_g:40},
+      macros:{proteina_g:23,calorias:653,grasas_g:36,carbos_g:40},
       costo_total_clp:1995,
-      notas:'Batch: prepara 4 porciones el domingo, escala ×4 todos los ingredientes. Dura 5 días en el fridge.' },
+      notas:'Batch: prepara 4 porciones el domingo, escala ×4 todos los ingredientes. Dura 3-4 días en nevera (congela lo que no comas en ese plazo).' },
 
     { id:'ce6', tipo:'cena', nombre:'Stir-fry de Res con Vegetales y Fideos',
       tiempo_min:15, porciones:1, meal_prep:true,
@@ -2519,7 +2548,7 @@ function defaultRecetas() {
         {item:'Sal, pimienta',cantidad:'al gusto',costo_clp:70,cat:'especias'},
       ],
       pasos:['Saltear ajo laminado en aceite 1 min.','Agregar espinaca 1 min hasta marchitar.','Batir los 4 huevos con sal y pimienta.','Verter sobre espinaca, revolver suave hasta cuajar.','Agregar parmesano encima.','Servir con tostada.'],
-      macros:{proteina_g:42,calorias:580,grasas_g:32,carbos_g:20},
+      macros:{proteina_g:34,calorias:580,grasas_g:32,carbos_g:20},
       costo_total_clp:2460,
       notas:'La espinaca cocida puede prepararse el día anterior (dura 3 días). Los huevos, siempre al momento. Cena de emergencia lista en 10 min.' },
 
@@ -2531,7 +2560,7 @@ function defaultRecetas() {
         {item:'Arroz blanco',cantidad:'65g',costo_clp:200,cat:'carbos'},
         {item:'Yogur natural',cantidad:'30g',costo_clp:120,cat:'lacteos'},
         {item:'Tomate triturado',cantidad:'120ml',costo_clp:240,cat:'verduras'},
-        {item:'Leche de coco light',cantidad:'50ml',costo_clp:250,cat:'lacteos'},
+        {item:'Leche de coco light',cantidad:'50ml',costo_clp:250,cat:'grasas'},
         {item:'Cebolla',cantidad:'½ unidad',costo_clp:100,cat:'verduras'},
         {item:'Ajo',cantidad:'3 dientes',costo_clp:75,cat:'especias'},
         {item:'Jengibre fresco',cantidad:'1 cdita rallado',costo_clp:60,cat:'especias'},
@@ -2559,7 +2588,7 @@ function defaultRecetas() {
         {item:'Limón',cantidad:'½ unidad',costo_clp:30,cat:'extras'},
       ],
       pasos:['Saltear pimientos y cebolla en sartén caliente 5 min.','Agregar ajo y bistec en tiras, especias.','Dorar 4-5 min a fuego alto.','Calentar tortillas 30 seg por lado.','Armar: tortilla + carne + pimientos + salsa criolla (SA2) + cilantro.'],
-      macros:{proteina_g:48,calorias:620,grasas_g:20,carbos_g:52},
+      macros:{proteina_g:39,calorias:620,grasas_g:20,carbos_g:52},
       costo_total_clp:3360,
       notas:'El bistec sazonado puede prepararse el domingo y guardarse crudo. Cocinarlo en 8 min al momento. Usa la salsa criolla (SA2) ya preparada.' },
 
@@ -2577,7 +2606,7 @@ function defaultRecetas() {
         {item:'Albahaca fresca, orégano',cantidad:'al gusto',costo_clp:40,cat:'especias'},
       ],
       pasos:['Horno a 200°C.','Sobre base pita untar tomate triturado o salsa de tomate (SA4).','Distribuir pollo, queso y vegetales.','Hornear 8-10 min hasta queso dorado y borde crujiente.','Albahaca fresca al servir.'],
-      macros:{proteina_g:46,calorias:560,grasas_g:14,carbos_g:60},
+      macros:{proteina_g:35,calorias:560,grasas_g:14,carbos_g:60},
       costo_total_clp:1720,
       notas:'La salsa y el pollo son del batch dominical. La pizza se arma en 5 min. Los champiñones la diferencian de la pizza al almuerzo (al10).' },
 
@@ -2659,7 +2688,7 @@ function defaultRecetas() {
       pasos:['Hervir agua y dejar bajar a 60-70°C.','Mezclar todos los ingredientes en frasco hermético.','Refrigerar mínimo 4 horas antes del primer uso.','Agitar antes de servir cada vez.','Tomar 50ml (1 shot) por día.'],
       macros:{proteina_g:0,calorias:30,grasas_g:0,carbos_g:8},
       costo_total_clp:200,
-      notas:'Cuándo: semanas de estrés alto, viajes, inicio de resfriado. ÚNICO shot que se prepara en batch (rinde 5 shots, dura 5 días refrigerado). Costo indicado es por shot.' },
+      notas:'Cuándo: semanas de estrés alto, viajes, inicio de resfriado. ÚNICO shot que se prepara en batch (rinde 5 shots, dura 3-4 días refrigerado). Costo indicado es por shot.' },
 
     { id:'sh6', tipo:'shot', nombre:'Shot Anti-náuseas',
       tiempo_min:2, porciones:1, meal_prep:false,
@@ -2701,8 +2730,8 @@ function defaultRecetas() {
       ],
       pasos:['Mezclar todo hasta masa homogénea (para el batch: 200g avena + 2 huevos + 280g yogur + 120g proteína + 2 plátanos).','Dividir en moldes de muffin engrasados.','Horno 180°C 18-22 min hasta palillo limpio.','Enfriar fuera del molde.'],
       macros:{proteina_g:12,calorias:160,grasas_g:4,carbos_g:22},
-      costo_total_clp:300,
-      notas:'Batch de 8 muffins el domingo. 1 muffin por snack. Dura 5 días nevera o 2 meses congelado. Descongelar 20 seg en microondas.' },
+      costo_total_clp:341,
+      notas:'Batch de 8 muffins el domingo. 1 muffin por snack. Dura 3-4 días en nevera o 2 meses congelado. Descongelar 20 seg en microondas.' },
 
     { id:'sn3', tipo:'snack', nombre:'Huevos Duros Marinados Estilo Asiático',
       tiempo_min:20, porciones:1, meal_prep:true,
@@ -2718,7 +2747,7 @@ function defaultRecetas() {
       pasos:['Hervir huevos 9 minutos exactos.','Enfriar en agua con hielo, pelar.','Mezclar marinado en frasco: 100ml soya + 100ml agua + vinagre + ajo + jengibre + ají.','Sumergir huevos, refrigerar mínimo 4h (mejor 24h).','Sacar 2 huevos por snack.'],
       macros:{proteina_g:13,calorias:150,grasas_g:10,carbos_g:2},
       costo_total_clp:730,
-      notas:'Batch de 10 huevos el domingo. Dura 5 días. Los mejores snacks de la semana — ricos, saciadores, fácil de llevar.' },
+      notas:'Batch de 10 huevos el domingo. Dura 3-4 días. Los mejores snacks de la semana — ricos, saciadores, fácil de llevar.' },
 
     { id:'sn4', tipo:'snack', nombre:'Yogur Griego con Toppings',
       tiempo_min:3, porciones:1, meal_prep:true,
@@ -2762,7 +2791,7 @@ function defaultRecetas() {
       ],
       pasos:['Mezclar todo en bowl hasta masa pegajosa (batch: 100g avena + 80g maní + 40g miel + 30g proteína + cacao + chía).','Si está seca, agregar 1 cda agua.','Formar bolitas tamaño nuez.','Rebozar en coco rallado opcional.','Refrigerar 30 min antes de comer.'],
       macros:{proteina_g:8,calorias:180,grasas_g:10,carbos_g:18},
-      costo_total_clp:400,
+      costo_total_clp:300,
       notas:'Batch de 12 bolitas el domingo. 2 bolitas por snack = 6 días. Dura 2 semanas en nevera.' },
 
     { id:'sn7', tipo:'snack', nombre:'Pollo Roll-ups con Queso',
@@ -2776,7 +2805,7 @@ function defaultRecetas() {
       ],
       pasos:['Extender láminas de pollo.','Untar mostaza Dijon.','Poner queso y pepino encima.','Enrollar firmemente.','Cortar en bocados o llevar entero.'],
       macros:{proteina_g:22,calorias:180,grasas_g:8,carbos_g:4},
-      costo_total_clp:900,
+      costo_total_clp:700,
       notas:'Armar el mismo día o noche anterior. El pollo puede ser del batch dominical. Mostaza Dijon suma sabor sin calorías extra.' },
 
     { id:'sn8', tipo:'snack', nombre:'Tostada Pita con Atún Cremoso',
@@ -2838,7 +2867,7 @@ function defaultRecetas() {
       ],
       pasos:['Picar todo a cuchillo (no procesador — queda mejor textura).','Mezclar en frasco.','Reposar mínimo 1 hora antes de usar.','Mejora con los días.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
-      costo_total_clp:0,
+      costo_total_clp:1640,
       aplica_a:['ce4'],
       notas:'Dura 2 semanas en frasco con aceite cubriendo. Usos: bistec (ce4), pollo, papas, huevos, tostadas. La salsa más versátil del sistema.' },
 
@@ -2856,7 +2885,7 @@ function defaultRecetas() {
       ],
       pasos:['Cortar todo en cubos parejos pequeños.','Mezclar con limón, aceite y sal.','Reposar 15 min antes de servir.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
-      costo_total_clp:0,
+      costo_total_clp:1500,
       aplica_a:['al2','ce9'],
       notas:'Dura 4 días en nevera. Usos: tacos (al2, ce9), pollo, huevos, carnes, bowls. La más usada del sistema.' },
 
@@ -2873,9 +2902,9 @@ function defaultRecetas() {
       ],
       pasos:['Mezclar todo.','Refrigerar 30 min antes de usar.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
-      costo_total_clp:0,
+      costo_total_clp:1630,
       aplica_a:['al8','ce1'],
-      notas:'Dura 5 días en nevera. Usos: wraps (al8), pollo, hamburguesas (ce1), vegetales, tacos, dip. Con pepino rallado = tzatziki.' },
+      notas:'Dura 3-4 días en nevera. Usos: wraps (al8), pollo, hamburguesas (ce1), vegetales, tacos, dip. Con pepino rallado = tzatziki.' },
 
     { id:'sa4', tipo:'salsa', nombre:'Salsa de Tomate Casera',
       tiempo_min:30, porciones:1, meal_prep:true,
@@ -2890,7 +2919,7 @@ function defaultRecetas() {
       ],
       pasos:['Sofreír cebolla y ajo 5 min.','Agregar tomate y especias.','Simmer 25 min hasta espesar.','Enfriar y guardar en frascos.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
-      costo_total_clp:0,
+      costo_total_clp:2140,
       aplica_a:['al10','ce10','ce3','al7'],
       notas:'Dura 1 semana nevera o 2 meses congelada. Usos: pizza (al10, ce10), albóndigas (ce3), pasta (al7), huevos. Prepara doble el domingo.' },
 
@@ -2908,7 +2937,7 @@ function defaultRecetas() {
       ],
       pasos:['Mezclar todo excepto maicena en olla.','Calentar a fuego medio 5 min.','Agregar maicena disuelta en 2 cdas agua, revolver hasta espesar.','Enfriar y guardar en frasco.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
-      costo_total_clp:0,
+      costo_total_clp:1150,
       aplica_a:['al1','ce6','ce2','al9'],
       notas:'Dura 3 semanas en frasco. Usos: pollo teriyaki (al1), stir-fry (ce6), salmón (ce2), arroz frito (al9). Prepara siempre doble.' },
 
@@ -2927,9 +2956,9 @@ function defaultRecetas() {
       ],
       pasos:['Mezclar todo hasta cremoso.','Refrigerar.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
-      costo_total_clp:0,
+      costo_total_clp:945,
       aplica_a:[],
-      notas:'Dura 5 días en nevera. Usos: ensalada césar, pollo, vegetales. Las anchoas son la clave del sabor umami — sin ellas es salsa de yogur con queso.' },
+      notas:'Dura 3-4 días en nevera. Usos: ensalada césar, pollo, vegetales. Las anchoas son la clave del sabor umami — sin ellas es salsa de yogur con queso.' },
 
     { id:'sa7', tipo:'salsa', nombre:'Salsa Picante de Yogur Chipotle',
       tiempo_min:5, porciones:1, meal_prep:true,
@@ -2943,9 +2972,9 @@ function defaultRecetas() {
       ],
       pasos:['Mezclar todo.','Reposar 30 min.'],
       macros:{proteina_g:0,calorias:0,grasas_g:0,carbos_g:0},
-      costo_total_clp:0,
+      costo_total_clp:1010,
       aplica_a:['al2','al3','ce9','al8','ce1'],
-      notas:'Dura 5 días. Usos: tacos (al2, ce9), bowls mexicanos (al3), wraps (al8), hamburguesas (ce1). Ajustar picante al gusto.' },
+      notas:'Dura 3-4 días. Usos: tacos (al2, ce9), bowls mexicanos (al3), wraps (al8), hamburguesas (ce1). Ajustar picante al gusto.' },
   ];
 }
 
@@ -3089,7 +3118,7 @@ function renderFase0() {
   const diasRestantes = Math.max(0, 14 - diasInicio + 1);
   const totalItems = 9;
   const doneItems = [
-    cl.pnl_sinergy_completo, cl.psicologo_agendado, cl.accountability_partner_confirmado,
+    cl.pnl_vant_completo, cl.psicologo_agendado, cl.accountability_partner_confirmado,
     cl.yt_desinstalado, cl.ig_desinstalado, cl.clash_desinstalado,
     cl.grayscale_activado, cl.app_blocker_instalado, cl.baseline_medido,
   ].filter(Boolean).length;
@@ -3132,11 +3161,11 @@ function renderFase0() {
 
           <!-- 1. P&L -->
           <div class="fase0-item">
-            <div class="fase0-num ${cl.pnl_sinergy_completo?'done':''}">1</div>
+            <div class="fase0-num ${cl.pnl_vant_completo?'done':''}">1</div>
             <div class="fase0-content">
-              <div class="fase0-label">Conoce tu ganancia real en Sinergy</div>
-              <div class="fase0-sub">Ingresa la ganancia neta del mes en Sinergy (lo que queda después de todos los gastos). Necesitas saber de dónde partes.</div>
-              ${cl.pnl_sinergy_completo
+              <div class="fase0-label">Conoce tu ganancia real en Vant</div>
+              <div class="fase0-sub">Ingresa la ganancia neta del mes en Vant (lo que queda después de todos los gastos). Necesitas saber de dónde partes.</div>
+              ${cl.pnl_vant_completo
                 ? `<span class="chip chip-success mt-sm">Completado</span>`
                 : `<button class="btn btn-sm btn-secondary mt-sm" onclick="Router.navigate('resultados')">Ir a Resultados</button>`}
             </div>
@@ -3334,8 +3363,12 @@ function recetaDelDia(tipo, plan, recetas) {
   const ids = plan[`${tipo}_ids`] || [];
   if (!ids.length) return null;
   if (ids.length === 1) return recetas.find(r => r.id === ids[0]) || null;
-  const diaSem = new Date().getDay() || 7;
-  return recetas.find(r => r.id === ids[diaSem <= 4 ? 0 : 1]) || null;
+  const diaSem = new Date().getDay() || 7; // 1=lunes … 7=domingo
+  // Reparto de los 7 días entre las recetas, igual que multFn: 2→[4,3], 3→[3,2,2]
+  const reparto = ids.length === 2 ? [4, 3] : [3, 2, 2];
+  let acc = 0, idx = ids.length - 1;
+  for (let i = 0; i < reparto.length; i++) { acc += reparto[i]; if (diaSem <= acc) { idx = i; break; } }
+  return recetas.find(r => r.id === ids[idx]) || null;
 }
 
 function renderHoy() {
@@ -3379,7 +3412,7 @@ function renderHoy() {
     const r = recetaDelDia(t, planHoy, recetasHoy);
     return acc + (r?.macros?.proteina_g || 0);
   }, 0) + (regComHoy.batido && planHoy.batidos_dia ? planHoy.batidos_dia * 24 : 0);
-  const targetProtHoy = s.fisico?.target_proteina_g || 175;
+  const targetProtHoy = s.fisico?.target_proteina_g || 150;
   const protPctHoy = Math.min(100, Math.round(protComida / targetProtHoy * 100));
 
   const app = document.getElementById('app');
@@ -3613,7 +3646,7 @@ function renderHoy() {
     const maxChecks = 7 * s.habits.length;
     const adh = maxChecks > 0 ? Math.round(checks/maxChecks*100) : 0;
     const xpSemana = s.xp.history.filter(e => dias7.includes(e.fecha?.slice(0,10))).reduce((sum,e) => sum + (e.delta||0), 0);
-    const outputsSemana = s.sinergy.outputs_log.filter(o => dias7.includes(o.fecha)).length;
+    const outputsSemana = s.vant.outputs_log.filter(o => dias7.includes(o.fecha)).length;
     const entrenSemana = s.fisico.sesiones.filter(e => dias7.includes(e.fecha)).length;
     const emojiAdh = adh >= 80 ? '🟢' : adh >= 50 ? '🟡' : '🔴';
     UI.modal({
@@ -3624,7 +3657,7 @@ function renderHoy() {
           <div class="grid-2" style="gap:10px">
             <div class="stat-card"><div class="stat-val num">${adh}%</div><div class="stat-label">${emojiAdh} Hábitos</div></div>
             <div class="stat-card"><div class="stat-val num">+${xpSemana}</div><div class="stat-label">⚡ XP ganado</div></div>
-            <div class="stat-card"><div class="stat-val num">${outputsSemana}</div><div class="stat-label">💼 Outputs Sinergy</div></div>
+            <div class="stat-card"><div class="stat-val num">${outputsSemana}</div><div class="stat-label">💼 Outputs Vant</div></div>
             <div class="stat-card"><div class="stat-val num">${entrenSemana}</div><div class="stat-label">🏋️ Entrenos</div></div>
           </div>
         </div>
@@ -3644,7 +3677,7 @@ function renderHoy() {
           const isNewRevSem = !s.revisiones_semanales.some(r => r.semana_iso === semana);
           State.update(st => {
             const idx = st.revisiones_semanales.findIndex(r => r.semana_iso === semana);
-            const entry = { id: idx >= 0 ? st.revisiones_semanales[idx].id : Date.now().toString(), semana_iso: semana, fecha: todayISO(), adherencia_pct: adh, xp_ganado: xpSemana, sinergy_outputs: outputsSemana, entrenos: entrenSemana, estado_general: estado, que_funciono: funciono, que_no_funciono: noFunciono, que_cambia: cambia };
+            const entry = { id: idx >= 0 ? st.revisiones_semanales[idx].id : Date.now().toString(), semana_iso: semana, fecha: todayISO(), adherencia_pct: adh, xp_ganado: xpSemana, vant_outputs: outputsSemana, entrenos: entrenSemana, estado_general: estado, que_funciono: funciono, que_no_funciono: noFunciono, que_cambia: cambia };
             if (idx >= 0) st.revisiones_semanales[idx] = entry;
             else st.revisiones_semanales.unshift(entry);
           });
@@ -3788,7 +3821,7 @@ function wireHabitChecks() {
           <div class="field">
             <label>¿Qué hiciste?</label>
             <select id="out-tipo" class="input">
-              <optgroup label="CRM · Sinergy">
+              <optgroup label="CRM · Vant">
                 <option value="crm_llamada">📞 Llamada de prospección (+50 XP)</option>
                 <option value="crm_cliente">🎉 Cliente CRM cerrado (+300 XP)</option>
                 <option value="crm_feature">🚀 Feature a producción (+500 XP)</option>
@@ -3813,8 +3846,8 @@ function wireHabitChecks() {
           const detalle = document.getElementById('out-detalle')?.value.trim();
           const xpMap = { crm_llamada:50, crm_cliente:300, crm_feature:500, crm_bug:100, ml_listing:30, ml_campaña:50, ml_record:150 };
           const xp = xpMap[tipo] || 50;
-          State.update(s => { s.sinergy.outputs_log.unshift({ fecha:todayISO(), tipo, detalle, xp_ganado: xp }); });
-          XP.add(xp, `Sinergy: ${tipo}`);
+          State.update(s => { s.vant.outputs_log.unshift({ fecha:todayISO(), tipo, detalle, xp_ganado: xp }); });
+          XP.add(xp, `Vant: ${tipo}`);
           if (tipo === 'crm_cliente') { UI.confetti(60); UI.toast(`🎉 ¡Cliente cerrado! +${xp} XP`, 'success', 5000); }
           else UI.toast(`+${xp} XP — Registrado.`, 'success');
           renderHoy();
@@ -4090,299 +4123,6 @@ window.addHabitoModal = () => {
   });
 };
 
-/* ═══════════════════════════════════════════════════════════
-   VISTA: SINERGY
-═══════════════════════════════════════════════════════════ */
-function renderSinergy() {
-  const s = State.get();
-  const mes = monthStr();
-  const mesOutputs = s.sinergy.outputs_log.filter(o => o.fecha?.startsWith(mes));
-  const crmLlamadas = mesOutputs.filter(o => ['crm_llamada','llamada'].includes(o.tipo)).length;
-  const crmClientes = mesOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
-  const crmFeatures = mesOutputs.filter(o => ['crm_feature','feature'].includes(o.tipo)).length;
-  const mlListings  = mesOutputs.filter(o => o.tipo === 'ml_listing').length;
-  const mlCampañas  = mesOutputs.filter(o => o.tipo === 'ml_campaña').length;
-  const mlRecords   = mesOutputs.filter(o => o.tipo === 'ml_record').length;
-  const xpMes       = mesOutputs.reduce((a, o) => a + (o.xp_ganado || 0), 0);
-  // legacy compat
-  const llamadas = crmLlamadas; const clientes = crmClientes; const features = crmFeatures;
-  const mesNombre = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
-  const fase      = s.settings.fase;
-
-  // Ganancia neta ingresada manualmente (simple)
-  let mesData = s.sinergy.mensual.find(m => m.mes === mes);
-  if (!mesData) {
-    mesData = { mes, ingresos_empresa_clp: 0, retiro_clp: 0, notas: '' };
-    // no mutar state aquí, solo para display
-  }
-
-  // Metas del trimestre
-  const metas = s.sinergy.metas_trimestre.learning_goals || [];
-
-  // Tipo de acción labels amigables
-  const TIPO_LABEL = {
-    // CRM Sinergy
-    crm_llamada:  { emoji:'📞', label:'Llamada de prospección',   area:'CRM', desc:'Contactaste a alguien para venderle Sinergy' },
-    crm_cliente:  { emoji:'🎉', label:'Cliente CRM cerrado',      area:'CRM', desc:'Firmaste un cliente nuevo en Sinergy' },
-    crm_feature:  { emoji:'🚀', label:'Feature a producción',     area:'CRM', desc:'Lanzaste algo que los clientes ya pueden usar' },
-    crm_bug:      { emoji:'🔧', label:'Bug crítico resuelto',     area:'CRM', desc:'Problema que afectaba clientes solucionado' },
-    // MercadoLibre
-    ml_listing:   { emoji:'🛍️', label:'Listing optimizada',       area:'ML',  desc:'Mejoraste título, fotos, precio o ficha' },
-    ml_campaña:   { emoji:'📣', label:'Campaña ajustada',         area:'ML',  desc:'Lanzaste o afinaste publicidad en ML' },
-    ml_record:    { emoji:'🏆', label:'Hito de ventas ML',        area:'ML',  desc:'Día récord o meta de ventas alcanzada' },
-    // Legacy (para historial antiguo)
-    llamada:       { emoji:'📞', label:'Llamada de venta',    area:'CRM', desc:'' },
-    cliente_nuevo: { emoji:'🎉', label:'Cliente nuevo',       area:'CRM', desc:'' },
-    feature:       { emoji:'🚀', label:'Mejora al producto',  area:'CRM', desc:'' },
-    margen_millon: { emoji:'💰', label:'Millón de ganancia',  area:'CRM', desc:'' },
-  };
-
-  const app = document.getElementById('app');
-  app.innerHTML = `
-    <div class="page">
-
-      <!-- Header -->
-      <div style="padding-top:8px;margin-bottom:20px">
-        <p class="text-xs text-lo font-semibold uppercase" style="letter-spacing:.08em">${mesNombre}</p>
-        <h2>Sinergy</h2>
-        <p class="text-sm text-lo mt-sm">Registra lo que hiciste hoy para que quede en tu historial y sumes XP.</p>
-      </div>
-
-      <!-- Ganancia neta del mes (manual, simple) -->
-      <div class="section">
-        <div class="section-title">¿Cuánto ganaste este mes?</div>
-        <div class="card">
-          <p class="text-xs text-lo mb-md" style="line-height:var(--lh-relaxed)">
-            Ingresa la ganancia neta mensual de Sinergy (lo que queda después de todos los gastos).
-            Puedes sacarlo de tu app de finanzas.
-          </p>
-          <div class="field">
-            <label>Ganancia neta del mes (CLP)</label>
-            <div class="input-group">
-              <span class="input-prefix" style="font-size:11px">$</span>
-              <input id="sin-ganancia" class="input input-prefixed num" type="number" step="100000"
-                placeholder="ej. 103682"
-                value="${mesData.retiro_clp || ''}"
-                onchange="saveSinergyGanancia(this.value)">
-            </div>
-            ${mesData.retiro_clp > 0
-              ? `<div class="hint" style="color:var(--success)">✓ Guardado: $${mesData.retiro_clp.toLocaleString('es-CL')} CLP</div>`
-              : `<div class="hint">Solo 1 número. Sin cálculos acá.</div>`}
-          </div>
-        </div>
-      </div>
-
-      <!-- Acciones del mes -->
-      <div class="section">
-        <div class="section-title">Lo que hiciste este mes</div>
-        <div class="card mb-md">
-          <p class="text-xs text-lo mb-md" style="line-height:var(--lh-relaxed)">
-            Lo que hiciste, no el tiempo que estuviste sentado.
-          </p>
-
-          <div class="text-xs text-lo font-semibold uppercase mb-sm" style="letter-spacing:.06em">CRM · Sinergy</div>
-          <div class="grid-3 mb-md">
-            <div class="stat-card">
-              <div class="stat-val num">${crmLlamadas}</div>
-              <div class="stat-label">📞 Prospectos</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-val num">${crmClientes}</div>
-              <div class="stat-label">🎉 Clientes</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-val num">${crmFeatures}</div>
-              <div class="stat-label">🚀 Features</div>
-            </div>
-          </div>
-
-          <div class="text-xs text-lo font-semibold uppercase mb-sm" style="letter-spacing:.06em">MercadoLibre</div>
-          <div class="grid-3 mb-lg">
-            <div class="stat-card">
-              <div class="stat-val num">${mlListings}</div>
-              <div class="stat-label">🛍️ Listings</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-val num">${mlCampañas}</div>
-              <div class="stat-label">📣 Campañas</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-val num">${mlRecords}</div>
-              <div class="stat-label">🏆 Hitos</div>
-            </div>
-          </div>
-          ${xpMes > 0 ? `<div class="text-xs text-primary font-semibold mb-md">+${xpMes} XP ganados en Sinergy este mes</div>` : ''}
-          <button class="btn btn-primary btn-block" onclick="openSinergyAccionModal()">
-            + Registrar una acción de hoy
-          </button>
-        </div>
-
-        <!-- Historial reciente -->
-        ${mesOutputs.length > 0 ? `
-          <div class="section-title">Historial de este mes</div>
-          <div class="stack stack-sm">
-            ${mesOutputs.slice(0, 10).map(o => {
-              const t = TIPO_LABEL[o.tipo] || { emoji:'✅', label: o.tipo };
-              return `<div class="card" style="padding:12px 14px">
-                <div class="row-between">
-                  <div class="row row-gap-sm">
-                    <span style="font-size:20px">${t.emoji}</span>
-                    <div>
-                      <div class="text-sm font-semibold">${t.label}</div>
-                      ${o.detalle ? `<div class="text-xs text-lo">${esc(o.detalle)}</div>` : ''}
-                    </div>
-                  </div>
-                  <div class="text-right">
-                    <div class="text-xs text-primary font-bold">+${o.xp_ganado} XP</div>
-                    <div class="text-xs text-lo">${formatDate(o.fecha)}</div>
-                  </div>
-                </div>
-              </div>`;
-            }).join('')}
-          </div>` : `
-          <div class="empty-state" style="padding:24px">
-            <div class="empty-icon"><span style="font-size:28px">📋</span></div>
-            <div class="empty-title">Sin acciones este mes</div>
-            <div class="empty-sub">Cuando hagas algo concreto para Sinergy, regístralo aquí. No importa qué tan pequeño sea.</div>
-          </div>`}
-      </div>
-
-      <!-- Foco del trimestre -->
-      <div class="section">
-        <div class="section-title">¿En qué te enfocas este trimestre?</div>
-        <div class="card">
-          <p class="text-xs text-lo mb-md" style="line-height:var(--lh-relaxed)">
-            Una o dos cosas concretas que quieres probar o mejorar en Sinergy. Sin presión — es para recordarte qué importa.
-          </p>
-          ${fase < 2 ? `
-            <div style="padding:10px 12px;background:var(--bg-2);border-radius:var(--r-md)">
-              <p class="text-sm text-lo">Por ahora enfócate en los 3 hábitos núcleo. Las metas de Sinergy se activan en Fase 2 (mes 4).</p>
-            </div>` : `
-            <div id="lg-list" class="stack stack-sm mb-md">
-              ${metas.length === 0
-                ? `<p class="text-sm text-lo">Aún sin foco definido para este trimestre.</p>`
-                : metas.map((g, i) => `
-                  <div class="row row-gap-sm" style="background:var(--bg-2);padding:10px 12px;border-radius:var(--r-md)">
-                    <span class="text-sm flex-1">→ ${esc(g)}</span>
-                    <button class="btn btn-icon btn-ghost btn-sm" onclick="removeLG(${i})" aria-label="Eliminar" style="color:var(--text-lo)">✕</button>
-                  </div>`).join('')}
-            </div>
-            <div class="row row-gap-sm">
-              <input id="lg-input" class="input flex-1" placeholder="Ej: Hablar con 10 clientes este trimestre">
-              <button class="btn btn-sm btn-primary" onclick="addLG()">+</button>
-            </div>`}
-        </div>
-      </div>
-
-    </div>`;
-
-  // Handlers
-  window.saveSinergyGanancia = (val) => {
-    const num = parseInt(val) || 0;
-    State.update(s => {
-      let md = s.sinergy.mensual.find(m => m.mes === mes);
-      if (!md) { md = { mes, ingresos_empresa_clp: 0, retiro_clp: 0, notas: '' }; s.sinergy.mensual.push(md); }
-      md.retiro_clp = num;
-      // Si ganancia > 0, marcar P&L de Fase 0 como completado
-      if (!s.fase0_checklist.pnl_sinergy_completo && num > 0) s.fase0_checklist.pnl_sinergy_completo = true;
-      // XP por cada millón de ganancia
-      const millones = Math.floor(num / 1000000);
-      if (millones > 0 && !md._xp_ganancia_aplicado) {
-        md._xp_ganancia_aplicado = true;
-        XP.add(millones * 1000, `Ganancia neta: ${millones}M CLP`);
-      }
-    });
-    UI.toast('Guardado.', 'success');
-    renderSinergy();
-  };
-
-  window.openSinergyAccionModal = () => {
-    const OPCIONES = [
-      { group:'CRM · Sinergy', items: [
-        { tipo:'crm_llamada', emoji:'📞', label:'Llamada de prospección', sub:'Contactaste a alguien para venderle Sinergy', xp:50 },
-        { tipo:'crm_cliente', emoji:'🎉', label:'Cliente CRM cerrado',    sub:'Firmaste un cliente nuevo en Sinergy',        xp:300 },
-        { tipo:'crm_feature', emoji:'🚀', label:'Feature a producción',   sub:'Algo nuevo disponible para los clientes',     xp:500 },
-        { tipo:'crm_bug',     emoji:'🔧', label:'Bug crítico resuelto',   sub:'Problema que afectaba clientes solucionado',  xp:100 },
-      ]},
-      { group:'MercadoLibre', items: [
-        { tipo:'ml_listing', emoji:'🛍️', label:'Listing optimizada',  sub:'Mejoraste título, fotos, precio o ficha',   xp:30  },
-        { tipo:'ml_campaña', emoji:'📣', label:'Campaña ajustada',    sub:'Lanzaste o afinaste publicidad en ML',      xp:50  },
-        { tipo:'ml_record',  emoji:'🏆', label:'Hito de ventas ML',   sub:'Día récord o meta de ventas alcanzada',     xp:150 },
-      ]},
-    ];
-    const XP_MAP = Object.fromEntries(OPCIONES.flatMap(g => g.items.map(o => [o.tipo, o.xp])));
-
-    UI.modal({
-      title: '¿Qué hiciste hoy?',
-      body: `
-        <p class="text-sm text-lo mb-md">Solo lo que pasó de verdad.</p>
-        ${OPCIONES.map(g => `
-          <div class="text-xs text-lo font-semibold uppercase mb-sm mt-md" style="letter-spacing:.06em">${g.group}</div>
-          <div class="stack stack-sm" id="accion-opts">
-            ${g.items.map(o => `
-              <label style="cursor:pointer">
-                <input type="radio" name="accion-tipo" value="${o.tipo}" style="display:none" class="accion-radio">
-                <div class="card" style="padding:10px 14px;cursor:pointer;transition:border-color .15s" id="acard-${o.tipo}"
-                  onclick="selectAccion('${o.tipo}')">
-                  <div class="row row-gap-sm">
-                    <span style="font-size:20px">${o.emoji}</span>
-                    <div class="flex-1">
-                      <div class="font-semibold text-sm">${o.label}</div>
-                      <div class="text-xs text-lo">${o.sub}</div>
-                    </div>
-                    <span class="text-xs text-primary font-bold">+${o.xp} XP</span>
-                  </div>
-                </div>
-              </label>`).join('')}
-          </div>`).join('')}
-        <div class="field mt-md">
-          <label>Detalle (opcional)</label>
-          <input id="accion-detalle" class="input" placeholder="ej. Empresa ABC — quedaron en llamarme">
-        </div>`,
-      actions: [
-        {
-          label: 'Registrar',
-          action: () => {
-            const tipo = document.querySelector('.accion-radio:checked')?.value;
-            if (!tipo) { UI.toast('Elige una acción primero.', 'warn'); return false; }
-            const detalle = document.getElementById('accion-detalle')?.value.trim() || '';
-            const xp = XP_MAP[tipo] || 50;
-            State.update(s => { s.sinergy.outputs_log.unshift({ fecha: todayISO(), tipo, detalle, xp_ganado: xp }); });
-            XP.add(xp, `Sinergy: ${TIPO_LABEL[tipo]?.label || tipo}`);
-            if (tipo === 'crm_cliente') { UI.confetti(60); UI.toast(`🎉 ¡Cliente cerrado! +${xp} XP`, 'success', 5000); }
-            else if (tipo === 'ml_record') { UI.confetti(40); UI.toast(`🏆 Hito ML. +${xp} XP`, 'success', 4000); }
-            else UI.toast(`+${xp} XP — Registrado.`, 'success');
-            renderSinergy();
-          }
-        },
-        { label: 'Cancelar', action: () => {} },
-      ],
-    });
-  };
-
-  window.selectAccion = (tipo) => {
-    document.querySelectorAll('[id^="acard-"]').forEach(el => {
-      el.style.borderColor = '';
-      el.style.background = '';
-    });
-    const card = document.getElementById(`acard-${tipo}`);
-    if (card) { card.style.borderColor = 'var(--primary)'; card.style.background = 'var(--primary-glow)'; }
-    const radio = document.querySelector(`input[value="${tipo}"]`);
-    if (radio) radio.checked = true;
-  };
-
-  window.addLG = () => {
-    const v = document.getElementById('lg-input')?.value.trim();
-    if (!v) return;
-    State.update(s => { s.sinergy.metas_trimestre.learning_goals.push(v); });
-    renderSinergy();
-  };
-  window.removeLG = (i) => {
-    State.update(s => { s.sinergy.metas_trimestre.learning_goals.splice(i, 1); });
-    renderSinergy();
-  };
-  window.openOutputModal = window.openSinergyAccionModal;
-}
 
 /* ═══════════════════════════════════════════════════════════
    VISTA: DIARIO
@@ -4639,7 +4379,7 @@ function renderJournalBPS(body, s) {
     <form id="bps-form" onsubmit="saveBPS(event)">
       ${[
         ['1year','Dentro de 1 año. ¿Dónde estás? ¿Qué haces un martes normal?'],
-        ['5year','Dentro de 5 años. Sinergy, familia, cuerpo.'],
+        ['5year','Dentro de 5 años. Vant, familia, cuerpo.'],
         ['10year','Dentro de 10 años. ¿Quién eres? ¿Qué legado?'],
         ['sensorial','Detalle sensorial: ¿qué ves? ¿qué escuchas? ¿cómo te sientes?'],
       ].map(([n,l]) => `<div class="field mb-md"><label>${l}</label><textarea class="input" name="${n}" rows="3"></textarea></div>`).join('')}
@@ -4938,7 +4678,7 @@ function renderCuerpoAgua(body, s) {
 function renderCuerpoComidas(body, s) {
   const hoy = todayISO();
   const comidas = s.fisico.nutricion.filter(c => c.fecha === hoy);
-  const targetProteina = s.fisico.target_proteina_g || 175;
+  const targetProteina = s.fisico.target_proteina_g || 150;
   const totalProteina = comidas.reduce((sum, c) => sum + (c.proteina_g || 0), 0);
   const TIPOS = [
     { id:'desayuno', label:'Desayuno', emoji:'🌅', hint:'Incluye proteína: huevos, yogur, requesón...' },
@@ -5070,9 +4810,9 @@ function renderProgreso5Anios(s) {
   })();
   const adhMeta = m.adherencia_meta_pct || 85;
 
-  // Clientes Sinergy: dato de la última revisión mensual (fuente de verdad)
-  const clientesMes = rev?.clientes_sinergy ?? null;
-  const clientesMeta = m.clientes_sinergy_anio_1 || 5;
+  // Clientes Vant: dato de la última revisión mensual (fuente de verdad)
+  const clientesMes = rev?.clientes_vant ?? null;
+  const clientesMeta = m.clientes_vant_anio_1 || 5;
 
   const mesConRevision = rev ? `Último dato: ${rev.mes}` : 'Haz tu primera revisión mensual';
 
@@ -5085,7 +4825,7 @@ function renderProgreso5Anios(s) {
       ${areaProgressHTML('Físico · % grasa', grasaInicio, grasaActual, grasaMeta, 'pct-inv', 'var(--success)')}
       ${areaProgressHTML('Ingresos · USD/mes (meta año 1)', ingresoInicio, ingresoActual, ingresoAnio1, 'usd', 'var(--primary)')}
       ${areaProgressHTML('Hábitos · adherencia', 0, adh30, adhMeta, '%', 'var(--accent)')}
-      ${areaProgressHTML('Sinergy · clientes', 0, clientesMes, clientesMeta, 'clientes', '#f59e0b')}
+      ${areaProgressHTML('Vant · clientes', 0, clientesMes, clientesMeta, 'clientes', '#f59e0b')}
       <div class="text-xs text-lo mt-sm" style="text-align:center">${mesConRevision}</div>
     </div>
   </div>`;
@@ -5113,7 +4853,7 @@ window.openRevisionMensual = () => {
       <div class="section-title">Dinero</div>
       <div class="field"><label>Ingreso total del mes (USD)</label>
         <div class="input-group"><span class="input-prefix">$</span>
-        <input id="rm-ingreso" class="input input-prefixed num" type="number" placeholder="Carvuk + Sinergy + otros" value="${yaHecha?.ingreso_usd || ''}"></div>
+        <input id="rm-ingreso" class="input input-prefixed num" type="number" placeholder="Carvuk + Vant + otros" value="${yaHecha?.ingreso_usd || ''}"></div>
         <div class="hint">Suma todo. Sin estimar.</div>
       </div>
       <div class="field"><label>Ahorro del mes (USD)</label>
@@ -5121,12 +4861,12 @@ window.openRevisionMensual = () => {
         <input id="rm-ahorro" class="input input-prefixed num" type="number" placeholder="ej. 300" value="${yaHecha?.ahorro_usd || ''}"></div>
       </div>
 
-      <div class="section-title">Sinergy</div>
+      <div class="section-title">Vant</div>
       <div class="grid-2" style="gap:10px">
         <div class="field"><label>Clientes activos</label>
-          <input id="rm-clientes" class="input num" type="number" placeholder="0" value="${yaHecha?.clientes_sinergy || ''}"></div>
+          <input id="rm-clientes" class="input num" type="number" placeholder="0" value="${yaHecha?.clientes_vant || ''}"></div>
         <div class="field"><label>Horas enfocadas</label>
-          <input id="rm-horas" class="input num" type="number" placeholder="ej. 24" value="${yaHecha?.horas_sinergy || ''}"></div>
+          <input id="rm-horas" class="input num" type="number" placeholder="ej. 24" value="${yaHecha?.horas_vant || ''}"></div>
       </div>
 
       <div class="section-title">Reflexión (1 línea cada una)</div>
@@ -5154,8 +4894,8 @@ window.openRevisionMensual = () => {
           if (!st.revisiones_mensuales) st.revisiones_mensuales = [];
           const idx = st.revisiones_mensuales.findIndex(r => r.mes === mes);
           const entry = { mes, fecha: today(), grasa_pct: grasa, peso_kg: peso,
-            ingreso_usd: ingreso, ahorro_usd: ahorro, clientes_sinergy: clientes,
-            horas_sinergy: horas, que_funciono: funciono, que_ajusta: ajusta };
+            ingreso_usd: ingreso, ahorro_usd: ahorro, clientes_vant: clientes,
+            horas_vant: horas, que_funciono: funciono, que_ajusta: ajusta };
           if (idx >= 0) st.revisiones_mensuales[idx] = entry;
           else st.revisiones_mensuales.unshift(entry);
 
@@ -5219,8 +4959,8 @@ function renderYo() {
   })();
   const longestStreak = Math.max(...s.habits.map(h=>h.longestStreak),0);
   const medicion = s.fisico.mediciones.slice(-1)[0];
-  // Ingresos empresa Sinergy — último mes con datos
-  const lastMesConDatos = s.sinergy.mensual.slice().reverse().find(m => (m.ingresos_empresa_clp || 0) > 0);
+  // Ingresos empresa Vant — último mes con datos
+  const lastMesConDatos = s.vant.mensual.slice().reverse().find(m => (m.ingresos_empresa_clp || 0) > 0);
   const gmDisplay = lastMesConDatos
     ? `${(lastMesConDatos.ingresos_empresa_clp/1000).toFixed(0)}k CLP (${new Date(lastMesConDatos.mes+'-01').toLocaleDateString('es-CL',{month:'short',year:'numeric'})})`
     : 'Sin datos aún';
@@ -5291,7 +5031,7 @@ function renderYo() {
           <div class="projection-row"><span>% grasa en 6m</span><span class="projection-goal"></span><span class="projection-real">→ 17-18%</span></div>
           <div class="projection-row"><span>% grasa en 12m</span><span class="projection-goal"></span><span class="projection-real">→ 15-16%</span></div>
           <div class="projection-row"><span>Ingreso USD +3m</span><span class="projection-real">+$500 si GM mejora</span></div>
-          <div class="projection-row"><span>Ganancia Sinergy</span><span class="projection-goal">${esc(gmDisplay)}</span><span class="projection-real">→ meta 35% GM</span></div>
+          <div class="projection-row"><span>Ganancia Vant</span><span class="projection-goal">${esc(gmDisplay)}</span><span class="projection-real">→ meta 35% GM</span></div>
         </div>
         <p class="text-xs text-lo mt-sm" style="line-height:var(--lh-relaxed)">La meta 12% grasa en 3 meses no es realista. El ritmo sano es 0.5-1pp/mes. La evidencia primero.</p>
       </div>
@@ -5304,7 +5044,7 @@ function renderYo() {
             'Ingreso': s.metas_5y?.ingreso_usd_mes ? `$${s.metas_5y.ingreso_usd_mes.toLocaleString('es-CL')} USD/mes` : '$10,000 USD/mes',
             'Cuerpo': s.metas_5y?.grasa_pct ? `${s.metas_5y.grasa_pct}% grasa` : '12% grasa',
             'Auto': s.metas_5y?.auto || 'Golf GTI/R',
-            'Sinergy': s.metas_5y?.sinergy_rol || 'CEO consolidado',
+            'Vant': s.metas_5y?.vant_rol || 'CEO consolidado',
           }).map(([k,v]) => `<div class="projection-row"><span>${k}</span><span class="text-primary font-semibold">${esc(v)}</span></div>`).join('')}
           <button class="btn btn-ghost btn-sm mt-sm" onclick="editarMetas5y()">Editar metas →</button>
         </div>
@@ -5324,7 +5064,7 @@ function renderYo() {
               <div class="grid-3 mb-sm" style="gap:6px">
                 <div class="stat-card" style="padding:6px"><div class="stat-val num" style="font-size:var(--fs-sm)">${r.adherencia_pct}%</div><div class="stat-label">Hábitos</div></div>
                 <div class="stat-card" style="padding:6px"><div class="stat-val num" style="font-size:var(--fs-sm)">+${r.xp_ganado}</div><div class="stat-label">XP</div></div>
-                <div class="stat-card" style="padding:6px"><div class="stat-val num" style="font-size:var(--fs-sm)">${r.sinergy_outputs}</div><div class="stat-label">Sinergy</div></div>
+                <div class="stat-card" style="padding:6px"><div class="stat-val num" style="font-size:var(--fs-sm)">${r.vant_outputs}</div><div class="stat-label">Vant</div></div>
               </div>
               ${r.que_cambia ? `<div class="text-xs text-lo" style="line-height:var(--lh-relaxed)">→ <em>${esc(r.que_cambia)}</em></div>` : ''}
             </div>`).join('')}
@@ -5417,7 +5157,7 @@ function renderYo() {
         <div class="field"><label>Ingreso objetivo (USD/mes)</label><input id="m5-ingreso" class="input" type="number" value="${m.ingreso_usd_mes||10000}" placeholder="10000"></div>
         <div class="field"><label>% grasa objetivo</label><input id="m5-grasa" class="input" type="number" step="0.5" value="${m.grasa_pct||12}" placeholder="12"></div>
         <div class="field"><label>Auto soñado</label><input id="m5-auto" class="input" value="${esc(m.auto||'Golf GTI/R')}" placeholder="Golf GTI/R..."></div>
-        <div class="field"><label>Sinergy en 5 años</label><input id="m5-sinergy" class="input" value="${esc(m.sinergy_rol||'CEO consolidado')}" placeholder="CEO consolidado..."></div>
+        <div class="field"><label>Vant en 5 años</label><input id="m5-vant" class="input" value="${esc(m.vant_rol||'CEO consolidado')}" placeholder="CEO consolidado..."></div>
       </div>`,
       actions:[{ label:'Guardar', action:() => {
         State.update(s => {
@@ -5425,7 +5165,7 @@ function renderYo() {
           s.metas_5y.ingreso_usd_mes = parseInt(document.getElementById('m5-ingreso')?.value)||10000;
           s.metas_5y.grasa_pct = parseFloat(document.getElementById('m5-grasa')?.value)||12;
           s.metas_5y.auto = document.getElementById('m5-auto')?.value.trim()||'Golf GTI/R';
-          s.metas_5y.sinergy_rol = document.getElementById('m5-sinergy')?.value.trim()||'CEO consolidado';
+          s.metas_5y.vant_rol = document.getElementById('m5-vant')?.value.trim()||'CEO consolidado';
         });
         UI.toast('North Star actualizado.','success');
         renderYo();
@@ -5439,7 +5179,7 @@ function renderYo() {
 ═══════════════════════════════════════════════════════════ */
 const PROTOCOLS = [
   { id:'huberman', nombre:'Rutina mañanera', emoji:'☀️', desc:'Checklist de 5 pasos para arrancar bien el día: sol, agua, movimiento, café tarde.', xp:15 },
-  { id:'if_then', nombre:'Plan semanal Si→Entonces', emoji:'📋', desc:'Escribe 5 planes concretos tipo "Si son las 19:00, entonces abro Sinergy por 25 min". +50 XP.', xp:50 },
+  { id:'if_then', nombre:'Plan semanal Si→Entonces', emoji:'📋', desc:'Escribe 5 planes concretos tipo "Si son las 19:00, entonces abro Vant por 25 min". +50 XP.', xp:50 },
   { id:'abcde', nombre:'Reencuadra el fallo', emoji:'🧩', desc:'Cuando falló algo, convierte el pensamiento negativo en aprendizaje en 5 preguntas. +30 XP.', xp:30 },
   { id:'pennebaker', nombre:'Escritura libre sin filtro', emoji:'✍️', desc:'Escribe 15-20 min lo que te pesa, sin editar. Timer incluido. Quémalo o guárdalo. +40 XP.', xp:40 },
   { id:'urge_surfing', nombre:'Surfea el impulso', emoji:'🌊', desc:'Cuando quieras ceder a una distracción: pausa, respira y observa pasar el impulso. 3-5 min. +15 XP.', xp:15 },
@@ -5768,7 +5508,7 @@ function renderIfThen() {
       </div>`).join('')}` : ''}
     ${existing.length < 5 ? `
       <div class="field mb-md"><label>Si...</label><input id="ift-si" class="input" placeholder="Ej: son las 8:00 y estoy en mi escritorio"></div>
-      <div class="field mb-md"><label>Entonces...</label><input id="ift-ent" class="input" placeholder="Ej: abro el plan de Sinergy antes de cualquier otra app"></div>
+      <div class="field mb-md"><label>Entonces...</label><input id="ift-ent" class="input" placeholder="Ej: abro el plan de Vant antes de cualquier otra app"></div>
       <button class="btn btn-secondary btn-block" onclick="saveIfThen()">+ Agregar intención</button>` : ''}
     ${existing.length >= 5 ? `<button class="btn btn-primary btn-block mt-lg" onclick="finishIfThen()">Completar plan de la semana (+50 XP)</button>` : ''}`;
 }
@@ -5899,9 +5639,9 @@ function renderCrisis() {
 const InsightsEngine = (() => {
   const rules = [
     {
-      id:'sinergy_work_no_output',
+      id:'vant_work_no_output',
       check: s => {
-        const last28 = s.sinergy.outputs_log.filter(o => (Date.now()-new Date(o.fecha+'T00:00:00').getTime()) < 28*86400000);
+        const last28 = s.vant.outputs_log.filter(o => (Date.now()-new Date(o.fecha+'T00:00:00').getTime()) < 28*86400000);
         const deepW = s.habits.find(h => h.id==='h2');
         const adh = deepW ? deepW.completions.filter(d => (Date.now()-new Date(d+'T00:00:00').getTime()) < 28*86400000).length / 28 : 0;
         return adh > 0.8 && last28.length === 0;
@@ -5910,12 +5650,12 @@ const InsightsEngine = (() => {
       accion: 'Pivota la métrica: de horas a clientes nuevos.',
     },
     {
-      id:'sinergy_gm_critico',
+      id:'vant_gm_critico',
       check: s => {
-        const meses = s.sinergy.mensual.slice(-2);
+        const meses = s.vant.mensual.slice(-2);
         return meses.length >= 2 && meses.every(m => (m.ganancia_neta || 0) < 50000);
       },
-      msg: 'La ganancia neta de Sinergy lleva dos meses muy baja. El problema no son las horas — puede ser el precio, costos ocultos o el modelo.',
+      msg: 'La ganancia neta de Vant lleva dos meses muy baja. El problema no son las horas — puede ser el precio, costos ocultos o el modelo.',
       accion: 'Agenda 2h esta semana para analizar cuánto entra y cuánto sale, línea por línea.',
     },
     {
@@ -6192,7 +5932,7 @@ function renderFinanzas() {
           <div class="row-between" style="padding:12px 16px;border-bottom:1px solid var(--border)">
             <div>
               <div class="text-sm font-semibold">Ingreso base mensual</div>
-              <div class="text-xs text-lo mt-sm">Carvuk + Sinergy</div>
+              <div class="text-xs text-lo mt-sm">Carvuk + Vant</div>
             </div>
             <button class="btn btn-sm btn-ghost" onclick="editarIngresoBase()">${fmt(f.ingreso_fijo_clp || 0)} →</button>
           </div>
@@ -6421,7 +6161,7 @@ function renderFinanzas() {
       title: 'Ingreso base mensual',
       body: `
         <div class="stack stack-md">
-          <div class="hint">Cambia esto si Carvuk o Sinergy varían. Se usa como valor por defecto cada mes.</div>
+          <div class="hint">Cambia esto si Carvuk o Vant varían. Se usa como valor por defecto cada mes.</div>
           <div class="field">
             <label>Ingreso total mensual (CLP)</label>
             <div class="input-group">
@@ -6446,7 +6186,7 @@ function renderFinanzas() {
 }
 
 /* ═══════════════════════════════════════════════════════════
-   VISTA: RESULTADOS (Sinergy + Finanzas combinados)
+   VISTA: RESULTADOS (Vant + Finanzas combinados)
 ═══════════════════════════════════════════════════════════ */
 function renderResultados(tab = 'resumen') {
   const app = document.getElementById('app');
@@ -6457,14 +6197,14 @@ function renderResultados(tab = 'resumen') {
       </div>
       <div class="journal-tabs">
         <button class="journal-tab ${tab==='resumen'?'active':''}" onclick="renderResultados('resumen')">Resumen</button>
-        <button class="journal-tab ${tab==='sinergy'?'active':''}" onclick="renderResultados('sinergy')">Sinergy</button>
+        <button class="journal-tab ${tab==='vant'?'active':''}" onclick="renderResultados('vant')">Vant</button>
         <button class="journal-tab ${tab==='finanzas'?'active':''}" onclick="renderResultados('finanzas')">Finanzas</button>
       </div>
       <div class="page" style="padding-top:8px" id="resultados-body"></div>
     </div>`;
   const body = document.getElementById('resultados-body');
   if (tab === 'resumen') _renderResultadosResumen(body);
-  else if (tab === 'sinergy') _renderResultadosSinergy(body);
+  else if (tab === 'vant') _renderResultadosVant(body);
   else _renderResultadosFinanzas(body);
 }
 
@@ -6475,11 +6215,11 @@ function _renderResultadosResumen(body) {
   const fmt = n => `$${Math.abs(Math.round(n)).toLocaleString('es-CL')}`;
   const mesPrev = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return monthStr(d); })();
 
-  // — Sinergy —
-  const mesOutputs = (s.sinergy.outputs_log || []).filter(o => o.fecha?.startsWith(mes));
-  const prevOutputs = (s.sinergy.outputs_log || []).filter(o => o.fecha?.startsWith(mesPrev));
-  const mesData = s.sinergy.mensual.find(m => m.mes === mes) || {};
-  const prevData = s.sinergy.mensual.find(m => m.mes === mesPrev) || {};
+  // — Vant —
+  const mesOutputs = (s.vant.outputs_log || []).filter(o => o.fecha?.startsWith(mes));
+  const prevOutputs = (s.vant.outputs_log || []).filter(o => o.fecha?.startsWith(mesPrev));
+  const mesData = s.vant.mensual.find(m => m.mes === mes) || {};
+  const prevData = s.vant.mensual.find(m => m.mes === mesPrev) || {};
   const crmClientes = mesOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
   const prevClientes = prevOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
   const mrrActual = mesData.ingresos_empresa_clp || 0;
@@ -6528,11 +6268,11 @@ function _renderResultadosResumen(body) {
     <div class="section">
       <div class="section-title row-between"><span>${mesNombre}</span><span class="text-xs text-lo">Día ${dia}/${diasMes}</span></div>
 
-      <!-- SINERGY -->
+      <!-- VANT -->
       <div class="card mb-sm" style="padding:14px 16px">
         <div class="row-between mb-sm">
-          <span class="font-semibold text-sm">Sinergy</span>
-          <button class="btn btn-ghost btn-sm" onclick="renderResultados('sinergy')">Ver detalle →</button>
+          <span class="font-semibold text-sm">Vant</span>
+          <button class="btn btn-ghost btn-sm" onclick="renderResultados('vant')">Ver detalle →</button>
         </div>
         <div class="grid-2" style="gap:8px;margin-bottom:8px">
           <div style="background:var(--bg-2);border-radius:var(--r-md);padding:10px">
@@ -6544,7 +6284,7 @@ function _renderResultadosResumen(body) {
             <div class="text-xs text-lo">Outputs ${deltaChip(mesOutputs.length,prevOutputs.length,v=>v+' más')}</div>
           </div>
         </div>
-        ${mrrActual===0 ? `<div class="text-xs text-lo">Sin MRR registrado · <button class="btn btn-ghost btn-sm" onclick="renderResultados('sinergy')" style="font-size:11px;padding:2px 6px">Registrar →</button></div>`
+        ${mrrActual===0 ? `<div class="text-xs text-lo">Sin MRR registrado · <button class="btn btn-ghost btn-sm" onclick="renderResultados('vant')" style="font-size:11px;padding:2px 6px">Registrar →</button></div>`
           : `<div class="text-xs text-lo">Ritmo: ~${ritmo} outputs/mes · ${crmClientes} cliente${crmClientes!==1?'s':''} cerrado${crmClientes!==1?'s':''} este mes</div>`}
       </div>
 
@@ -6607,10 +6347,10 @@ function _renderResultadosResumen(body) {
     </div>`;
 }
 
-function _renderResultadosSinergy(body) {
+function _renderResultadosVant(body) {
   const s = State.get();
   const mes = monthStr();
-  const mesOutputs = s.sinergy.outputs_log.filter(o => o.fecha?.startsWith(mes));
+  const mesOutputs = s.vant.outputs_log.filter(o => o.fecha?.startsWith(mes));
   const crmLlamadas = mesOutputs.filter(o => ['crm_llamada','llamada'].includes(o.tipo)).length;
   const crmClientes = mesOutputs.filter(o => ['crm_cliente','cliente_nuevo'].includes(o.tipo)).length;
   const crmFeatures = mesOutputs.filter(o => ['crm_feature','feature'].includes(o.tipo)).length;
@@ -6618,8 +6358,8 @@ function _renderResultadosSinergy(body) {
   const mlCampañas  = mesOutputs.filter(o => o.tipo === 'ml_campaña').length;
   const mlRecords   = mesOutputs.filter(o => o.tipo === 'ml_record').length;
   const mesNombre   = new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
-  let mesData = s.sinergy.mensual.find(m => m.mes === mes) || { mes, ingresos_empresa_clp: 0, retiro_clp: 0, notas: '' };
-  const metas = s.sinergy.metas_trimestre.learning_goals || [];
+  let mesData = s.vant.mensual.find(m => m.mes === mes) || { mes, ingresos_empresa_clp: 0, retiro_clp: 0, notas: '' };
+  const metas = s.vant.metas_trimestre.learning_goals || [];
   const TIPO_LABEL = {
     crm_llamada:'📞 Llamada CRM', crm_cliente:'🎉 Cliente cerrado', crm_feature:'🚀 Feature lanzada',
     crm_bug:'🔧 Bug resuelto', ml_listing:'🛍️ Listing ML', ml_campaña:'📣 Campaña ML',
@@ -6629,14 +6369,14 @@ function _renderResultadosSinergy(body) {
 
   // MRR últimos 6 meses para trend
   const ultimos6 = Array.from({length:6},(_,i)=>{const d=new Date();d.setMonth(d.getMonth()-i);return monthStr(d);}).reverse();
-  const mrrTrend = ultimos6.map(m=>({m,v:(s.sinergy.mensual.find(x=>x.mes===m)||{}).ingresos_empresa_clp||0}));
+  const mrrTrend = ultimos6.map(m=>({m,v:(s.vant.mensual.find(x=>x.mes===m)||{}).ingresos_empresa_clp||0}));
   const mrrMax = Math.max(...mrrTrend.map(x=>x.v),1);
   const dia = new Date().getDate(); const diasMes = new Date(new Date().getFullYear(),new Date().getMonth()+1,0).getDate();
   const ritmo = dia > 0 ? Math.round(mesOutputs.length/dia*diasMes) : 0;
   const mesPrev = (() => { const d = new Date(); d.setMonth(d.getMonth()-1); return monthStr(d); })();
-  const prevOutputs = (s.sinergy.outputs_log||[]).filter(o=>o.fecha?.startsWith(mesPrev));
+  const prevOutputs = (s.vant.outputs_log||[]).filter(o=>o.fecha?.startsWith(mesPrev));
   const outDelta = mesOutputs.length - prevOutputs.length;
-  const prevData = s.sinergy.mensual.find(m=>m.mes===mesPrev)||{};
+  const prevData = s.vant.mensual.find(m=>m.mes===mesPrev)||{};
   const mrrDelta = (mesData.ingresos_empresa_clp||0) - (prevData.ingresos_empresa_clp||0);
 
   body.innerHTML = `
@@ -6704,7 +6444,7 @@ function _renderResultadosSinergy(body) {
     <div class="section">
       <div class="section-title">Metas del trimestre</div>
       <div class="card" style="padding:0">
-        ${(s.sinergy.metas_trimestre.performance_goals||[]).concat(metas).map((g,i) => `
+        ${(s.vant.metas_trimestre.performance_goals||[]).concat(metas).map((g,i) => `
           <div class="row-between" style="padding:10px 14px;border-bottom:1px solid var(--border)">
             <span class="text-sm">${esc(g)}</span>
             <button class="btn btn-ghost btn-sm" onclick="toggleMetaTrimestre(${i})" style="color:var(--success);font-size:18px">○</button>
@@ -6720,18 +6460,18 @@ function _renderResultadosSinergy(body) {
 
   window.openGananciaModal = () => {
     const s2 = State.get();
-    const md = s2.sinergy.mensual.find(m => m.mes === mes) || {};
+    const md = s2.vant.mensual.find(m => m.mes === mes) || {};
     UI.modal({
-      title: 'Dinero del mes · Sinergy',
+      title: 'Dinero del mes · Vant',
       body: `<div class="stack stack-md">
         <div class="field">
-          <label>Ingresos de Sinergy como empresa (CLP)</label>
+          <label>Ingresos de Vant como empresa (CLP)</label>
           <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
           <input id="gan-empresa" class="input input-prefixed num" type="number" placeholder="ej. 1200000" value="${md.ingresos_empresa_clp||''}"></div>
-          <div class="hint">Lo que facturó Sinergy este mes antes de gastos.</div>
+          <div class="hint">Lo que facturó Vant este mes antes de gastos.</div>
         </div>
         <div class="field">
-          <label>Tu retiro personal de Sinergy (CLP)</label>
+          <label>Tu retiro personal de Vant (CLP)</label>
           <div class="input-group"><span class="input-prefix" style="font-size:11px">$</span>
           <input id="gan-retiro" class="input input-prefixed num" type="number" placeholder="ej. 300000" value="${md.retiro_clp||''}"></div>
           <div class="hint">Lo que te llevaste vos. Inclúyelo en Finanzas como parte de tu ingreso total.</div>
@@ -6744,27 +6484,27 @@ function _renderResultadosSinergy(body) {
           const retiro  = parseInt(document.getElementById('gan-retiro')?.value) || 0;
           const nota    = document.getElementById('gan-nota')?.value.trim() || '';
           State.update(s => {
-            const idx = s.sinergy.mensual.findIndex(m => m.mes === mes);
-            const entry = { ...((s.sinergy.mensual[idx]) || {}), mes, ingresos_empresa_clp: empresa, retiro_clp: retiro, notas: nota };
-            if (idx >= 0) s.sinergy.mensual[idx] = entry;
-            else s.sinergy.mensual.unshift(entry);
-            if (empresa > 0 || retiro > 0) s.fase0_checklist.pnl_sinergy_completo = true;
+            const idx = s.vant.mensual.findIndex(m => m.mes === mes);
+            const entry = { ...((s.vant.mensual[idx]) || {}), mes, ingresos_empresa_clp: empresa, retiro_clp: retiro, notas: nota };
+            if (idx >= 0) s.vant.mensual[idx] = entry;
+            else s.vant.mensual.unshift(entry);
+            if (empresa > 0 || retiro > 0) s.fase0_checklist.pnl_vant_completo = true;
           });
           UI.toast('Guardado.', 'success');
-          renderResultados('sinergy');
+          renderResultados('vant');
         }},
         { label: 'Cancelar', action: () => {} },
       ],
     });
   };
 
-  window.openOutputModal = window.openSinergyAccionModal || (() => {
+  window.openOutputModal = window.openVantAccionModal || (() => {
     const TIPOS = [
       ['crm_llamada','📞 Llamada CRM'],['crm_cliente','🎉 Cliente cerrado'],['crm_feature','🚀 Feature lanzada'],
       ['crm_bug','🔧 Bug resuelto'],['ml_listing','🛍️ Listing ML'],['ml_campaña','📣 Campaña ML'],['ml_record','🏆 Hito ML'],
     ];
     UI.modal({
-      title: '¿Qué hiciste hoy en Sinergy?',
+      title: '¿Qué hiciste hoy en Vant?',
       body: `<div class="stack stack-md">
         <div class="field"><label>Tipo</label>
           <select id="out-tipo" class="input">${TIPOS.map(([v,l])=>`<option value="${v}">${l}</option>`).join('')}</select>
@@ -6779,10 +6519,10 @@ function _renderResultadosSinergy(body) {
           const detalle = document.getElementById('out-detalle')?.value.trim() || '';
           const XP_MAP  = { crm_llamada:10, crm_cliente:50, crm_feature:40, crm_bug:20, ml_listing:15, ml_campaña:20, ml_record:60 };
           const xpGanado = XP_MAP[tipo] || 10;
-          State.update(s => { s.sinergy.outputs_log.unshift({ fecha: todayISO(), tipo, detalle, xp_ganado: xpGanado }); });
-          XP.add(xpGanado, `Sinergy: ${tipo}`);
+          State.update(s => { s.vant.outputs_log.unshift({ fecha: todayISO(), tipo, detalle, xp_ganado: xpGanado }); });
+          XP.add(xpGanado, `Vant: ${tipo}`);
           UI.toast(`Output registrado. +${xpGanado} XP`, 'success');
-          renderResultados('sinergy');
+          renderResultados('vant');
         }},
         { label: 'Cancelar', action: () => {} },
       ],
@@ -7189,9 +6929,9 @@ function renderAjustes() {
       agua_este_mes: Object.entries(s.fisico.agua || {})
         .filter(([k]) => k.startsWith(mes))
         .map(([fecha, vasos]) => ({ fecha, vasos })),
-      sinergy_este_mes: {
-        datos: s.sinergy.mensual.find(m => m.mes === mes) || {},
-        outputs: (s.sinergy.outputs_log || []).filter(o => o.fecha?.startsWith(mes)),
+      vant_este_mes: {
+        datos: s.vant.mensual.find(m => m.mes === mes) || {},
+        outputs: (s.vant.outputs_log || []).filter(o => o.fecha?.startsWith(mes)),
       },
       finanzas_este_mes: s.finanzas.mensual.find(m => m.mes === mes) || {},
       gastos_fijos: s.finanzas.gastos_fijos || [],
@@ -7329,7 +7069,7 @@ function renderCocina(tab = 'recetas') {
     const grasaPct   = med?.grasa_pct  ?? prof.grasa_pct  ?? '—';
     const visceral   = med?.visceral   ?? '—';
     const altura     = prof.altura_cm  ?? '—';
-    const targetProt = fisico.target_proteina_g          || 175;
+    const targetProt = fisico.target_proteina_g          || 150;
     const presupuesto= fisico.presupuesto_comida_semanal || 50000;
     const tFuerza    = fisico.target_sesiones_fuerza_sem || 4;
     const tCardio    = fisico.target_cardio_z2_sem       || 3;
@@ -7346,7 +7086,13 @@ function renderCocina(tab = 'recetas') {
     const almIds  = plan.almuerzo_ids || [];
     const ceIds   = plan.cena_ids    || [];
     const protMediaExp = ids => { const rs = ids.map(id => getR(id)).filter(Boolean); return rs.length ? Math.round(rs.reduce((a,r) => a + (r.macros?.proteina_g||0), 0) / rs.length) : 0; };
-    const totalProtDia = protMediaExp(desIds) + protMediaExp(almIds) + protMediaExp(ceIds) + (plan.batidos_dia||0) * 24;
+    const batidosProt = (plan.batidos_dia||0) * 24;
+    const totalProtDia = protMediaExp(desIds) + protMediaExp(almIds) + protMediaExp(ceIds) + batidosProt; // promedio, solo para sugerir snacks
+    // Rango real de proteína/día: un día puede tocar la receta de menos o la de más proteína
+    const protRangeExp = ids => { const ps = ids.map(id => getR(id)).filter(Boolean).map(r => r.macros?.proteina_g||0); return ps.length ? [Math.min(...ps), Math.max(...ps)] : [0,0]; };
+    const protMinDia = [desIds,almIds,ceIds].reduce((a,ids)=>a+protRangeExp(ids)[0], batidosProt);
+    const protMaxDia = [desIds,almIds,ceIds].reduce((a,ids)=>a+protRangeExp(ids)[1], batidosProt);
+    const protRangoTxt = protMinDia === protMaxDia ? `~${protMinDia}g/día` : `~${protMinDia}-${protMaxDia}g/día (varía según la receta del día)`;
     const lines = [];
     const sec    = t => { lines.push(''); lines.push(`=== ${t} ===`); };
     const subsec = t => { lines.push(''); lines.push(`--- ${t} ---`); };
@@ -7361,7 +7107,7 @@ function renderCocina(tab = 'recetas') {
     }
     if (med?.fecha) lines.push(`Última medición: ${med.fecha}`);
     subsec('OBJETIVOS');
-    lines.push(`Proteína meta: ${targetProt}g/día | Plan actual: ~${totalProtDia}g/día`);
+    lines.push(`Proteína meta: ${targetProt}g/día | Plan actual: ${protRangoTxt}`);
     lines.push(`Presupuesto: $${(presupuesto/1000).toFixed(0)}k CLP/sem`);
     lines.push(`Meta fuerza: ${tFuerza}/sem | Meta cardio Z2: ${tCardio}/sem`);
     subsec('ESTADO ESTA SEMANA');
@@ -7381,6 +7127,9 @@ function renderCocina(tab = 'recetas') {
       });
     };
     sec('PLAN DE COMIDAS — ' + semana);
+    lines.push('MODELO ROTATIVO: cada comida tiene 1-3 recetas que se REPARTEN entre los 7 días (cocino en batch el domingo y voy alternando para no aburrirme).');
+    lines.push('NO es un menú de 7 platos distintos. Ej: 3 almuerzos → reparto 3+2+2 días (receta A 3 días, B 2 días, C 2 días).');
+    lines.push('IMPORTANTE: como un día como una receta y otro día otra, CADA receta debe acercarse sola a mi meta de proteína.');
     lines.push('Porciones = 1 persona/día. Cantidades = 1 día.');
     printGrupo(desIds, 'DESAYUNOS');
     printGrupo(almIds, 'ALMUERZOS');
@@ -7424,20 +7173,19 @@ function renderCocina(tab = 'recetas') {
     }
     const recetasPrepExp = [...almIds,...ceIds].map(id => getR(id)).filter(r => r && r.meal_prep);
     if (recetasPrepExp.length >= 2) {
-      const TMAP_EXP = {'al1':'horno','al2':'sellado','al3':'sellado','al4':'horno','al5':'wok','al6':'sellado','al7':'horno','al8':'wok','al9':'horno','al10':'sellado','al11':'sellado','al12':'horno','al13':'wok','al14':'horno','al15':'sellado','ce1':'horno','ce2':'sellado','ce3':'sellado','ce4':'sellado','ce5':'horno','ce6':'horno','ce7':'wok','ce8':'sellado','ce9':'horno','ce10':'sellado','ce11':'horno','ce12':'sellado','ce13':'horno','ce14':'wok','ce15':'sellado'};
       const tiempoTotalExp = Math.max(...recetasPrepExp.map(r=>r.tiempo_min)) + 40;
       subsec('SESIÓN BATCH (cocinar el Sábado — o Martes para reponer)');
       recetasPrepExp.forEach((r,i) => {
         const arrIds = almIds.includes(r.id) ? almIds : ceIds;
         const dias = multFn(arrIds, arrIds.indexOf(r.id));
-        lines.push(`• ${r.nombre} — ${TMAP_EXP[r.id]||'directo'} — ${r.tiempo_min} min — ${dias} días/sem`);
+        lines.push(`• ${r.nombre} — ${TECNICA_MAP[r.id]||'directo'} — ${r.tiempo_min} min — ${dias} días/sem`);
       });
       lines.push(`Tiempo total estimado: ~${tiempoTotalExp} min`);
       lines.push('Tip: paraleliza técnicas distintas (horno + sellado al mismo tiempo).');
     }
     sec('ESTRATEGIA QUINCENA — 2 SEMANAS');
-    lines.push('Compro para 2 semanas. El sábado cocino todo para semana 1.');
-    lines.push('Ese mismo sábado congelo proteínas CRUDAS para semana 2 → semana 2 es 40% más rápida.');
+    lines.push('Compro PROTEÍNA y SECOS (arroz, aceite, especias) para 15 días. VERDURAS, FRUTA y LÁCTEOS solo para 7 días porque se pudren → recompra fresca el día 8.');
+    lines.push('El sábado cocino todo para la semana 1 y congelo las proteínas CRUDAS de la semana 2 → la semana 2 es 40% más rápida.');
     lines.push('');
     lines.push('Proteínas a congelar el domingo (para semana 2):');
     [...almIds, ...ceIds].forEach(id => {
@@ -7450,9 +7198,10 @@ function renderCocina(tab = 'recetas') {
     });
     lines.push('Descongelar en nevera 12-24h antes de cocinar.');
     sec('PIDE A LA IA');
-    lines.push('1. "Organízame el meal prep del domingo en orden óptimo, paralelo cuando sea posible"');
-    lines.push('2. "¿Mi plan cubre los ' + targetProt + 'g de proteína diaria?"');
-    lines.push('3. "Lista de compras para 2 semanas con cantidades exactas"');
+    lines.push('1. "Con estas recetas y sus días asignados, ármame un calendario Lunes a Domingo variando los platos, respetando los días/semana de cada receta, mi meta de proteína y mi presupuesto."');
+    lines.push('2. "Organízame la sesión de meal prep del domingo en orden óptimo, cocinando en paralelo cuando se pueda."');
+    lines.push('3. "¿Cada una de mis recetas se acerca sola a los ' + targetProt + 'g de proteína al día? ¿Cuál se queda corta y con qué snack o batido la complemento?"');
+    lines.push('4. "Lista de compras para 2 semanas: proteína y secos para 15 días; verduras, fruta y lácteos para 7 días, con cantidades exactas."');
     const txt = lines.join('\n');
     const prev = document.getElementById('_exportModal');
     if (prev) prev.remove();
@@ -7473,27 +7222,35 @@ function renderCocina(tab = 'recetas') {
     const esQuincena = semanas === 'quincena' || (!semanas && State.get('cocina.lista_compras.semanas_compra') === 'quincena');
     const sem = esQuincena ? 1 : (semanas || State.get('cocina.lista_compras.semanas_compra') || 1);
     const items = [];
+    // Unidades que no se pueden fraccionar al comprar (medio huevo no se compra)
+    const DISCRETAS = /unidad|diente|rodaja|rebanada|lata|frasco|sobre/;
     // Escala una cantidad textual por un multiplicador: "120g" ×4 → "480g"
     const escalar = (cantidad, mult) => {
       if (mult === 1) return cantidad;
       const m = cantidad.trim().match(/^(\d+(?:[.,]\d+)?)\s*(.*)/);
       if (m) {
-        const n = parseFloat(m[1].replace(',','.')) * mult;
-        const v = Number.isInteger(n) ? n : Math.round(n * 10) / 10;
-        return v + (m[2] ? ' ' + m[2] : '');
+        const unidad = m[2];
+        let n = parseFloat(m[1].replace(',','.')) * mult;
+        n = DISCRETAS.test(unidad) ? Math.ceil(n) : (Number.isInteger(n) ? n : Math.round(n * 10) / 10);
+        return n + (unidad ? ' ' + unidad : '');
       }
       const fracs = {'½':0.5,'¼':0.25,'¾':0.75,'⅓':1/3,'⅔':2/3};
       for (const [f,v] of Object.entries(fracs)) {
         if (cantidad.startsWith(f)) {
           const rest = cantidad.slice(f.length).trim();
-          const n = Math.round(v * mult * 10) / 10;
+          let n = v * mult;
+          n = DISCRETAS.test(rest) ? Math.ceil(n) : Math.round(n * 10) / 10;
           return n + (rest ? ' ' + rest : '');
         }
       }
-      return `${cantidad} ×${mult}`;
+      // "al gusto", "pizca": no son aditivas, no se multiplican
+      return cantidad;
     };
     // Suma dos cantidades ya escaladas si tienen la misma unidad: "480g" + "300g" → "780g"
+    const esNumerica = c => /^\s*[\d½¼¾⅓⅔]/.test(c);
     const sumar = (a, b) => {
+      if (!esNumerica(a)) return esNumerica(b) ? b : a; // ignora "al gusto"/"pizca"
+      if (!esNumerica(b)) return a;
       const ma = a.match(/^([\d.]+)\s*(.*)/);
       const mb = b.match(/^([\d.]+)\s*(.*)/);
       if (ma && mb && ma[2].trim() === mb[2].trim()) {
@@ -7503,15 +7260,22 @@ function renderCocina(tab = 'recetas') {
       }
       return `${a} + ${b}`;
     };
+    // En quincena, lo perecedero (verduras, frutas, lácteos) se compra solo para 7 días
+    // porque se pudre; la proteína y lo seco (arroz, aceite, especias) para 15 días.
+    const PERECEDERO = ['verduras', 'frutas', 'lacteos'];
     const addIngredientes = (recetaId, multBase, ignorarQuincena = false) => {
       const r = recetas.find(x => x.id === recetaId);
       if (!r) return;
       r.ingredientes.forEach(ing => {
-        const mult = (esQuincena && !ignorarQuincena)
-          ? Math.round(multBase * 15 / 7)
-          : (esQuincena && ignorarQuincena)
-          ? multBase * 2
-          : multBase * sem;
+        const fresco = PERECEDERO.includes(ing.cat);
+        let mult;
+        if (esQuincena && !ignorarQuincena) {
+          mult = fresco ? multBase : Math.round(multBase * 15 / 7);
+        } else if (esQuincena && ignorarQuincena) {
+          mult = fresco ? multBase : multBase * 2;
+        } else {
+          mult = multBase * sem;
+        }
         const key = ing.item.toLowerCase();
         const exist = items.find(i => i.item.toLowerCase() === key);
         const cantScalada = escalar(ing.cantidad, mult);
@@ -7535,7 +7299,7 @@ function renderCocina(tab = 'recetas') {
       .forEach(r => addIngredientes(r.id, 1, true));
     // Snacks sugeridos — misma lógica que el Plan (cierre de proteína), ×1 batch
     const sAll = State.get();
-    const targetProt = sAll.fisico?.target_proteina_g || 175;
+    const targetProt = sAll.fisico?.target_proteina_g || 150;
     const protBatidos = (plan.batidos_dia || 0) * 24;
     const protMedia = ids => { const rs = (ids||[]).map(id => recetas.find(r => r.id === id)).filter(Boolean); return rs.length ? Math.round(rs.reduce((a,r) => a + r.macros.proteina_g, 0) / rs.length) : 0; };
     const protDiaComp = protMedia(plan.almuerzo_ids) + protMedia(plan.cena_ids) + protMedia(plan.desayuno_ids) + protBatidos;
@@ -7593,7 +7357,8 @@ function _renderRecetasList(s, recetas, container, TECNICA_MAP) {
         ${filtered.map(r => {
           const esFav = favs.includes(r.id);
           const enPlan = (plan.almuerzo_ids||[]).includes(r.id) || (plan.cena_ids||[]).includes(r.id) || (plan.desayuno_ids||[]).includes(r.id) || plan.shot_id === r.id;
-          const costoDisplay = `$${(r.costo_total_clp||0).toLocaleString('es-CL')}/día`;
+          const unidadCosto = r.tipo === 'salsa' ? '/batch' : r.tipo === 'snack' ? '/ud' : '/día';
+          const costoDisplay = `$${(r.costo_total_clp||0).toLocaleString('es-CL')}${unidadCosto}`;
           return `<div class="card" style="${enPlan?'border:1.5px solid var(--primary);':''}">
             <div class="row-between mb-sm">
               <div style="display:flex;align-items:center;gap:8px">
@@ -7617,7 +7382,7 @@ function _renderRecetasList(s, recetas, container, TECNICA_MAP) {
             <div class="text-xs text-lo mb-md" style="font-style:italic">${esc(r.notas||'')}</div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
               <button class="btn btn-sm btn-ghost" onclick="window._toggleRecetaDetail('${r.id}')">Ver receta</button>
-              ${r.tipo !== 'shot' ? (() => { const key = r.tipo === 'almuerzo' ? 'almuerzo_ids' : r.tipo === 'cena' ? 'cena_ids' : 'desayuno_ids'; const arr = plan[key] || []; const full = arr.length >= 2 && !enPlan; return `<button class="btn btn-sm ${enPlan ? 'btn-primary' : ''}" ${full ? `disabled title="Ya tienes 2 recetas de ${r.tipo}"` : ''} onclick="usarRecetaSemana('${r.id}','${r.tipo}')">${enPlan ? '✓ En el plan' : full ? 'Plan lleno' : 'Usar esta semana'}</button>`; })() : ''}
+              ${r.tipo !== 'shot' ? (() => { const key = r.tipo === 'almuerzo' ? 'almuerzo_ids' : r.tipo === 'cena' ? 'cena_ids' : 'desayuno_ids'; const arr = plan[key] || []; const full = arr.length >= 3 && !enPlan; return `<button class="btn btn-sm ${enPlan ? 'btn-primary' : ''}" ${full ? `disabled title="Ya tienes 3 recetas de ${r.tipo}"` : ''} onclick="usarRecetaSemana('${r.id}','${r.tipo}')">${enPlan ? '✓ En el plan' : full ? 'Plan lleno' : 'Usar esta semana'}</button>`; })() : ''}
               ${r.tipo==='shot'?`<button class="btn btn-sm ${plan.shot_id===r.id?'btn-primary':''}" onclick="usarRecetaSemana('${r.id}','shot')">${plan.shot_id===r.id?'⚡ Shot activo':'Usar esta semana'}</button>`:''}
             </div>
             <div id="detail-${r.id}" style="display:none;margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
@@ -7655,7 +7420,7 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
   const desIds = plan.desayuno_ids || [];
   const rDesayunos = desIds.map(id => recetas.find(r => r.id === id)).filter(Boolean);
   const rShot = recetas.find(r => r.id === plan.shot_id);
-  const targetProt = s.fisico.target_proteina_g || 175;
+  const targetProt = s.fisico.target_proteina_g || 150;
   const batidosDia = (plan.batidos_dia !== undefined) ? plan.batidos_dia : 1;
   const protBatidos = batidosDia * 24;
   const calBatidos = batidosDia * 120;
@@ -7664,6 +7429,12 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
   const protCen = rCenas.length ? Math.round(rCenas.reduce((s,r) => s + r.macros.proteina_g, 0) / rCenas.length) : 0;
   const protDes = rDesayunos.length ? Math.round(rDesayunos.reduce((s,r) => s + r.macros.proteina_g, 0) / rDesayunos.length) : 0;
   const protDia = protAlm + protCen + protDes + protBatidos;
+  // Rango real: el día que toca la receta de menos proteína vs la de más
+  const minG = arr => arr.length ? Math.min(...arr.map(r => r.macros.proteina_g)) : 0;
+  const maxG = arr => arr.length ? Math.max(...arr.map(r => r.macros.proteina_g)) : 0;
+  const protMin = minG(rAlmuerzos) + minG(rCenas) + minG(rDesayunos) + protBatidos;
+  const protMax = maxG(rAlmuerzos) + maxG(rCenas) + maxG(rDesayunos) + protBatidos;
+  const protVaria = protMin !== protMax;
   const calDia = (rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r)=>s+r.macros.calorias,0)/rAlmuerzos.length) : 0) + (rCenas.length ? Math.round(rCenas.reduce((s,r)=>s+r.macros.calorias,0)/rCenas.length) : 0) + (rDesayunos.length ? Math.round(rDesayunos.reduce((s,r)=>s+r.macros.calorias,0)/rDesayunos.length) : 0) + calBatidos;
   const protPct = Math.min(100, Math.round(protDia / targetProt * 100));
   const multFn = (ids, i) => ids.length === 1 ? 7 : ids.length === 2 ? (i === 0 ? 4 : 3) : (i === 0 ? 3 : 2);
@@ -7713,7 +7484,7 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
   }
 
   const renderSlotGrupo = (label, recetasArr, tipo, max) => {
-    const diasSem = recetasArr.length < 2 ? 7 : [4,3];
+    const diasSem = recetasArr.length < 2 ? 7 : recetasArr.length === 2 ? [4,3] : [3,2,2];
     const diasLabel = Array.isArray(diasSem) ? diasSem.join('+') : diasSem;
     return `<div class="mb-md">
       <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${label} <span style="font-weight:400;color:var(--text-lo)">(hasta ${max}, ${diasLabel} días/sem c/u)</span></div>
@@ -7765,9 +7536,9 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
     <div>
       ${!planEsSemanaActual && hasPlan ? `<div class="banner banner-comeback mb-md" style="background:var(--accent-glow);border-color:var(--accent);color:var(--accent)">Plan de semana anterior. Actualiza tu selección.</div>` : ''}
 
-      ${renderSlotGrupo('🌅 Desayunos — elige 1 o 2', rDesayunos, 'desayuno', 2)}
-      ${renderSlotGrupo('☀️ Almuerzos — meal prep', rAlmuerzos, 'almuerzo', 2)}
-      ${renderSlotGrupo('🌙 Cenas — meal prep', rCenas, 'cena', 2)}
+      ${renderSlotGrupo('🌅 Desayunos — elige 1 a 3', rDesayunos, 'desayuno', 3)}
+      ${renderSlotGrupo('☀️ Almuerzos — elige 1 a 3', rAlmuerzos, 'almuerzo', 3)}
+      ${renderSlotGrupo('🌙 Cenas — elige 1 a 3', rCenas, 'cena', 3)}
 
       ${renderSlotSimple('⚡ Shot semanal (2 min/día)', rShot, 'shot')}
       ${shotRec && plan.shot_id !== shotRecId ? `
@@ -7794,6 +7565,7 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
             <span class="font-semibold text-sm" style="color:${protPct>=80?'var(--success)':protPct>=60?'var(--accent)':'var(--danger)'}">${protDia}g / ${targetProt}g (${protPct}%)</span>
           </div>
           <div class="progress-bar mb-md"><div class="progress-fill" style="width:${protPct}%"></div></div>
+          ${protVaria ? `<div class="text-xs text-lo mb-sm" style="margin-top:-4px">Varía <strong>${protMin}–${protMax}g</strong> según la receta del día. Que cada una llegue sola a tu meta.</div>` : ''}
           ${swapHTML}
           ${wasteHTML}
           <div class="row-between mb-sm" style="margin-top:${swapHTML||wasteHTML?'12px':'0'}"><span class="text-sm">Calorías</span><span class="font-semibold text-sm">${calDia} kcal/día</span></div>
@@ -7987,7 +7759,7 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
           }
           steps.push([fmt(tiempoTotal-30), 'Apagar todo. Dejar enfriar SIN tapa 15–20 min antes de envasar.']);
           steps.push([fmt(tiempoTotal-15), `Distribuir en envases: ${recetasPrep.map(r=>`<strong>5×</strong> ${esc(r.nombre)}`).join(' · ')}.`]);
-          steps.push([fmt(tiempoTotal),    'Cerrar cuando estén a temperatura ambiente. Días 1–2 al frente del fridge, días 3–5 al fondo.']);
+          steps.push([fmt(tiempoTotal),    'Refrigerar dentro de 2 h de cocinar (aunque esté tibio). Días 1–3 en nevera; congela las porciones del día 4–5 y descongela la víspera.']);
         } else {
           steps.push(...[
             ['00:00','Poner a hervir el grano que más demora: arroz blanco (18 min). Prepara ingredientes de ambas proteínas juntos.'],
@@ -7999,7 +7771,7 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
             ['00:55','Apagar todo. Dejar enfriar 15-20 min sin tapa.'],
             ['01:15','Distribuir en 5 envases por receta. Porciones iguales.'],
             ['01:30','Limpiar mientras los envases enfrían.'],
-            ['01:45','Guardar: días 1-2 al frente del refrigerador, días 3-5 al fondo.'],
+            ['01:45','Guardar: refrigerar dentro de 2 h. Días 1-3 en nevera; congela el día 4-5 y descongela la víspera. Recalienta hasta que humee.'],
           ]);
         }
 
@@ -8107,18 +7879,21 @@ function _renderListaCompras(s, recetas, container) {
     <div>
       <div class="card mb-md" style="background:var(--bg-2)">
         <div class="row-between mb-sm">
-          <div class="text-sm font-semibold">Lista ${esQuincenaView ? '15 días (proteínas)' : semCompra > 1 ? semCompra + ' semanas' : 'semanal'}</div>
+          <div class="text-sm font-semibold">Lista ${esQuincenaView ? 'quincena · 15 días' : semCompra > 1 ? semCompra + ' semanas' : 'semanal · 7 días'}</div>
           <div class="text-sm" style="color:${pct===100?'var(--success)':'var(--text-md)'}">${comprados}/${total} items</div>
         </div>
         <div class="progress-bar mb-sm"><div class="progress-fill" style="width:${pct}%;background:${pct===100?'var(--success)':'var(--primary)'};transition:width .4s"></div></div>
+        ${esQuincenaView ? `<div class="text-xs mb-md" style="line-height:1.55;padding:9px 11px;background:var(--bg-3);border-radius:var(--r-sm);color:var(--text-md)">🥩 <strong>Proteína y secos: 15 días</strong> (congela la 2ª semana).<br>🥦 <strong>Verduras y lácteos: 7 días</strong> — vuelve a comprar lo fresco el <strong>día 8</strong>.</div>` : ''}
         <div class="row-between mb-sm">
-          <div class="text-xs text-lo">Comida (tu presupuesto)</div>
+          <div class="text-xs text-lo">Comida${esQuincenaView ? ' · ~15 días' : semCompra > 1 ? ' · ' + semCompra + ' sem' : ' · 7 días'}</div>
           <div class="text-sm font-semibold" style="color:var(--success)">~$${costoComidaLista.toLocaleString('es-CL')}</div>
         </div>
+        ${(() => { const presup = State.get('fisico.presupuesto_comida_semanal') || 50000; const factor = esQuincenaView ? 2 : (semCompra || 1); const ref = presup * factor; const over = costoComidaLista > ref; return `<div class="row-between mb-sm"><div class="text-xs text-lo">Tu presupuesto${factor > 1 ? ' (×' + factor + ' sem)' : ''}</div><div class="text-xs" style="color:${over ? 'var(--danger)' : 'var(--text-lo)'}">~$${ref.toLocaleString('es-CL')}${over ? ' ⚠️' : ''}</div></div>`; })()}
         ${costoWheyLista > 0 ? `<div class="row-between mb-sm">
           <div class="text-xs text-lo">Whey protein (compra aparte)</div>
           <div class="text-xs text-lo">~$${costoWheyLista.toLocaleString('es-CL')}</div>
         </div>` : ''}
+        ${lc.generada ? `<div class="text-xs text-lo mb-sm">Generada: ${lc.generada}</div>` : ''}
         <div class="row-between">
           <div class="text-xs text-lo">Comprar para</div>
           <div style="display:flex;gap:4px">
@@ -8129,7 +7904,7 @@ function _renderListaCompras(s, recetas, container) {
       </div>
       ${bycatOrdered.map(([cat, items]) => `
         <div class="mb-md">
-          <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${CATS_LABEL[cat]||cat}${esQuincenaView?`<span style="font-size:10px;font-weight:500;background:${cat==='proteinas'?'var(--primary-glow)':'var(--bg-3)'};color:${cat==='proteinas'?'var(--primary)':'var(--text-lo)'};padding:1px 6px;border-radius:8px;margin-left:6px;text-transform:lowercase">${cat==='proteinas'?'15d':'7d'}</span>`:''}</div>
+          <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">${CATS_LABEL[cat]||cat}${esQuincenaView?(()=>{const f7=['verduras','lacteos'].includes(cat);return `<span style="font-size:10px;font-weight:500;background:${f7?'var(--bg-3)':'var(--primary-glow)'};color:${f7?'var(--text-lo)':'var(--primary)'};padding:1px 6px;border-radius:8px;margin-left:6px;text-transform:lowercase">${f7?'7d':'15d'}</span>`;})():''}</div>
           ${items.map((item, idx) => {
             const globalIdx = lc.items.indexOf(item);
             return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);opacity:${item.comprado?'.45':'1'}">
@@ -8306,7 +8081,8 @@ const App = (() => {
     Router.register('habitos', () => { renderNav(); renderHabitos(); });
     Router.register('cuerpo', () => { renderNav(); renderCuerpo(); });
     Router.register('resultados', () => { renderNav(); renderResultados(); });
-    Router.register('sinergy', () => { renderNav(); renderResultados('sinergy'); });
+    Router.register('vant', () => { renderNav(); renderResultados('vant'); });
+    Router.register('sinergy', () => { renderNav(); renderResultados('vant'); }); // alias retrocompat
     Router.register('finanzas', () => { renderNav(); renderFinanzas(); });
     Router.register('finanzas-resumen', () => { renderNav(); renderResultados('finanzas'); });
     Router.register('diario', () => { renderNav(); renderDiario(); });
