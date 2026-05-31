@@ -6187,6 +6187,112 @@ async function extraerTextoPDF(file) {
   return texto;
 }
 
+// Estado temporal de la revisión de cartola (en memoria, no se persiste hasta guardar)
+let _cartolaMovs = [];
+async function onCartolaFile(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  UI.toast('Leyendo cartola…');
+  try {
+    const texto = await extraerTextoPDF(file);
+    if (!texto || texto.replace(/\s/g, '').length < 20) { UI.toast('Este PDF no tiene texto legible (¿es una imagen escaneada?). Usa el registro manual.', 'warn', 5000); return; }
+    const movs = parseMovimientosCartola(texto);
+    if (!movs.length) { UI.toast('No detecté movimientos. Puede que el formato del banco sea distinto — avísame y lo afino.', 'warn', 6000); return; }
+    const reglas = State.get().finanzas.reglas || [];
+    const yaImportados = new Set();
+    (State.get().finanzas.mensual || []).forEach(m => (m.movimientos || []).forEach(mv => yaImportados.add(mv.hash)));
+    _cartolaMovs = movs.map(mv => {
+      const regla = clasificarMovimiento(mv.desc, reglas);
+      const hash = `${mv.fecha}|${mv.monto}|${_norm(mv.desc).slice(0, 24)}`;
+      return { ...mv, hash, dup: yaImportados.has(hash),
+        destino: regla ? regla.destino : (mv.tipo === 'abono' ? 'ignorar' : 'pendiente'),
+        catId: regla ? (regla.catId || '') : '', concepto: regla ? (regla.concepto || '') : '',
+        incluir: mv.tipo === 'cargo' && !yaImportados.has(hash), recordar: false };
+    });
+    renderRevisionCartola();
+  } catch (e) {
+    UI.toast('No pude leer el PDF: ' + (e.message || e), 'warn', 6000);
+  }
+}
+function renderRevisionCartola() {
+  const s = State.get();
+  const cats = s.finanzas.presupuesto || [];
+  const fmt = n => `$${Math.round(n).toLocaleString('es-CL')}`;
+  const nuevos = _cartolaMovs.filter(m => !m.dup);
+  const totalIncluido = _cartolaMovs.filter(m => m.incluir).reduce((a, m) => a + m.monto, 0);
+  const prev = document.getElementById('_cartolaModal'); if (prev) prev.remove();
+  const modal = document.createElement('div');
+  modal.id = '_cartolaModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:var(--bg,#fff);z-index:9999;display:flex;flex-direction:column;';
+  const optCat = (m) => cats.map(c => `<option value="${c.id}" ${m.destino==='variable'&&m.catId===c.id?'selected':''}>${c.icono} ${esc(c.nombre)}</option>`).join('');
+  modal.innerHTML = `
+    <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+      <strong>Revisar cartola · ${nuevos.length} nuevos</strong>
+      <button onclick="document.getElementById('_cartolaModal').remove()" style="background:none;border:none;font-size:1.4rem;cursor:pointer">✕</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:12px 14px">
+      <div class="text-xs text-lo mb-md">Revisa a qué corresponde cada gasto. Lo que marques como regla, la app lo recordará la próxima vez.</div>
+      ${_cartolaMovs.map((m, i) => `
+        <div class="card mb-sm" style="padding:10px 12px;${m.dup?'opacity:.5':''}">
+          <div class="row-between">
+            <div style="min-width:0;flex:1">
+              <div class="text-sm font-semibold" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.desc)}</div>
+              <div class="text-xs text-lo">${m.fecha} · ${fmt(m.monto)} · ${m.tipo}${m.dup?' · YA IMPORTADO':''}</div>
+            </div>
+            <input type="checkbox" ${m.incluir?'checked':''} ${m.dup?'disabled':''} onchange="_cartolaSet(${i},'incluir',this.checked)" style="width:22px;height:22px;flex-shrink:0">
+          </div>
+          ${!m.dup ? `<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap;align-items:center">
+            <select onchange="_cartolaSet(${i},'destino',this.value)" class="input" style="flex:1;min-width:120px;padding:5px 8px;font-size:12px">
+              <option value="pendiente" ${m.destino==='pendiente'?'selected':''}>— Sin asignar —</option>
+              <optgroup label="Categoría de gasto">${optCat(m)}</optgroup>
+              <option value="fijo" ${m.destino==='fijo'?'selected':''}>🏠 Gasto fijo</option>
+              <option value="ignorar" ${m.destino==='ignorar'?'selected':''}>🚫 Ignorar (transferencia/pago tarjeta)</option>
+            </select>
+            <label class="text-xs text-lo" style="display:flex;gap:4px;align-items:center;cursor:pointer"><input type="checkbox" ${m.recordar?'checked':''} onchange="_cartolaSet(${i},'recordar',this.checked)"> recordar regla</label>
+          </div>` : ''}
+        </div>`).join('')}
+    </div>
+    <div style="padding:12px 16px;border-top:1px solid var(--border)">
+      <div class="row-between mb-sm"><span class="text-sm">Total a registrar</span><span class="font-semibold">${fmt(totalIncluido)}</span></div>
+      <button class="btn btn-primary btn-block" onclick="guardarMovimientosCartola()">Guardar movimientos</button>
+    </div>`;
+  document.body.appendChild(modal);
+  window._cartolaSet = (i, k, v) => {
+    _cartolaMovs[i][k] = v;
+    if (k === 'destino') { if (cats.find(c => c.id === v)) { _cartolaMovs[i].destino = 'variable'; _cartolaMovs[i].catId = v; } if (v !== 'pendiente') _cartolaMovs[i].incluir = (v !== 'ignorar'); renderRevisionCartola(); }
+  };
+}
+function guardarMovimientosCartola() {
+  const incluidos = _cartolaMovs.filter(m => m.incluir && !m.dup && m.destino !== 'pendiente');
+  if (!incluidos.length) { UI.toast('No hay movimientos para guardar.', 'warn'); return; }
+  State.update(s => {
+    const f = s.finanzas;
+    incluidos.forEach(m => {
+      const mesKey = (m.fecha || '').slice(0, 7) || monthStr();
+      let mm = f.mensual.find(x => x.mes === mesKey);
+      if (!mm) { const cats = {}; (f.presupuesto || []).forEach(p => { cats[p.id] = 0; }); mm = { mes: mesKey, ingreso_clp: f.ingreso_fijo_clp || 0, categorias: cats, gastos_variables_clp: 0, movimientos: [], notas: '' }; f.mensual.unshift(mm); }
+      if (!Array.isArray(mm.movimientos)) mm.movimientos = [];
+      if (m.destino === 'variable' && m.catId) { mm.categorias[m.catId] = (mm.categorias[m.catId] || 0) + m.monto; }
+      else if (m.destino === 'fijo') { const gf = f.gastos_fijos.find(g => _norm(g.nombre) === _norm(m.concepto || m.desc)); if (gf) gf.monto_clp = m.monto; else f.gastos_fijos.push({ nombre: m.concepto || m.desc.slice(0, 24), monto_clp: m.monto }); }
+      mm.movimientos.push({ hash: m.hash, fecha: m.fecha, desc: m.desc, monto: m.monto, destino: m.destino, catId: m.catId || '' });
+      mm.gastos_variables_clp = (f.presupuesto || []).reduce((a, p) => a + (mm.categorias[p.id] || 0), 0);
+      if (m.recordar && m.destino !== 'pendiente') {
+        // Elige el nombre distintivo: ignora palabras genéricas de banco (compra, transferencia, pago…)
+        const GENERICAS = ['compra','transferencia','transf','pago','abono','cargo','giro','deposito','retiro','tarjeta','debito','credito','online','web','nacional'];
+        const palabra = _norm(m.desc).split(' ').filter(w => w.length > 3 && !GENERICAS.includes(w))[0] || _norm(m.desc).split(' ').filter(w => w.length > 3)[0] || _norm(m.desc).slice(0, 8);
+        if (palabra && !f.reglas.find(r => _norm(r.match) === palabra)) f.reglas.push({ match: palabra, destino: m.destino, catId: m.catId || '', concepto: m.concepto || '' });
+      }
+    });
+    f.import_log.unshift({ fecha: todayISO(), n: incluidos.length, total: incluidos.reduce((a, m) => a + m.monto, 0) });
+  });
+  const n = incluidos.length;
+  _cartolaMovs = [];
+  const modal = document.getElementById('_cartolaModal'); if (modal) modal.remove();
+  UI.toast(`${n} movimiento${n !== 1 ? 's' : ''} registrado${n !== 1 ? 's' : ''}.`, 'success');
+  renderFinanzas();
+}
+
 function renderFinanzas() {
   const s = State.get();
   const mes = monthStr();
