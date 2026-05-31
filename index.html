@@ -1579,6 +1579,12 @@ const State = (() => {
       delete data.cocina.plan_semanal.desayuno_id;
     }
     if (!Array.isArray(data.cocina.plan_semanal.desayuno_ids)) data.cocina.plan_semanal.desayuno_ids = [];
+    // Limpiar ids de recetas que ya no existen (recetas borradas en versiones pasadas) — si no, el plan/export muestran menos de lo seleccionado
+    const _recIds = new Set(defaultRecetas().map(r => r.id));
+    ['desayuno_ids','almuerzo_ids','cena_ids'].forEach(k => {
+      if (Array.isArray(data.cocina.plan_semanal[k])) data.cocina.plan_semanal[k] = data.cocina.plan_semanal[k].filter(id => _recIds.has(id));
+    });
+    if (data.cocina.plan_semanal.shot_id && !_recIds.has(data.cocina.plan_semanal.shot_id)) data.cocina.plan_semanal.shot_id = 'sh1';
     if (!data.cocina.lista_compras) data.cocina.lista_compras = defaults().cocina.lista_compras;
     if (!data.cocina.registro_comidas) data.cocina.registro_comidas = {};
     // Recalcular nivel siempre desde total (fuente de verdad)
@@ -7113,11 +7119,13 @@ function renderCocina(tab = 'recetas') {
     subsec('ESTADO ESTA SEMANA');
     lines.push(`Hábitos hoy: ${compHoy}/${habits.length} | Fuerza: ${fuerzaSem}/${tFuerza} | Cardio: ${cardioSem}/${tCardio} | Agua: ${aguaHoy}/8`);
     const printGrupo = (ids, label) => {
-      if (!ids.length) return;
+      const valid = (ids || []).filter(getR); // descartar ids de recetas inexistentes
+      if (!valid.length) return;
       subsec(label);
-      ids.forEach((id, i) => {
-        const r = getR(id); if (!r) return;
-        const dias = multFn(ids, i);
+      if (valid.length === 1) lines.push('  ⚠️ Solo 1 receta seleccionada aquí. Para variar, agrega 2-3 en Cocina → Plan semana.');
+      valid.forEach((id, i) => {
+        const r = getR(id);
+        const dias = multFn(valid, i);
         lines.push(`• ${r.nombre} — ${dias} días/sem`);
         lines.push(`  Proteína: ${r.macros?.proteina_g||0}g | Kcal: ${r.macros?.calorias||0} | $${(r.costo_total_clp||0).toLocaleString('es-CL')}/día`);
         lines.push('  Ingredientes (1 porción):');
