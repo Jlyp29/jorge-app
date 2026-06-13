@@ -7798,10 +7798,11 @@ function renderCocina(tab = 'recetas') {
     sec('PLAN DE COMIDAS — ' + semana);
     const planModoSecExp = plan.modo_cocina === 'secciones';
     if (planModoSecExp) {
-      lines.push('MODO: COCINA POR SECCIONES');
-      lines.push('• Sección A — cocino el SÁBADO → porciones para Dom, Lun, Mar, Mié (4 días) → refrigerar');
-      lines.push('• Sección B — cocino el MIÉRCOLES → porciones para Jue, Vie, Sáb (3 días) → refrigerar');
-      lines.push('Cada sección queda lista para sacar y calentar (air fryer, microondas, sartén).');
+      lines.push('MODO: COCINA POR SECCIONES (batch cooking en 2 partes)');
+      lines.push('• Sección A — cocino el SÁBADO → porciones para Dom, Lun, Mar, Mié (4 días) → refrigerar cocido');
+      lines.push('• También el SÁBADO → porciono Sección B en CRUDO por porciones → congelar');
+      lines.push('• Sección B — el MIÉRCOLES saco del congelador y cocino directo (15-20 min) → porciones para Jue, Vie, Sáb');
+      lines.push('SecA queda lista para calentar (air fryer/microondas). SecB se cocina fresca el miércoles desde congelado.');
       lines.push('Con 2 recetas por comida: receta[0] → Sección A (4 días), receta[1] → Sección B (3 días).');
       lines.push('Con 3 recetas: receta[0]+[1] → Sección A (2+2 días), receta[2] → Sección B (3 días).');
     } else {
@@ -7898,10 +7899,10 @@ function renderCocina(tab = 'recetas') {
     lines.push('Descongelar en nevera 12-24h antes de cocinar.');
     sec('PIDE A LA IA');
     if (planModoSecExp) {
-      lines.push('1. "Tengo 2 sesiones de cocina semanales: Sección A el Sábado (para Dom–Mié) y Sección B el Miércoles (para Jue–Sáb). Organízame cada sesión en orden óptimo cocinando en paralelo cuando se pueda, con tiempos y técnica."');
+      lines.push('1. "Tengo 2 momentos el SÁBADO: (a) cocino Sección A completa y envaso, (b) porciono Sección B en crudo y congelo. El MIÉRCOLES solo saco y cocino SecB desde congelado (~15-20 min). Organízame el sábado en orden óptimo para hacer ambas cosas en paralelo cuando se pueda."');
       lines.push('2. "¿Cada receta de la Sección A se acerca sola a ' + targetProt + 'g/día? ¿Y las de la Sección B? ¿Cuál falla y cómo la complemento?"');
-      lines.push('3. "Lista de compras semanal: los perecederos de la Sección B (verduras/fruta) los puedo comprar frescos el miércoles. Dame cantidades exactas separadas por sección."');
-      lines.push('4. "Con este plan de cocina por secciones, ¿qué necesito tener listo para calentar rápido en air fryer? Temperatura y tiempo para cada receta."');
+      lines.push('3. "Lista de compras: los perecederos de la Sección B los puedo comprar frescos el miércoles antes de cocinar. Dame cantidades separadas: qué comprar el sábado (SecA) y qué comprar el miércoles (SecB)."');
+      lines.push('4. "Para Sección A (recalentado en air fryer): temperatura y tiempo óptimo para cada receta ya cocida. Para Sección B (cocinar desde congelado el miércoles): técnica y tiempo por receta."');
     } else {
       lines.push('1. "Con estas recetas y sus días asignados, ármame un calendario Lunes a Domingo variando los platos, respetando los días/semana de cada receta, mi meta de proteína y mi presupuesto."');
       lines.push('2. "Organízame la sesión de meal prep del domingo en orden óptimo, cocinando en paralelo cuando se pueda."');
@@ -8252,7 +8253,7 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
           ${['clasico','secciones'].map(m => `<button onclick="toggleModoCocina('${m}')" style="padding:3px 10px;border-radius:var(--r-sm);border:1.5px solid ${modoSec===(m==='secciones')?'var(--primary)':'var(--border-strong)'};background:${modoSec===(m==='secciones')?'var(--primary-glow)':'transparent'};color:${modoSec===(m==='secciones')?'var(--primary)':'var(--text-lo)'};cursor:pointer;font-size:12px;font-weight:${modoSec===(m==='secciones')?'600':'400'}">${m==='clasico'?'Clásico':'Por secciones ✓'}</button>`).join('')}
         </div>
       </div>
-      ${modoSec ? `<div style="padding:8px 12px;background:var(--primary-glow);border-radius:var(--r-md);margin-bottom:16px"><div class="text-xs" style="color:var(--primary);line-height:1.6">🍳 <strong>Sección A — Sábado</strong> → porciones para Dom, Lun, Mar, Mié (4 días)<br>🍳 <strong>Sección B — Miércoles</strong> → porciones para Jue, Vie, Sáb (3 días)</div></div>` : ''}
+      ${modoSec ? `<div style="padding:8px 12px;background:var(--primary-glow);border-radius:var(--r-md);margin-bottom:16px"><div class="text-xs" style="color:var(--primary);line-height:1.8">🍳 <strong>Sábado — Sesión A:</strong> cocinar y envasar → Dom, Lun, Mar, Mié (refrigerar cocido 4 días)<br>❄️ <strong>Sábado — también:</strong> porcionar Sección B en <em>crudo</em> y congelar<br>🍳 <strong>Miércoles — Sesión B:</strong> sacar del congelador y cocinar directo (15-20 min) → Jue, Vie, Sáb</div></div>` : ''}
 
       ${renderSlotGrupo('🌅 Desayunos — elige 1 a 3', rDesayunos, 'desayuno', 3)}
       ${renderSlotGrupo('☀️ Almuerzos — elige 1 a 3', rAlmuerzos, 'almuerzo', 3)}
@@ -8392,12 +8393,16 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
           const diasHastaMie = dHoy===3?0:dHoy<3?(3-dHoy):(10-dHoy);
           const sabLabel = diasHastaSab===0?'<span style="color:var(--success)">Hoy — Sábado</span>':diasHastaSab===1?'Mañana (Sáb)':'Sábado';
           const mieLabel = diasHastaMie===0?'<span style="color:var(--success)">Hoy — Miércoles</span>':diasHastaMie===1?'Mañana (Mié)':'Miércoles';
-          const secAHtml = renderSesion('Sesión A', `${sabLabel} → Dom–Mié`, 'Refrigerar 4 días', recSecA, dMapA);
-          const secBHtml = renderSesion('Sesión B', `${mieLabel} → Jue–Sáb`, 'Refrigerar 3 días', recSecB, dMapB);
+          const secAHtml = renderSesion('Sesión A — Cocinar y envasar', `${sabLabel} → Dom–Mié`, 'Refrigerar cocido 4 días', recSecA, dMapA);
+          const prepCrudoHtml = recSecB.length ? `<div style="padding:8px 12px;background:var(--bg-3);border-radius:var(--r-sm);margin-bottom:8px;border-left:3px solid var(--border-strong)">
+            <div class="text-xs font-semibold text-md" style="margin-bottom:4px">❄️ También el sábado — preparar Sección B</div>
+            <div class="text-xs text-lo">${recSecB.map(r=>r.nombre.split(' ').slice(0,3).join(' ')).join(' + ')} · porcionar en crudo (×${Object.values(dMapB)[0]||3}) · embolsar → <strong>congelar</strong></div>
+          </div>` : '';
+          const secBHtml = recSecB.length ? renderSesion('Sesión B — Cocinar desde congelado', `${mieLabel} → Jue–Sáb`, 'Sacar noche anterior · cocinar directo ~15-20 min', recSecB, dMapB) : '';
           if (!secAHtml && !secBHtml) return '';
           return `<div style="margin-bottom:8px">
             <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">Sesiones de cocina</div>
-            ${secAHtml}${secBHtml}
+            ${secAHtml}${prepCrudoHtml}${secBHtml}
           </div>`;
         }
 
