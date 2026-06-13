@@ -1,8 +1,11 @@
-const CACHE = 'misistema-v3.25.0';
+const CACHE = 'misistema-v3.27.0';
 const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './icon-192.png',
+  './icon-512.png',
+  './icon-maskable-512.png',
 ];
 const REMOTE = [
   'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
