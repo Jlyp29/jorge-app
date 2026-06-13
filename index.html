@@ -1463,7 +1463,7 @@ const State = (() => {
     },
     cocina: {
       favoritas: [],
-      plan_semanal: { semana: '', almuerzo_ids: [], cena_ids: [], desayuno_ids: [], shot_id: 'sh1', batidos_dia: 1 },
+      plan_semanal: { semana: '', almuerzo_ids: [], cena_ids: [], desayuno_ids: [], shot_id: 'sh1', batidos_dia: 1, modo_cocina: 'secciones' },
       lista_compras: { items: [], semana: '', generada: null },
       registro_comidas: {},
     },
@@ -1501,6 +1501,10 @@ const State = (() => {
         if (h.nombre === 'Deep Work Sinergy') h.nombre = 'Deep Work Vant';
       }
     });
+    // modo_cocina: añadir si no existe
+    if (data.cocina && data.cocina.plan_semanal && !data.cocina.plan_semanal.modo_cocina) {
+      data.cocina.plan_semanal.modo_cocina = 'secciones';
+    }
     // v1→v2: add xp, vant
     if (!data.xp) data.xp = defaults().xp;
     if (!data.vant) data.vant = defaults().vant;
@@ -1550,6 +1554,12 @@ const State = (() => {
     if (!data.agenda) data.agenda = defaults().agenda;
     if (!Array.isArray(data.agenda.bloques) || !data.agenda.bloques.length) data.agenda.bloques = defaultBloques();
     else defaultBloques().forEach(def => { if (!data.agenda.bloques.find(bl => bl.id === def.id)) data.agenda.bloques.push({ ...def }); });
+    // Migrar ag11 al nuevo ciclo de secciones (Domingo→Sábado)
+    const _ag11 = (data.agenda.bloques || []).find(b => b.id === 'ag11');
+    if (_ag11 && JSON.stringify(_ag11.dias) === JSON.stringify([7])) {
+      _ag11.dias = [6];
+      _ag11.titulo = 'Sesión A — Cocinar para Dom–Mié';
+    }
     if (!data.metas_5y) data.metas_5y = defaults().metas_5y;
     // Agregar campos nuevos de metas_5y sin pisar los que ya existen
     const dm = defaults().metas_5y;
@@ -2195,7 +2205,8 @@ function defaultBloques() {
     b('ag8', '21:00', 'Lectura', 'lectura', '📖', 'h4'),
     b('ag9', '22:00', 'Magnesio', 'rutina', '🌿', 'h9'),
     b('ag10', '22:30', 'Dormir', 'sueño', '😴', 'h1'),
-    b('ag11', '11:00', 'Sesión de cocina / meal prep', 'cocina', '🍳', null, [7]),
+    b('ag11', '11:00', 'Sesión A — Cocinar para Dom–Mié', 'cocina', '🍳', null, [6]),
+    b('ag12', '11:00', 'Sesión B — Cocinar para Jue–Sáb', 'cocina', '🍳', null, [3]),
   ];
 }
 // Micro-victoria diaria: guarda en small_wins, suma XP una vez, y si tiene tipo la registra
@@ -3599,7 +3610,17 @@ function recetaDelDia(tipo, plan, recetas) {
   if (!ids.length) return null;
   if (ids.length === 1) return recetas.find(r => r.id === ids[0]) || null;
   const diaSem = new Date().getDay() || 7; // 1=lunes … 7=domingo
-  // Reparto de los 7 días entre las recetas, igual que multFn: 2→[4,3], 3→[3,2,2]
+  if (plan.modo_cocina === 'secciones') {
+    // Sección A (cocina Sáb): dom(7), lun(1), mar(2), mié(3)
+    // Sección B (cocina Mié): jue(4), vie(5), sáb(6)
+    const esSecA = diaSem === 7 || diaSem <= 3;
+    if (ids.length === 2) return recetas.find(r => r.id === ids[esSecA ? 0 : 1]) || null;
+    // 3 recetas: [0,1] → SecA (dom/lun y mar/mié), [2] → SecB
+    if (!esSecA) return recetas.find(r => r.id === ids[2]) || null;
+    const idxA = (diaSem === 7 || diaSem === 1) ? 0 : 1;
+    return recetas.find(r => r.id === ids[idxA]) || null;
+  }
+  // Modo clásico: 2→[4,3], 3→[3,2,2]
   const reparto = ids.length === 2 ? [4, 3] : [3, 2, 2];
   let acc = 0, idx = ids.length - 1;
   for (let i = 0; i < reparto.length; i++) { acc += reparto[i]; if (diaSem <= acc) { idx = i; break; } }
@@ -7694,6 +7715,10 @@ function renderCocina(tab = 'recetas') {
     });
     renderCocina(tab);
   };
+  window.toggleModoCocina = (modo) => {
+    State.update(st => { st.cocina.plan_semanal.modo_cocina = modo; });
+    renderCocina('plan');
+  };
   window.exportarPlanSemanal = () => {
     const s = State.get();
     const plan = s.cocina?.plan_semanal || {};
@@ -7771,8 +7796,18 @@ function renderCocina(tab = 'recetas') {
       });
     };
     sec('PLAN DE COMIDAS — ' + semana);
-    lines.push('MODELO ROTATIVO: cada comida tiene 1-3 recetas que se REPARTEN entre los 7 días (cocino en batch el domingo y voy alternando para no aburrirme).');
-    lines.push('NO es un menú de 7 platos distintos. Ej: 3 almuerzos → reparto 3+2+2 días (receta A 3 días, B 2 días, C 2 días).');
+    const planModoSecExp = plan.modo_cocina === 'secciones';
+    if (planModoSecExp) {
+      lines.push('MODO: COCINA POR SECCIONES');
+      lines.push('• Sección A — cocino el SÁBADO → porciones para Dom, Lun, Mar, Mié (4 días) → refrigerar');
+      lines.push('• Sección B — cocino el MIÉRCOLES → porciones para Jue, Vie, Sáb (3 días) → refrigerar');
+      lines.push('Cada sección queda lista para sacar y calentar (air fryer, microondas, sartén).');
+      lines.push('Con 2 recetas por comida: receta[0] → Sección A (4 días), receta[1] → Sección B (3 días).');
+      lines.push('Con 3 recetas: receta[0]+[1] → Sección A (2+2 días), receta[2] → Sección B (3 días).');
+    } else {
+      lines.push('MODELO ROTATIVO: cada comida tiene 1-3 recetas que se REPARTEN entre los 7 días (cocino en batch el domingo y voy alternando para no aburrirme).');
+      lines.push('NO es un menú de 7 platos distintos. Ej: 3 almuerzos → reparto 3+2+2 días (receta A 3 días, B 2 días, C 2 días).');
+    }
     lines.push('IMPORTANTE: como un día como una receta y otro día otra, CADA receta debe acercarse sola a mi meta de proteína.');
     lines.push('Porciones = 1 persona/día. Cantidades = 1 día.');
     printGrupo(desIds, 'DESAYUNOS');
@@ -7818,18 +7853,38 @@ function renderCocina(tab = 'recetas') {
     const recetasPrepExp = [...almIds,...ceIds].map(id => getR(id)).filter(r => r && r.meal_prep);
     if (recetasPrepExp.length >= 2) {
       const tiempoTotalExp = Math.max(...recetasPrepExp.map(r=>r.tiempo_min)) + 40;
-      subsec('SESIÓN BATCH (cocinar el Sábado — o Martes para reponer)');
-      recetasPrepExp.forEach((r,i) => {
-        const arrIds = almIds.includes(r.id) ? almIds : ceIds;
-        const dias = multFn(arrIds, arrIds.indexOf(r.id));
-        lines.push(`• ${r.nombre} — ${TECNICA_MAP[r.id]||'directo'} — ${r.tiempo_min} min — ${dias} días/sem`);
-      });
-      lines.push(`Tiempo total estimado: ~${tiempoTotalExp} min`);
-      lines.push('Tip: paraleliza técnicas distintas (horno + sellado al mismo tiempo).');
+      if (planModoSecExp) {
+        const secFnExp = (ids, i) => ids.length <= 1 ? 'A' : ids.length === 2 ? (i===0?'A':'B') : (i<2?'A':'B');
+        const recSecAExp = recetasPrepExp.filter(r => { const ids = almIds.includes(r.id)?almIds:ceIds; return secFnExp(ids, ids.indexOf(r.id))==='A'; });
+        const recSecBExp = recetasPrepExp.filter(r => { const ids = almIds.includes(r.id)?almIds:ceIds; return secFnExp(ids, ids.indexOf(r.id))==='B'; });
+        if (recSecAExp.length) {
+          subsec('SESIÓN A — Sábado (porciones Dom–Mié, 4 días)');
+          recSecAExp.forEach(r => { const ids=almIds.includes(r.id)?almIds:ceIds; const dias=multFn(ids,ids.indexOf(r.id)); lines.push(`• ${r.nombre} — ${TECNICA_MAP[r.id]||'directo'} — ${r.tiempo_min} min — ×${dias} porciones`); });
+          lines.push(`Tiempo estimado: ~${Math.max(...recSecAExp.map(r=>r.tiempo_min))+40} min`);
+          lines.push('Conservación: refrigerar (4 días en nevera).');
+        }
+        if (recSecBExp.length) {
+          subsec('SESIÓN B — Miércoles (porciones Jue–Sáb, 3 días)');
+          recSecBExp.forEach(r => { const ids=almIds.includes(r.id)?almIds:ceIds; const dias=multFn(ids,ids.indexOf(r.id)); lines.push(`• ${r.nombre} — ${TECNICA_MAP[r.id]||'directo'} — ${r.tiempo_min} min — ×${dias} porciones`); });
+          lines.push(`Tiempo estimado: ~${Math.max(...recSecBExp.map(r=>r.tiempo_min))+40} min`);
+          lines.push('Conservación: refrigerar (3 días en nevera).');
+        }
+      } else {
+        subsec('SESIÓN BATCH (cocinar el Sábado — o Martes para reponer)');
+        recetasPrepExp.forEach((r,i) => {
+          const arrIds = almIds.includes(r.id) ? almIds : ceIds;
+          const dias = multFn(arrIds, arrIds.indexOf(r.id));
+          lines.push(`• ${r.nombre} — ${TECNICA_MAP[r.id]||'directo'} — ${r.tiempo_min} min — ${dias} días/sem`);
+        });
+        lines.push(`Tiempo total estimado: ~${tiempoTotalExp} min`);
+        lines.push('Tip: paraleliza técnicas distintas (horno + sellado al mismo tiempo).');
+      }
     }
     sec('ESTRATEGIA QUINCENA — 2 SEMANAS');
     lines.push('Compro PROTEÍNA y SECOS (arroz, aceite, especias) para 15 días. VERDURAS, FRUTA y LÁCTEOS solo para 7 días porque se pudren → recompra fresca el día 8.');
-    lines.push('El sábado cocino todo para la semana 1 y congelo las proteínas CRUDAS de la semana 2 → la semana 2 es 40% más rápida.');
+    lines.push(planModoSecExp
+      ? 'Con secciones: perecederos de Sección B (Jue–Sáb) se pueden comprar frescos el miércoles.'
+      : 'El sábado cocino todo para la semana 1 y congelo las proteínas CRUDAS de la semana 2 → la semana 2 es 40% más rápida.');
     lines.push('');
     lines.push('Proteínas a congelar el domingo (para semana 2):');
     [...almIds, ...ceIds].forEach(id => {
@@ -7842,10 +7897,17 @@ function renderCocina(tab = 'recetas') {
     });
     lines.push('Descongelar en nevera 12-24h antes de cocinar.');
     sec('PIDE A LA IA');
-    lines.push('1. "Con estas recetas y sus días asignados, ármame un calendario Lunes a Domingo variando los platos, respetando los días/semana de cada receta, mi meta de proteína y mi presupuesto."');
-    lines.push('2. "Organízame la sesión de meal prep del domingo en orden óptimo, cocinando en paralelo cuando se pueda."');
-    lines.push('3. "¿Cada una de mis recetas se acerca sola a los ' + targetProt + 'g de proteína al día? ¿Cuál se queda corta y con qué snack o batido la complemento?"');
-    lines.push('4. "Lista de compras para 2 semanas: proteína y secos para 15 días; verduras, fruta y lácteos para 7 días, con cantidades exactas."');
+    if (planModoSecExp) {
+      lines.push('1. "Tengo 2 sesiones de cocina semanales: Sección A el Sábado (para Dom–Mié) y Sección B el Miércoles (para Jue–Sáb). Organízame cada sesión en orden óptimo cocinando en paralelo cuando se pueda, con tiempos y técnica."');
+      lines.push('2. "¿Cada receta de la Sección A se acerca sola a ' + targetProt + 'g/día? ¿Y las de la Sección B? ¿Cuál falla y cómo la complemento?"');
+      lines.push('3. "Lista de compras semanal: los perecederos de la Sección B (verduras/fruta) los puedo comprar frescos el miércoles. Dame cantidades exactas separadas por sección."');
+      lines.push('4. "Con este plan de cocina por secciones, ¿qué necesito tener listo para calentar rápido en air fryer? Temperatura y tiempo para cada receta."');
+    } else {
+      lines.push('1. "Con estas recetas y sus días asignados, ármame un calendario Lunes a Domingo variando los platos, respetando los días/semana de cada receta, mi meta de proteína y mi presupuesto."');
+      lines.push('2. "Organízame la sesión de meal prep del domingo en orden óptimo, cocinando en paralelo cuando se pueda."');
+      lines.push('3. "¿Cada una de mis recetas se acerca sola a los ' + targetProt + 'g de proteína al día? ¿Cuál se queda corta y con qué snack o batido la complemento?"');
+      lines.push('4. "Lista de compras para 2 semanas: proteína y secos para 15 días; verduras, fruta y lácteos para 7 días, con cantidades exactas."');
+    }
     const txt = lines.join('\n');
     const prev = document.getElementById('_exportModal');
     if (prev) prev.remove();
@@ -7931,8 +7993,9 @@ function renderCocina(tab = 'recetas') {
         }
       });
     };
-    // Cada receta = 1 porción/día. 7 días/sem → 1 receta×7, 2→×4+×3, 3→×3+×2+×2
-    const mFn = (ids, i) => ids.length === 1 ? 7 : ids.length === 2 ? (i === 0 ? 4 : 3) : (i === 0 ? 3 : 2);
+    // Cada receta = 1 porción/día. Clásico: 1→7, 2→[4,3], 3→[3,2,2] | Secciones: 3→[2,2,3]
+    const planModoSec = plan.modo_cocina === 'secciones';
+    const mFn = (ids, i) => ids.length === 1 ? 7 : ids.length === 2 ? (i === 0 ? 4 : 3) : (planModoSec ? (i < 2 ? 2 : 3) : (i === 0 ? 3 : 2));
     (plan.almuerzo_ids || []).forEach((id, i) => addIngredientes(id, mFn(plan.almuerzo_ids, i)));
     (plan.cena_ids || []).forEach((id, i) => addIngredientes(id, mFn(plan.cena_ids, i)));
     (plan.desayuno_ids || []).forEach((id, i) => addIngredientes(id, mFn(plan.desayuno_ids, i)));
@@ -8081,7 +8144,9 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
   const protVaria = protMin !== protMax;
   const calDia = (rAlmuerzos.length ? Math.round(rAlmuerzos.reduce((s,r)=>s+r.macros.calorias,0)/rAlmuerzos.length) : 0) + (rCenas.length ? Math.round(rCenas.reduce((s,r)=>s+r.macros.calorias,0)/rCenas.length) : 0) + (rDesayunos.length ? Math.round(rDesayunos.reduce((s,r)=>s+r.macros.calorias,0)/rDesayunos.length) : 0) + calBatidos;
   const protPct = Math.min(100, Math.round(protDia / targetProt * 100));
-  const multFn = (ids, i) => ids.length === 1 ? 7 : ids.length === 2 ? (i === 0 ? 4 : 3) : (i === 0 ? 3 : 2);
+  const modoSec = plan.modo_cocina === 'secciones';
+  // Clásico: 1→7, 2→[4,3], 3→[3,2,2] | Secciones: 1→7, 2→[4,3], 3→[2,2,3]
+  const multFn = (ids, i) => ids.length === 1 ? 7 : ids.length === 2 ? (i === 0 ? 4 : 3) : (modoSec ? (i < 2 ? 2 : 3) : (i === 0 ? 3 : 2));
   const diasMap = {};
   rAlmuerzos.forEach((r, i) => { diasMap[r.id] = multFn(almIds, i); });
   rCenas.forEach((r, i) => { diasMap[r.id] = multFn(ceIds, i); });
@@ -8180,6 +8245,15 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
     <div>
       ${!planEsSemanaActual && hasPlan ? `<div class="banner banner-comeback mb-md" style="background:var(--accent-glow);border-color:var(--accent);color:var(--accent)">Plan de semana anterior. Actualiza tu selección.</div>` : ''}
 
+      <!-- Toggle modo cocina -->
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--bg-2);padding:10px 12px;border-radius:var(--r-md);margin-bottom:16px">
+        <span class="text-sm font-semibold">Modo cocina</span>
+        <div style="display:flex;gap:4px">
+          ${['clasico','secciones'].map(m => `<button onclick="toggleModoCocina('${m}')" style="padding:3px 10px;border-radius:var(--r-sm);border:1.5px solid ${modoSec===(m==='secciones')?'var(--primary)':'var(--border-strong)'};background:${modoSec===(m==='secciones')?'var(--primary-glow)':'transparent'};color:${modoSec===(m==='secciones')?'var(--primary)':'var(--text-lo)'};cursor:pointer;font-size:12px;font-weight:${modoSec===(m==='secciones')?'600':'400'}">${m==='clasico'?'Clásico':'Por secciones ✓'}</button>`).join('')}
+        </div>
+      </div>
+      ${modoSec ? `<div style="padding:8px 12px;background:var(--primary-glow);border-radius:var(--r-md);margin-bottom:16px"><div class="text-xs" style="color:var(--primary);line-height:1.6">🍳 <strong>Sección A — Sábado</strong> → porciones para Dom, Lun, Mar, Mié (4 días)<br>🍳 <strong>Sección B — Miércoles</strong> → porciones para Jue, Vie, Sáb (3 días)</div></div>` : ''}
+
       ${renderSlotGrupo('🌅 Desayunos — elige 1 a 3', rDesayunos, 'desayuno', 3)}
       ${renderSlotGrupo('☀️ Almuerzos — elige 1 a 3', rAlmuerzos, 'almuerzo', 3)}
       ${renderSlotGrupo('🌙 Cenas — elige 1 a 3', rCenas, 'cena', 3)}
@@ -8275,18 +8349,61 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
         <button class="btn btn-secondary btn-block mb-lg" onclick="exportarPlanSemanal()">📋 Exportar contexto para IA</button>
       ` : ''}
 
-      <!-- Card sesión batch — ciclo 3 días -->
+      <!-- Card sesión batch -->
       ${hasPlan ? (() => {
+        const ICON_TEC = {sellado:'🔥',horno:'🫙',wok:'⚡',directo:'🥄','sin-cocina':'❄️'};
+        // Helper: renderiza una sesión batch para un conjunto de recetas
+        const renderSesion = (label, diasLabel, conservacion, recetasSesion, diasMapSesion) => {
+          if (!recetasSesion.length) return '';
+          const grupos = {};
+          recetasSesion.forEach(r => { const t=TECNICA_MAP[r.id]||'directo'; if(!grupos[t])grupos[t]=[]; grupos[t].push(r); });
+          const juntas = Object.entries(grupos).filter(([,arr])=>arr.length>1);
+          const tiempoSesion = Math.max(...recetasSesion.map(r=>r.tiempo_min)) + 40;
+          const concurrIds = new Set(juntas.flatMap(([,rs])=>rs.map(r=>r.id)));
+          const individuales = recetasSesion.filter(r=>!concurrIds.has(r.id));
+          return `<div class="card mb-sm" style="background:var(--bg-2);padding:12px 14px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+              <div class="text-xs font-semibold" style="color:var(--primary);text-transform:uppercase;letter-spacing:.06em">🍳 ${label}</div>
+              <div class="text-xs text-lo">${diasLabel}</div>
+            </div>
+            <div class="text-xs text-lo mb-sm">${recetasSesion.length} receta${recetasSesion.length!==1?'s':''} · ~${tiempoSesion} min · ${conservacion}</div>
+            ${juntas.map(([tec,rs])=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:5px"><span style="font-size:14px;flex-shrink:0">${ICON_TEC[tec]||'🍳'}</span><span class="text-xs text-md">Juntos: <strong>${rs.map(r=>`${r.nombre.split(' ').slice(0,3).join(' ')} ×${diasMapSesion[r.id]||'?'}`).join(' + ')}</strong></span></div>`).join('')}
+            ${individuales.map(r=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:5px"><span style="font-size:14px;flex-shrink:0">${ICON_TEC[TECNICA_MAP[r.id]]||'🍳'}</span><span class="text-xs text-md">${r.nombre.split(' ').slice(0,4).join(' ')} ×${diasMapSesion[r.id]||'?'} — individual</span></div>`).join('')}
+          </div>`;
+        };
+
+        if (modoSec) {
+          // Modo secciones: 2 sesiones separadas
+          const secFnAlm = (i) => almIds.length <= 1 ? 'A' : almIds.length === 2 ? (i===0?'A':'B') : (i<2?'A':'B');
+          const secFnCen = (i) => ceIds.length <= 1 ? 'A' : ceIds.length === 2 ? (i===0?'A':'B') : (i<2?'A':'B');
+          const recSecA = [
+            ...rAlmuerzos.filter((_,i)=>secFnAlm(i)==='A' && _.meal_prep),
+            ...rCenas.filter((_,i)=>secFnCen(i)==='A' && _.meal_prep),
+          ];
+          const recSecB = [
+            ...rAlmuerzos.filter((_,i)=>secFnAlm(i)==='B' && _.meal_prep),
+            ...rCenas.filter((_,i)=>secFnCen(i)==='B' && _.meal_prep),
+          ];
+          // diasMap específico de cada sección
+          const dMapA = {}; rAlmuerzos.forEach((r,i)=>{ if(secFnAlm(i)==='A') dMapA[r.id]=multFn(almIds,i); }); rCenas.forEach((r,i)=>{ if(secFnCen(i)==='A') dMapA[r.id]=multFn(ceIds,i); });
+          const dMapB = {}; rAlmuerzos.forEach((r,i)=>{ if(secFnAlm(i)==='B') dMapB[r.id]=multFn(almIds,i); }); rCenas.forEach((r,i)=>{ if(secFnCen(i)==='B') dMapB[r.id]=multFn(ceIds,i); });
+          const dHoy = new Date().getDay();
+          const diasHastaSab = dHoy===6?0:dHoy===0?6:(6-dHoy);
+          const diasHastaMie = dHoy===3?0:dHoy<3?(3-dHoy):(10-dHoy);
+          const sabLabel = diasHastaSab===0?'<span style="color:var(--success)">Hoy — Sábado</span>':diasHastaSab===1?'Mañana (Sáb)':'Sábado';
+          const mieLabel = diasHastaMie===0?'<span style="color:var(--success)">Hoy — Miércoles</span>':diasHastaMie===1?'Mañana (Mié)':'Miércoles';
+          const secAHtml = renderSesion('Sesión A', `${sabLabel} → Dom–Mié`, 'Refrigerar 4 días', recSecA, dMapA);
+          const secBHtml = renderSesion('Sesión B', `${mieLabel} → Jue–Sáb`, 'Refrigerar 3 días', recSecB, dMapB);
+          if (!secAHtml && !secBHtml) return '';
+          return `<div style="margin-bottom:8px">
+            <div class="text-xs font-semibold text-lo mb-sm" style="text-transform:uppercase;letter-spacing:.06em">Sesiones de cocina</div>
+            ${secAHtml}${secBHtml}
+          </div>`;
+        }
+
+        // Modo clásico
         const recetasPrep = [...rAlmuerzos,...rCenas].filter(r=>r.meal_prep);
         if (recetasPrep.length < 2) return '';
-        const ICON_TEC = {sellado:'🔥',horno:'🫙',wok:'⚡',directo:'🥄','sin-cocina':'❄️'};
-        const grupos = {};
-        recetasPrep.forEach(r => { const t=TECNICA_MAP[r.id]||'directo'; if(!grupos[t])grupos[t]=[]; grupos[t].push(r); });
-        const juntas = Object.entries(grupos).filter(([,arr])=>arr.length>1);
-        const tiempoMax = Math.max(...recetasPrep.map(r=>r.tiempo_min)) + 40;
-        const concurrentesIds = new Set(juntas.flatMap(([,rs])=>rs.map(r=>r.id)));
-        const individuales = recetasPrep.filter(r=>!concurrentesIds.has(r.id));
-        // Ciclo: sesiones fijas el Martes (2) y Sábado (6)
         const dHoy = new Date().getDay();
         let nextSesion, diasFaltan;
         if (dHoy === 2) { nextSesion = 'Martes'; diasFaltan = 0; }
@@ -8295,15 +8412,7 @@ function _renderPlanSemanal(s, recetas, container, TECNICA_MAP) {
         else if (dHoy < 6) { nextSesion = 'Sábado'; diasFaltan = 6 - dHoy; }
         else { nextSesion = 'Martes'; diasFaltan = 9 - dHoy; }
         const nextLabel = diasFaltan === 0 ? `<span style="color:var(--success)">Hoy (${nextSesion})</span>` : diasFaltan === 1 ? `Mañana (${nextSesion})` : nextSesion;
-        return `<div class="card mb-md" style="background:var(--bg-2);padding:12px 14px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <div class="text-xs font-semibold text-lo" style="text-transform:uppercase;letter-spacing:.06em">🍳 Sesión batch</div>
-            <div class="text-xs text-lo">${nextLabel}</div>
-          </div>
-          <div class="text-xs text-md mb-sm" style="margin-bottom:10px">${recetasPrep.length} receta${recetasPrep.length!==1?'s':''} · ~${tiempoMax} min</div>
-          ${juntas.map(([tec,rs])=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px"><span style="font-size:15px;flex-shrink:0">${ICON_TEC[tec]||'🍳'}</span><span class="text-xs text-md">Juntos: <strong>${rs.map(r=>`${r.nombre.split(' ').slice(0,3).join(' ')} ×${diasMap[r.id]||'?'}`).join(' + ')}</strong></span></div>`).join('')}
-          ${individuales.map(r=>`<div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:6px"><span style="font-size:15px;flex-shrink:0">${ICON_TEC[TECNICA_MAP[r.id]]||'🍳'}</span><span class="text-xs text-md">${r.nombre.split(' ').slice(0,4).join(' ')} ×${diasMap[r.id]||'?'} — individual</span></div>`).join('')}
-        </div>`;
+        return renderSesion('Sesión batch', nextLabel, '5 días en nevera, día 6+ congelar', recetasPrep, diasMap);
       })() : ''}
 
       <!-- Salsas y Snacks de la semana -->
