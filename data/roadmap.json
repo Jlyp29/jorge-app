@@ -1,0 +1,83 @@
+{
+  "generated": "2026-07-20T02:00:00.000Z",
+  "source": "notion",
+  "metas": [
+    {
+      "meta": "Acuerdo con socios firmado y operando",
+      "horizonte": "Corto",
+      "meta_usd": null,
+      "estado": "En curso",
+      "fecha_objetivo": "2026-08-03",
+      "metrica": "Acuerdo de 1 página firmado + al menos 2 cobros a través de Sinergy sin fricción",
+      "notas": "Es prerequisito del gatillo de renuncia. Plantilla del mensaje en la página Sistema Diario.",
+      "orden": 1,
+      "url": "https://www.notion.so/3a3e9b06eecd812980acd6485f8685ee"
+    },
+    {
+      "meta": "Outreach sagrado: 5-6 mensajes/día L-V sin interrumpir",
+      "horizonte": "Corto",
+      "meta_usd": null,
+      "estado": "En curso",
+      "fecha_objetivo": "2026-08-17",
+      "metrica": "≥25 mensajes/semana durante 4 semanas seguidas (sem 1-4 del plan)",
+      "notas": "La variable que separa el escenario optimista del piso. Se registra cada envío en la app (+15 XP).",
+      "orden": 2,
+      "url": "https://www.notion.so/3a3e9b06eecd81f9add0e45f9b532009"
+    },
+    {
+      "meta": "Primera auditoría cobrada",
+      "horizonte": "Corto",
+      "meta_usd": null,
+      "estado": "Pendiente",
+      "fecha_objetivo": "2026-08-17",
+      "metrica": "1 auditoría vendida, entregada y cobrada vía Sinergy (semana 4 del plan)",
+      "notas": "",
+      "orden": 3,
+      "url": "https://www.notion.so/3a3e9b06eecd817ea909e30c9d7cc7c1"
+    },
+    {
+      "meta": "Checkpoint septiembre: $500k CLP acumulados de consultoría",
+      "horizonte": "Mediano",
+      "meta_usd": null,
+      "estado": "Pendiente",
+      "fecha_objetivo": "2026-09-27",
+      "metrica": "≥$500.000 CLP cobrados acumulados. Si no: recalibrar meta a $2.000 dic + $3.000 marzo, sin drama",
+      "notas": "",
+      "orden": 4,
+      "url": "https://www.notion.so/3a3e9b06eecd81ecb59bd3674e29f0cc"
+    },
+    {
+      "meta": "Gatillo de renuncia cumplido",
+      "horizonte": "Mediano",
+      "meta_usd": null,
+      "estado": "Pendiente",
+      "fecha_objetivo": "2026-11-01",
+      "metrica": "Recurrente ≥$1,3M CLP/mes × 2 meses seguidos + runway 4 meses + acuerdo socios funcionando (las 3 a la vez)",
+      "notas": "Solo cuentan retainers + Vant MRR + parte Sinergy. One-offs no cuentan.",
+      "orden": 5,
+      "url": "https://www.notion.so/3a3e9b06eecd81cbb517f37621571417"
+    },
+    {
+      "meta": "USD 3.000/mes recurrente y PORTABLE",
+      "horizonte": "Mediano",
+      "meta_usd": 3000,
+      "estado": "En curso",
+      "fecha_objetivo": "2026-12-31",
+      "metrica": "Mix: retainers $1,2-1,8M + Vant $400-600k + implementaciones $700k-1M + Sinergy $300-500k",
+      "notas": "Que funcione igual desde Santiago, Caracas o Buenos Aires. Escenario piso ($1,5-2M + ahorros intactos) también es victoria.",
+      "orden": 6,
+      "url": "https://www.notion.so/3a3e9b06eecd81088dfdf9903127d448"
+    },
+    {
+      "meta": "USD 7.000/mes — el siguiente escalón",
+      "horizonte": "Largo",
+      "meta_usd": 7000,
+      "estado": "Pendiente",
+      "fecha_objetivo": "2027-12-31",
+      "metrica": "Full-time (40-50h/sem) desde base de costos baja: cada $1 recurrente rinde 3-4×",
+      "notas": "Fase 3 del volante: se activa al llegar con caso + pipeline + 1-2 retainers + Vant andando.",
+      "orden": 7,
+      "url": "https://www.notion.so/3a3e9b06eecd81809ce7f2253d203b60"
+    }
+  ]
+}

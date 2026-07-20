@@ -1,4 +1,4 @@
-const CACHE = 'misistema-v3.28.0';
+const CACHE = 'misistema-v3.29.0';
 const SHELL = [
   './',
   './index.html',
@@ -36,6 +36,21 @@ self.addEventListener('activate', e => {
 
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  // La API de GitHub nunca se cachea (sha/contents deben ser frescos)
+  if (e.request.url.includes('api.github.com')) return;
+  // Network-first para los datos de sync (roadmap.json cambia a diario)
+  if (e.request.url.includes('/data/') && e.request.url.endsWith('.json')) {
+    e.respondWith(
+      fetch(e.request)
+        .then(resp => {
+          const copy = resp.clone();
+          caches.open(CACHE).then(c => c.put(e.request, copy));
+          return resp;
+        })
+        .catch(() => caches.match(e.request))
+    );
+    return;
+  }
   // Network-first para index.html (siempre la versión más nueva)
   if (e.request.url.includes('index.html') || e.request.url.endsWith('/')) {
     e.respondWith(

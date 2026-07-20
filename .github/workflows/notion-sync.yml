@@ -1,0 +1,41 @@
+name: Notion Sync
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'data/daily/**'
+  schedule:
+    # 09:00 UTC ≈ 05:00 Chile — cierra el día anterior y refresca el roadmap
+    - cron: '0 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: notion-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Sincronizar con Notion
+        run: node scripts/notion-sync.mjs
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+
+      - name: Commitear roadmap actualizado
+        run: |
+          git config user.name "notion-sync-bot"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git pull --rebase origin ${GITHUB_REF_NAME} || true
+          git add data/roadmap.json
+          git diff --cached --quiet || { git commit -m "chore: actualizar roadmap desde Notion [skip ci]"; git push; }
